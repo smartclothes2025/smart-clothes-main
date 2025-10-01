@@ -7,7 +7,7 @@ export default function BottomNav(){
       {/* Mobile bottom nav - hidden on md+ */}
       <nav className="fixed bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 md:hidden">
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
-          <Link to="/" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
+          <Link to="/Home" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
             <Home className="w-6 h-6" />
             <span className="text-xs">首頁</span>
           </Link>
