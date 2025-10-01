@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -21,4 +23,7 @@
   .content-card { border-radius: 16px; }
 }
 
-body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
