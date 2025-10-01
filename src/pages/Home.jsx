@@ -1,6 +1,6 @@
 import Header from '../components/Header';
 import WeatherCard from '../components/WeatherCard';
-import CategoryGrid from '../components/CategoryGrid';
+import RecommendInactive from '../components/RecommendInactive';
 import DesktopRightPanel from '../components/DesktopRightPanel';
 import Search from '../components/Search';
 
@@ -24,9 +24,9 @@ export default function Home({ theme, setTheme }) {
 
             <WeatherCard />
 
-            <section>
+            <section className="mt-6 max-h-[60vh] overflow-y-auto">
               <h2 className="text-lg font-semibold mb-3">推薦</h2>
-              <CategoryGrid />
+              <RecommendInactive days={90} showTitle={false} />
             </section>
 
             <section>

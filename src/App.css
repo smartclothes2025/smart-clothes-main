@@ -48,3 +48,6 @@ header {
   border-bottom: 1px solid #e5e7eb;
   background: #fff;
 }
+/* hide scrollbar cross-browser (optional) */
+.flex.overflow-x-auto::-webkit-scrollbar { height: 8px; }
+.flex.overflow-x-auto::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 8px; }
