@@ -48,20 +48,3 @@ header {
   border-bottom: 1px solid #e5e7eb;
   background: #fff;
 }
-
-@keyframes dot {
-  0%   { transform: translateY(0); opacity: 0.3 }
-  30%  { transform: translateY(-4px); opacity: 1 }
-  60%  { transform: translateY(0); opacity: 0.3 }
-  100% { transform: translateY(0); opacity: 0.3 }
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: #6b7280;
-  display: inline-block;
-  margin-right: 6px;
-  animation: dot 1s infinite;
-}
-

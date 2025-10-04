@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
-import { Home, Shirt, Smile, PlusCircle, User } from 'lucide-react';
+// src/components/BottomNav.jsx
+import { Link } from "react-router-dom";
+import { Icon } from "@iconify/react";
 
-export default function BottomNav(){
+export default function BottomNav() {
   return (
     <>
       {/* Mobile bottom nav - hidden on md+ */}
@@ -10,27 +11,53 @@ export default function BottomNav(){
         style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
       >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
-          <Link to="/Home" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
-            <Home className="w-6 h-6" />
+          <Link
+            to="/"
+            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
+            aria-label="首頁"
+          >
+            <Icon icon="mdi:home-outline" className="w-6 h-6" />
             <span className="text-xs">首頁</span>
           </Link>
-          <Link to="/wardrobe" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
-            <Shirt className="w-6 h-6" />
+
+          <Link
+            to="/wardrobe"
+            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
+            aria-label="智慧衣櫃"
+          >
+            {/* 衣櫃 / 衣架 你可二擇一 */}
+            <Icon icon="mdi:wardrobe-outline" className="w-6 h-6" />
+            {/* <Icon icon="ph:hanger-simple" className="w-6 h-6" /> */}
             <span className="text-xs">智慧衣櫃</span>
           </Link>
 
-          <Link to="/upload" className="-mt-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full p-1 shadow-xl transform active:scale-95">
+          <Link
+            to="/upload"
+            className="-mt-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full p-1 shadow-xl active:scale-95"
+            aria-label="新增"
+          >
             <div className="bg-white rounded-full p-3">
-              <PlusCircle className="w-10 h-10 text-blue-600" />
+              <Icon icon="mdi:plus-circle-outline" className="w-10 h-10 text-blue-600" />
             </div>
           </Link>
 
-          <Link to="/assistant" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
-            <Smile className="w-6 h-6" />
+          <Link
+            to="/assistant"
+            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
+            aria-label="小助手"
+          >
+            {/* 小助手可用機器人或魔杖 */}
+            <Icon icon="mdi:robot-excited-outline" className="w-6 h-6" />
+            {/* <Icon icon="mdi:magic-staff" className="w-6 h-6" /> */}
             <span className="text-xs">小助手</span>
           </Link>
-          <Link to="/profile" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
-            <User className="w-6 h-6" />
+
+          <Link
+            to="/profile"
+            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
+            aria-label="我的"
+          >
+            <Icon icon="mdi:account-circle-outline" className="w-6 h-6" />
             <span className="text-xs">我的</span>
           </Link>
         </div>
@@ -44,19 +71,24 @@ export default function BottomNav(){
         <div className="mt-6 flex-1 overflow-y-auto px-2">
           <nav className="space-y-2">
             <Link to="/" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <Home className="w-5 h-5" /> <span>首頁</span>
+              <Icon icon="mdi:home-outline" className="w-5 h-5" />
+              <span>首頁</span>
             </Link>
             <Link to="/wardrobe" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <Shirt className="w-5 h-5" /> <span>智慧衣櫃</span>
+              <Icon icon="mdi:wardrobe-outline" className="w-5 h-5" />
+              <span>智慧衣櫃</span>
             </Link>
             <Link to="/upload" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <PlusCircle className="w-5 h-5" /> <span>新增衣物</span>
+              <Icon icon="mdi:plus-circle-outline" className="w-5 h-5" />
+              <span>新增衣物</span>
             </Link>
             <Link to="/assistant" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <Smile className="w-5 h-5" /> <span>穿搭小助手</span>
+              <Icon icon="mdi:robot-excited-outline" className="w-5 h-5" />
+              <span>穿搭小助手</span>
             </Link>
             <Link to="/profile" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <User className="w-5 h-5" /> <span>我的</span>
+              <Icon icon="mdi:account-circle-outline" className="w-5 h-5" />
+              <span>我的</span>
             </Link>
           </nav>
         </div>

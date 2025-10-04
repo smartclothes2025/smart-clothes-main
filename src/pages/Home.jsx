@@ -1,6 +1,6 @@
 import Header from '../components/Header';
 import WeatherCard from '../components/WeatherCard';
-// import CategoryGrid from '../components/CategoryGrid';
+import CategoryGrid from '../components/CategoryGrid';
 import DesktopRightPanel from '../components/DesktopRightPanel';
 import Search from '../components/Search';
 
@@ -24,10 +24,10 @@ export default function Home({ theme, setTheme }) {
 
             <WeatherCard />
 
-            {/* <section>
+            <section>
               <h2 className="text-lg font-semibold mb-3">推薦</h2>
               <CategoryGrid />
-            </section> */}
+            </section>
 
             <section>
               <h2 className="text-lg font-semibold mb-3">穿搭動態</h2>
