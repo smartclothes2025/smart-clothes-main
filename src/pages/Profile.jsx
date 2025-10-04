@@ -22,7 +22,7 @@ export default function Profile({theme,setTheme}){
   const [tab, setTab] = useState('posts');
 
   return (
-    <div className="min-h-screen pb-32 pt-6 px-4 lg:pl-72">
+  <div className="min-h-full pb-32 md:pb-0 px-4 lg:pl-72">
       <Header title="個人檔案" theme={theme} setTheme={setTheme} />
       <div className="app-max px-4 mt-4">
         <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">

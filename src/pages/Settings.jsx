@@ -27,7 +27,7 @@ export default function Settings({theme, setTheme}){
   };
 
   return (
-    <div className="min-h-screen pb-32 pt-6 px-4 lg:pl-72">
+  <div className="min-h-full pb-32 md:pb-0 px-4 lg:pl-72">
       <Header title="設定" theme={theme} setTheme={setTheme} />
       <div className="app-max px-4 mt-4 space-y-4">
         <Row onClick={() => { /* open notifications */ }}>

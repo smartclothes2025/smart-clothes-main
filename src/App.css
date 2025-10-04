@@ -1,7 +1,7 @@
 #root {
   max-width: 2000px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0 2rem; /* 只保留左右 padding，把上方 padding 移除，避免把內容整體往下推 */
   text-align: center;
 }
 
@@ -41,10 +41,27 @@
   color: #888;
 }
 header {
-  min-height: 64px;
-  padding: 0 24px;
+  min-height: 48px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   border-bottom: 1px solid #e5e7eb;
   background: #fff;
 }
+
+@keyframes dot {
+  0%   { transform: translateY(0); opacity: 0.3 }
+  30%  { transform: translateY(-4px); opacity: 1 }
+  60%  { transform: translateY(0); opacity: 0.3 }
+  100% { transform: translateY(0); opacity: 0.3 }
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #6b7280;
+  display: inline-block;
+  margin-right: 6px;
+  animation: dot 1s infinite;
+}
+

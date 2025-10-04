@@ -5,7 +5,10 @@ export default function BottomNav(){
   return (
     <>
       {/* Mobile bottom nav - hidden on md+ */}
-      <nav className="fixed bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 md:hidden">
+      <nav
+        className="fixed left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 md:hidden"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
+      >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
           <Link to="/Home" className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600">
             <Home className="w-6 h-6" />
@@ -33,14 +36,13 @@ export default function BottomNav(){
         </div>
       </nav>
 
-      {/* Desktop left sidebar - only visible on lg+ */}
-      <aside className="left-sidebar fixed inset-y-0 left-0 bg-white/90 z-30 hidden lg:flex">
-        <div className="mt-6 flex-1">
-          <div className="mb-6 px-2">
-            <div className="text-xl font-bold">智慧穿搭</div>
-            <div className="text-xs text-gray-500">每日建議 · AI 標註</div>
-          </div>
-          <nav className="px-2 space-y-2">
+      {/* Desktop left sidebar - only visible on lg+ 
+          變更重點：把 inset-y-0 改為從 header 底下開始 -> lg:top-16 （對應 header h-16）
+          若 header 高度不是 h-16，請把 lg:top-16 改成對應的值（例如 lg:top-20） */}
+      <aside className="left-sidebar fixed left-0 bg-white/90 z-30 hidden lg:flex lg:top-10 lg:bottom-0 lg:w-72">
+        {/* 加 overflow-y-auto 讓側邊欄在內容多時能滾動 */}
+        <div className="mt-6 flex-1 overflow-y-auto px-2">
+          <nav className="space-y-2">
             <Link to="/" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Home className="w-5 h-5" /> <span>首頁</span>
             </Link>
