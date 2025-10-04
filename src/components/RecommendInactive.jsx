@@ -2,7 +2,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import fetchJSON from '../lib/api';
 import { Icon } from '@iconify/react';
-import inactiveMock from '../mocks/inactiveMock';
+import inactiveMock from '../mock/inactiveMock';
 
 export default function RecommendInactive({ days = 90, showTitle = true }) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -35,7 +35,8 @@ export default function RecommendInactive({ days = 90, showTitle = true }) {
         )}
         <div className="flex gap-4 overflow-x-auto pb-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="w-[300px] h-[220px] rounded-2xl bg-gray-100 animate-pulse" />
+            // 載入骨架改為較小卡片尺寸
+            <div key={i} className="w-[180px] h-[200px] rounded-2xl bg-gray-100 animate-pulse" />
           ))}
         </div>
       </section>
@@ -93,19 +94,22 @@ export default function RecommendInactive({ days = 90, showTitle = true }) {
             <article
               key={item.id}
               role="listitem"
-              className="snap-start min-w-[280px] sm:min-w-[320px] rounded-2xl border border-gray-100 bg-white shadow-sm"
+              // 卡片寬度改小，與衣物總覽的圖片尺寸一致
+              className="snap-start min-w-[160px] sm:min-w-[200px] rounded-2xl border border-gray-100 bg-white shadow-sm"
             >
               {/* 圖片上方大塊 */}
-              <div className="p-4">
+              <div className="p-3">
                 <div className="relative">
                   {/* 正方形大圖 */}
-                  <div className="w-full rounded-xl overflow-hidden bg-gray-100">
-                    {/* 若沒有 plugin，也可用 style={{aspectRatio:'1/1'}} */}
-                    <div className="aspect-[1/1]">
+                  {/* 把主圖縮成和衣物總覽一樣的固定尺寸（96x96）並置中 */}
+                  <div className="w-full flex justify-center">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
                       <img
-                        src={item.imageUrl || 'https://via.placeholder.com/400?text=image'}
+                        src={item.imageUrl || 'https://via.placeholder.com/96?text=image'}
                         alt={item.name}
                         className="w-full h-full object-cover"
+                        width="96"
+                        height="96"
                         loading="lazy"
                       />
                     </div>
@@ -144,16 +148,21 @@ export default function RecommendInactive({ days = 90, showTitle = true }) {
                         <button
                           key={s.id}
                           onClick={() => goToMix(item.id, s.id)}
-                          className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 hover:bg-gray-100"
+                          // 改為直列：圖片上、文字下；寬度與衣物總覽一致 (w-24 => 96px)
+                          className="shrink-0 inline-flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 hover:bg-gray-100"
                           title={`用「${item.name}」+「${s.name}」建立穿搭`}
                         >
-                          <img
-                            src={s.imageUrl || 'https://via.placeholder.com/64'}
-                            alt={s.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                            loading="lazy"
-                          />
-                          <span className="text-sm whitespace-nowrap">{s.name}</span>
+                          <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
+                            <img
+                              src={s.imageUrl || 'https://via.placeholder.com/96'}
+                              alt={s.name}
+                              width="96"
+                              height="96"
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <span className="text-sm text-center mt-1 truncate w-24">{s.name}</span>
                         </button>
                       ))
                     ) : (
