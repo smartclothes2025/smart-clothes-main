@@ -1,17 +1,24 @@
 // src/components/wardrobe/WardrobeOverview.jsx
-
 import { useState } from 'react';
 import WardrobeItem from '../WardrobeItem'; // 假設你已有的元件
 
+// 初始衣物 + 模板
 const initialItems = [
-  { id: 1, name: "白色 T 恤", category: "上衣", wearCount: 15, img: null },
-  { id: 2, name: "牛仔褲", category: "褲裝", wearCount: 25, img: null },
-  { id: 3, name: "黑色洋裝", category: "裙裝", wearCount: 3, img: null },
-  { id: 4, name: "風衣外套", category: "外套", wearCount: 8, img: null },
-  { id: 5, name: "A字裙", category: "裙裝", wearCount: 1, img: null },
+  // 預設的模板衣物
+  { id: 1, name: "白色 T 恤", category: "上衣", wearCount: 15, img: "/images/tshirt.png" },
+  { id: 2, name: "牛仔褲", category: "褲裝", wearCount: 25, img: "/images/jeans.png" },
+  { id: 3, name: "黑色洋裝", category: "裙裝", wearCount: 3, img: "/images/blackdress.png" },
+  { id: 4, name: "風衣外套", category: "外套", wearCount: 8, img: "/images/windbreakerjacket.png" },
+  { id: 5, name: "A字裙", category: "裙裝", wearCount: 1, img: "/images/alineshirt.png" },
+  { id: 6, name: "襯衫", category: "上衣", wearCount: 0, img: "/images/shirt.png" },
+  { id: 7, name: "寬褲", category: "褲裝", wearCount: 0, img: "/images/pants.png" },
+  { id: 8, name: "棒球外套", category: "外套", wearCount: 0, img: "/images/jacket.png" },
+  { id: 9, name: "背心", category: "外套", wearCount: 0, img: "/images/vest.png" },
+  { id: 10, name: "帽子", category: "配飾", wearCount: 0, img: "/images/cap.png" },
 ];
 
-const filters = ["全部", "上衣", "褲裝", "外套", "裙裝"];
+// 篩選類別
+const filters = ["全部", "上衣", "褲裝", "外套", "裙裝", "配飾"];
 
 export default function WardrobeOverview() {
   const [items, setItems] = useState(initialItems);
@@ -23,9 +30,8 @@ export default function WardrobeOverview() {
 
   return (
     <div>
-      {/* 搜尋框和篩選按鈕 */}
+      {/* 篩選按鈕 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* <input type="search" placeholder="搜尋衣物..." className="..."/> */}
         {filters.map((f) => (
           <button
             key={f}
@@ -41,12 +47,11 @@ export default function WardrobeOverview() {
         ))}
       </div>
 
-      {/* 衣物網格 */}
+      {/* 衣物清單 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filteredItems.map((it) => (
           <WardrobeItem key={it.id} item={it} />
         ))}
-        {/* 可以在這裡加上一個「新增衣物」的卡片 */}
       </div>
     </div>
   );
