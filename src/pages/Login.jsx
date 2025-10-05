@@ -68,7 +68,7 @@ const LoginPage = ({ onLogin }) => {
         {/* ========== 左側：登入表單 ========== */}
         <div className="w-full md:w-1/2">
           <div className="p-8 md:p-6">
-            <h1 className="mb-3 text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
+            <h1 className="mb-3 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
               歡迎回來
             </h1>
             <p className="mb-4 text-sm text-gray-600">請登入您的帳戶</p>

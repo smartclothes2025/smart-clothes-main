@@ -41,10 +41,12 @@ export default function WeatherCard() {
     <div className="bg-gradient-to-r from-indigo-50 to-white rounded-2xl p-4 shadow-md w-full">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-sm text-indigo-600">{dateStr}</div>
+         <div className="flex flex-col items-start">
+          <div className="text-sm text-indigo-600">{dateStr}</div> 
           <div className="mt-1 text-3xl font-bold text-gray-900">
             {Math.round(weather.temperature)}°C
           </div>
+        </div>
           <div className="text-sm text-gray-500 capitalize">
             {weather.description} · {weather.suggestion}
           </div>
