@@ -48,7 +48,7 @@ export default function App() {
     <BrowserRouter>
       {isLoggedIn && <Header theme={theme} setTheme={setTheme} />}
 
-      <div className="min-h-full bg-gradient-to-b from-gray-50 to-white pt-12 pb-24 md:pb-0">
+      <div>
         <Routes>
           {/* 登入頁 */}
           <Route path="/" element={<Login onLogin={handleLogin} />} />

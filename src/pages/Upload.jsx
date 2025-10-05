@@ -179,9 +179,8 @@ export default function Upload({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-full pb-32 pt-2 md:pb-0 px-2">
+    <div className="page-wrapper">
       <Header title="新增衣物" theme={theme} setTheme={setTheme} />
-      <div className="lg:pl-72">
         <div className="max-w-6xl mx-auto px-4 mt-4">
           {/* 使用 12 欄格：左 8 欄為圖片/大區塊，右 4 欄為欄位 */}
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
@@ -299,7 +298,6 @@ export default function Upload({ theme, setTheme }) {
               </div>
             </div>
           </form>
-        </div>
       </div>
 
       {/* 底部浮動 sheet（大按鈕） - 微調 bottom 避免擋住內容

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "@iconify/react";
-
+import '../App.css';
 export default function BottomNav() {
   const [open, setOpen] = useState(false);
   return (
@@ -108,7 +108,7 @@ export default function BottomNav() {
       )}
 
       {/* Desktop left sidebar - only visible on lg+ */}
-      <aside className="left-sidebar fixed left-0 bg-white/90 z-30 hidden lg:flex lg:top-10 lg:bottom-0 lg:w-50">
+      <aside className="left-sidebar">
         <div className="mt-6 flex-1 overflow-y-auto px-2">
           <nav className="space-y-2">
             <Link to="/home" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
@@ -119,7 +119,7 @@ export default function BottomNav() {
               <Icon icon="mdi:wardrobe-outline" className="w-5 h-5" />
               <span>智慧衣櫃</span>
             </Link>
-            <Link to="/upload/select" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
+           <Link to="/upload/select" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:plus-circle-outline" className="w-5 h-5" />
               <span>新增衣物</span>
             </Link>

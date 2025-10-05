@@ -22,9 +22,8 @@ export default function UploadSelect({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-full pb-24 pt-2 md:pb-0 px-2">
+    <div className="page-wrapper">
       <Header title="選擇照片" theme={theme} setTheme={setTheme} />
-      <div className="lg:pl-72">
         <div className="max-w-2xl mx-auto px-4 mt-6">
           <div className="bg-white rounded-2xl shadow-sm border p-4">
             <div className="text-sm text-gray-500 mb-3">請選擇來源</div>
@@ -87,6 +86,6 @@ export default function UploadSelect({ theme, setTheme }) {
           </div>
         </div>
       </div>
-    </div>
+    
   );
 }

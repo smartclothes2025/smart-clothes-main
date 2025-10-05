@@ -91,9 +91,8 @@ export default function UploadEdit({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-full pb-24 pt-2 md:pb-0 px-2">
+    <div className="page-wrapper">
       <Header title="編輯照片" theme={theme} setTheme={setTheme} />
-      <div className="lg:pl-72">
         <div className="max-w-3xl mx-auto px-4 mt-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="aspect-square w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
@@ -154,6 +153,5 @@ export default function UploadEdit({ theme, setTheme }) {
           </div>
         </div>
       </div>
-    </div>
   );
 }
