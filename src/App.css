@@ -50,7 +50,7 @@
 /* 內容頁調整(預設)*/
 .page-wrapper {
   min-height: 100vh;
-  padding-top: 4rem;    /* pt-2 */
+  padding-top: 0;    /* pt-2 */
   padding-bottom: 8rem;   /* pb-32 (留給 bottom nav) */
   padding-left: 0.5rem;     /* 手機/小螢幕只給 1rem 左側內距 */
   padding-right: 0.5rem;

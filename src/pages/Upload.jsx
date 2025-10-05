@@ -1,7 +1,7 @@
 // src/pages/Upload.jsx
-import React, { useState, useEffect } from 'react';
-import Header from '../components/Header';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import Layout from "../components/Layout";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function Upload({ theme, setTheme }) {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export default function Upload({ theme, setTheme }) {
     material: "棉",
     style: "休閒",
     size: "M",
-    brand: ""
+    brand: "",
   });
 
   const [file, setFile] = useState(null);
@@ -43,7 +43,7 @@ export default function Upload({ theme, setTheme }) {
     if (st?.file) {
       setFile(st.file);
     }
-    if (typeof st?.removeBg === 'boolean') {
+    if (typeof st?.removeBg === "boolean") {
       setRemoveBg(st.removeBg);
     }
   }, [location.state]);
@@ -61,8 +61,8 @@ export default function Upload({ theme, setTheme }) {
   function handleFileChange(e) {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith('image/')) {
-      alert('請上傳圖片檔（jpg, png）');
+    if (!f.type.startsWith("image/")) {
+      alert("請上傳圖片檔（jpg, png）");
       return;
     }
     setFile(f);
@@ -72,7 +72,7 @@ export default function Upload({ theme, setTheme }) {
     e.preventDefault();
     if (uploading) return;
     if (!file) {
-      alert('請先上傳照片');
+      alert("請先上傳照片");
       return;
     }
 
@@ -97,21 +97,21 @@ export default function Upload({ theme, setTheme }) {
 
       const workingFile = file; // 目前先直接使用原檔，待上方 TODO 串接完成後改為 workingFile
       const fd = new FormData();
-      fd.append('file', workingFile);
-      fd.append('name', form.name);
-      fd.append('category', form.category);
-      fd.append('color', form.color);
-      fd.append('material', form.material);
-      fd.append('style', form.style);
-      fd.append('size', form.size);
-      fd.append('brand', form.brand);
-      fd.append('remove_bg', removeBg ? '1' : '0');
+      fd.append("file", workingFile);
+      fd.append("name", form.name);
+      fd.append("category", form.category);
+      fd.append("color", form.color);
+      fd.append("material", form.material);
+      fd.append("style", form.style);
+      fd.append("size", form.size);
+      fd.append("brand", form.brand);
+      fd.append("remove_bg", removeBg ? "1" : "0");
 
-      const token = localStorage.getItem('token') || '';
-      const res = await fetch('/api/uploads', {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: fd
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch("/api/uploads", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
       });
 
       if (!res.ok) {
@@ -120,11 +120,11 @@ export default function Upload({ theme, setTheme }) {
       }
 
       await res.json();
-      alert('上傳成功！');
+      alert("上傳成功！");
       navigate(-1);
     } catch (err) {
       console.error(err);
-      alert('上傳失敗：' + err.message);
+      alert("上傳失敗：" + err.message);
     } finally {
       setUploading(false);
     }
@@ -134,21 +134,21 @@ export default function Upload({ theme, setTheme }) {
     e.preventDefault();
     if (posting) return;
     if (!postText.trim() && !postImage) {
-      alert('請輸入貼文或上傳圖片');
+      alert("請輸入貼文或上傳圖片");
       return;
     }
 
     setPosting(true);
     try {
       const fd = new FormData();
-      fd.append('content', postText);
-      if (postImage) fd.append('file', postImage);
+      fd.append("content", postText);
+      if (postImage) fd.append("file", postImage);
 
-      const token = localStorage.getItem('token') || '';
-      const res = await fetch('/api/posts', {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: fd
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
       });
 
       if (!res.ok) {
@@ -157,21 +157,21 @@ export default function Upload({ theme, setTheme }) {
       }
 
       await res.json();
-      alert('發文成功！');
+      alert("發文成功！");
       setPostOpen(false);
-      setPostText('');
+      setPostText("");
       setPostImage(null);
       setPostPreview(null);
     } catch (err) {
       console.error(err);
-      alert('發文失敗：' + err.message);
+      alert("發文失敗：" + err.message);
     } finally {
       setPosting(false);
     }
   }
 
   function handleGoQuickAdd() {
-    navigate('/quick-add');
+    navigate("/quick-add");
   }
 
   function handleOpenPost() {
@@ -179,36 +179,53 @@ export default function Upload({ theme, setTheme }) {
   }
 
   return (
-    <div className="page-wrapper">
-      <Header title="新增衣物" theme={theme} setTheme={setTheme} />
+    <Layout title="新增衣物">
+      <div className="page-wrapper">
         <div className="max-w-6xl mx-auto px-4 mt-4">
           {/* 使用 12 欄格：左 8 欄為圖片/大區塊，右 4 欄為欄位 */}
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
             <div className="col-span-12 lg:col-span-8 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <label className="block text-sm text-gray-600 mb-2">預覽照片</label>
+                <label className="block text-sm text-gray-600 mb-2">
+                  預覽照片
+                </label>
                 <div className="mt-2 h-64 bg-gray-50 rounded-md flex items-center justify-center border border-dashed">
                   {!preview ? (
                     <div className="flex flex-col items-center gap-3">
-                      <div className="text-sm text-gray-500">尚未選擇照片，請先回上一步選擇/編輯照片</div>
-                      <button type="button" className="px-3 py-2 rounded-lg border" onClick={() => navigate('/upload/select')}>
+                      <div className="text-sm text-gray-500">
+                        尚未選擇照片，請先回上一步選擇/編輯照片
+                      </div>
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded-lg border"
+                        onClick={() => navigate("/upload/select")}
+                      >
                         重新上傳
                       </button>
                     </div>
                   ) : (
-                    <img src={preview} alt="preview" className="object-contain h-60 w-full" />
+                    <img
+                      src={preview}
+                      alt="preview"
+                      className="object-contain h-60 w-full"
+                    />
                   )}
                 </div>
 
                 {removeBg && (
                   <div className="mt-3 text-xs text-amber-600">
-                    已勾選「智慧去背」。提交時將於此處呼叫後端去背 API（見程式碼 TODO 標註）。
+                    已勾選「智慧去背」。提交時將於此處呼叫後端去背 API（見程式碼
+                    TODO 標註）。
                   </div>
                 )}
 
                 {preview && (
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" className="text-sm underline" onClick={() => navigate('/upload/select')}>
+                    <button
+                      type="button"
+                      className="text-sm underline"
+                      onClick={() => navigate("/upload/select")}
+                    >
                       重新上傳
                     </button>
                     <span className="text-sm text-gray-500">預覽中</span>
@@ -221,7 +238,9 @@ export default function Upload({ theme, setTheme }) {
             <div className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">名稱</label>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    名稱
+                  </label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -231,10 +250,14 @@ export default function Upload({ theme, setTheme }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">類別</label>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    類別
+                  </label>
                   <select
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value })
+                    }
                     className="w-full p-3 border rounded-lg"
                   >
                     <option>上衣</option>
@@ -247,13 +270,17 @@ export default function Upload({ theme, setTheme }) {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={form.color}
-                    onChange={(e) => setForm({ ...form, color: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, color: e.target.value })
+                    }
                     placeholder="顏色"
                     className="p-3 border rounded-lg"
                   />
                   <input
                     value={form.material}
-                    onChange={(e) => setForm({ ...form, material: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, material: e.target.value })
+                    }
                     placeholder="材質"
                     className="p-3 border rounded-lg"
                   />
@@ -262,7 +289,9 @@ export default function Upload({ theme, setTheme }) {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={form.style}
-                    onChange={(e) => setForm({ ...form, style: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, style: e.target.value })
+                    }
                     placeholder="風格"
                     className="p-3 border rounded-lg"
                   />
@@ -277,7 +306,9 @@ export default function Upload({ theme, setTheme }) {
                 <div>
                   <input
                     value={form.brand}
-                    onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, brand: e.target.value })
+                    }
                     placeholder="品牌"
                     className="w-full p-3 border rounded-lg"
                   />
@@ -287,20 +318,29 @@ export default function Upload({ theme, setTheme }) {
                   <button
                     type="submit"
                     disabled={uploading}
-                    className={`flex-1 py-3 rounded-lg ${uploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white'}`}>
-                    {uploading ? '上傳中...' : '完成'}
+                    className={`flex-1 py-3 rounded-lg ${
+                      uploading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-indigo-600 text-white"
+                    }`}
+                  >
+                    {uploading ? "上傳中..." : "完成"}
                   </button>
 
-                  <button type="button" onClick={() => navigate('/upload/select')} className="flex-1 border py-3 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/upload/select")}
+                    className="flex-1 border py-3 rounded-lg"
+                  >
                     取消
                   </button>
                 </div>
               </div>
             </div>
           </form>
-      </div>
+        </div>
 
-      {/* 底部浮動 sheet（大按鈕） - 微調 bottom 避免擋住內容
+        {/* 底部浮動 sheet（大按鈕） - 微調 bottom 避免擋住內容
       <div className="fixed left-1/2 transform -translate-x-1/2 bottom-8 w-[92%] max-w-3xl lg:bottom-12">
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <div className="w-20 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
@@ -328,48 +368,70 @@ export default function Upload({ theme, setTheme }) {
         </div>
       </div> */}
 
-      {/* 發文 Modal */}
-      {postOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setPostOpen(false)} />
-          <div className="relative w-full max-w-3xl bg-white rounded-t-2xl p-4 shadow-xl">
-            <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
-            <form onSubmit={handlePostSubmit} className="space-y-3 pb-6">
-              <textarea
-                value={postText}
-                onChange={(e) => setPostText(e.target.value)}
-                placeholder="想要分享什麼？（可輸入文字或上傳一張圖片）"
-                className="w-full border rounded-lg p-3 min-h-[120px] resize-none"
-              />
+        {/* 發文 Modal */}
+        {postOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setPostOpen(false)}
+            />
+            <div className="relative w-full max-w-3xl bg-white rounded-t-2xl p-4 shadow-xl">
+              <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
+              <form onSubmit={handlePostSubmit} className="space-y-3 pb-6">
+                <textarea
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  placeholder="想要分享什麼？（可輸入文字或上傳一張圖片）"
+                  className="w-full border rounded-lg p-3 min-h-[120px] resize-none"
+                />
 
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPostImage(e.target.files?.[0] || null)}
-                    className="hidden"
-                  />
-                  <div className="px-3 py-2 border rounded-lg">上傳圖片</div>
-                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setPostImage(e.target.files?.[0] || null)
+                      }
+                      className="hidden"
+                    />
+                    <div className="px-3 py-2 border rounded-lg">上傳圖片</div>
+                  </label>
 
-                {postPreview && (
-                  <div className="w-20 h-20 bg-gray-50 rounded-md overflow-hidden">
-                    <img src={postPreview} alt="post preview" className="object-cover w-full h-full" />
+                  {postPreview && (
+                    <div className="w-20 h-20 bg-gray-50 rounded-md overflow-hidden">
+                      <img
+                        src={postPreview}
+                        alt="post preview"
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  )}
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPostOpen(false)}
+                      className="px-4 py-2 border rounded-lg"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={posting}
+                      className={`px-4 py-2 rounded-lg ${
+                        posting ? "bg-gray-400" : "bg-indigo-600 text-white"
+                      }`}
+                    >
+                      {posting ? "發文中..." : "發佈"}
+                    </button>
                   </div>
-                )}
-
-                <div className="ml-auto flex items-center gap-2">
-                  <button type="button" onClick={() => setPostOpen(false)} className="px-4 py-2 border rounded-lg">取消</button>
-                  <button type="submit" disabled={posting} className={`px-4 py-2 rounded-lg ${posting ? 'bg-gray-400' : 'bg-indigo-600 text-white'}`}>
-                    {posting ? '發文中...' : '發佈'}
-                  </button>
                 </div>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Layout>
   );
 }

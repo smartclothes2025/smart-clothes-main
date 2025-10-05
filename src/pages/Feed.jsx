@@ -1,4 +1,4 @@
-import Header from '../components/Header';
+import Layout from "../components/Layout";
 
 const Tab = ({label, active}) => (
   <div className={`px-4 py-2 rounded-full ${active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>

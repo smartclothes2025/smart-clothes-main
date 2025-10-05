@@ -1,7 +1,7 @@
 // src/pages/UploadSelect.jsx
-import React, { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
+import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import Layout from "../components/Layout";
 
 export default function UploadSelect({ theme, setTheme }) {
   const navigate = useNavigate();
@@ -13,17 +13,17 @@ export default function UploadSelect({ theme, setTheme }) {
   function onPickedFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('請選擇圖片檔');
+    if (!file.type.startsWith("image/")) {
+      alert("請選擇圖片檔");
       return;
     }
     // 前往編輯頁
-    navigate('/upload/edit', { state: { file } });
+    navigate("/upload/edit", { state: { file } });
   }
 
   return (
-    <div className="page-wrapper">
-      <Header title="選擇照片" theme={theme} setTheme={setTheme} />
+    <Layout title="選擇照片">
+      <div className="page-wrapper">
         <div className="max-w-2xl mx-auto px-4 mt-6">
           <div className="bg-white rounded-2xl shadow-sm border p-4">
             <div className="text-sm text-gray-500 mb-3">請選擇來源</div>
@@ -86,6 +86,6 @@ export default function UploadSelect({ theme, setTheme }) {
           </div>
         </div>
       </div>
-    
+    </Layout>
   );
 }

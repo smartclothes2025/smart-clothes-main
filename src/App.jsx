@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import BottomNav from './components/BottomNav';
-import Header from './components/Header';
-
 // 使用者頁面
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
@@ -74,8 +71,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {isLoggedIn && <Header theme={theme} setTheme={setTheme} />}
-
       <div>
         <Routes>
           {/* 登入頁：把 handleLogin 傳入，Login 負責依照 role 導向 */}
@@ -83,93 +78,15 @@ export default function App() {
           <Route path="/register" element={<Register />} />
 
           {/* 使用者頁面 */}
-          <Route
-            path="/home"
-            element={
-              <RequireAuth>
-                <Home theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/wardrobe"
-            element={
-              <RequireAuth>
-                <Wardrobe theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/upload"
-            element={
-              <RequireAuth>
-                <Upload theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/upload/select"
-            element={
-              <RequireAuth>
-                <UploadSelect theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/upload/edit"
-            element={
-              <RequireAuth>
-                <UploadEdit theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/post"
-            element={
-              <RequireAuth>
-                <Post theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/assistant"
-            element={
-              <RequireAuth>
-                <Assistant theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <RequireAuth>
-                <Profile theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <RequireAuth>
-                {/* 傳 setIsLoggedIn 與 setUser 到 Settings，讓它做 logout */}
-                <Settings
-                  theme={theme}
-                  setTheme={setTheme}
-                  setIsLoggedIn={setIsLoggedIn}
-                  setUser={setUser}
-                  onLogout={handleLogout}
-                />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/recommend"
-            element={
-              <RequireAuth>
-                <Assistant theme={theme} setTheme={setTheme} />
-              </RequireAuth>
-            }
-          />
+          <Route path="/home" element={<Home theme={theme} setTheme={setTheme} />} />
+          <Route path="/wardrobe" element={<Wardrobe theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload" element={<Upload theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload/select" element={<UploadSelect theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload/edit" element={<UploadEdit theme={theme} setTheme={setTheme} />} />
+          <Route path="/post" element={<Post theme={theme} setTheme={setTheme} />} />
+          <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
+          <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
+          <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
 
           {/* 後臺介面 */}
           <Route
@@ -212,7 +129,6 @@ export default function App() {
           />
         </Routes>
 
-        {isLoggedIn && (user?.role === 'admin' ? <AdminSidebar /> : <BottomNav />)}
       </div>
     </BrowserRouter>
   );
