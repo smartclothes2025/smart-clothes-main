@@ -206,10 +206,6 @@ export default function Upload({ theme, setTheme }) {
                     已勾選「智慧去背」。提交時將於此處呼叫後端去背 API（見程式碼 TODO 標註）。
                   </div>
                 )}
-                {/* 上傳說明（補充說明，置於ⓘ下方） */}
-                <div className="mt-2 text-xs text-gray-500">
-                  建議使用清晰的正面照片，背景簡潔。若啟用去背，系統會於送出時處理背景。
-                </div>
 
                 {preview && (
                   <div className="mt-3 flex items-center gap-3">

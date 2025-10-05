@@ -144,7 +144,7 @@ export default function UploadEdit({ theme, setTheme }) {
                 <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} />
                 <span>智慧去背</span>
               </label>
-              <span className="ml-2 text-gray-400" title="會在下一步呼叫後端 API 進行去背">ⓘ</span>
+              <span className="ml-2 text-gray-400" title="會在下一步呼叫後端 API 建議使用清晰的正面照片，背景簡潔。若啟用去背，系統會自動辨識顏色與類別！">ⓘ</span>
             </div>
 
             <div className="mt-6 flex gap-3">
