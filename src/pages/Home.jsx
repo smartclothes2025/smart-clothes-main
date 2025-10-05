@@ -7,19 +7,13 @@ import Search from '../components/Search';
 
 export default function Home({ theme, setTheme }) {
   return (
-  <div className="min-h-full pb-32 md:pb-0 px-4 lg:pl-72">
-
-      <div className="lg:pr-[380px]">
-
+  <div className="min-h-full pb-32 pt-2 md:pb-0 px-4 lg:pl-72">
+      <div className="lg:pr-[320px]">
         <Header title="智慧穿搭" theme={theme} setTheme={setTheme} />
-
         <div className="app-max px-4">
           <main className="space-y-8 pt-4"> 
-
             <Search />
-
             <WeatherCard />
-
             <section className="mt-6 max-h-[60vh] overflow-y-auto">
               <h2 className="text-lg font-semibold mb-3">推薦</h2>
               <RecommendInactive days={90} showTitle={false} />
@@ -45,7 +39,7 @@ export default function Home({ theme, setTheme }) {
         </div>
       </div>
 
-      <div className="fixed top-16 right-8 hidden lg:block w-80">
+      <div className="fixed top-16 right-3 hidden lg:block w-65">
         <DesktopRightPanel />
       </div>
 

@@ -11,7 +11,7 @@ export default function Wardrobe({ theme, setTheme }) {
   const [activeTab, setActiveTab] = useState(mainTabs[0]);
 
   return (
-  <div className="min-h-full pb-32 md:pb-0">
+  <div className="min-h-full pb-32 pt-2 md:pb-0 px-2">
       <Header title="智慧衣櫃" theme={theme} setTheme={setTheme} />
       <div className="lg:pl-72">
         <div className="max-w-6xl mx-auto px-4">

@@ -55,44 +55,46 @@ export default function Post({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-screen pb-36 pt-6 px-4 lg:pl-72">
-      <Header title="發文" theme={theme} setTheme={setTheme} />
-
-      <form onSubmit={handlePostSubmit} className="mt-4 space-y-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <textarea
-            value={postText}
-            onChange={(e) => setPostText(e.target.value)}
-            placeholder="想要分享什麼？"
-            className="w-full border rounded-lg p-3 min-h-[120px] resize-none"
-          />
-
-          <div className="mt-3 flex items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setPostImage(e.target.files?.[0] || null)}
-                className="hidden"
+    <div className="min-h-full pb-32 pt-2 md:pb-0 px-2">
+      <Header title="上傳貼文" theme={theme} setTheme={setTheme} />
+        <div className="lg:pl-72">
+         <div className="max-w-6xl mx-auto px-4"></div>
+          <form onSubmit={handlePostSubmit} className="mt-4 space-y-4">
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <textarea
+                value={postText}
+                onChange={(e) => setPostText(e.target.value)}
+                placeholder="想要分享什麼？"
+                className="w-full border rounded-lg p-3 min-h-[120px] resize-none"
               />
-              <div className="px-3 py-2 border rounded-lg">上傳圖片</div>
-            </label>
 
-            {postPreview && (
-              <div className="w-20 h-20 bg-gray-50 rounded-md overflow-hidden">
-                <img src={postPreview} alt="post preview" className="object-cover w-full h-full" />
+              <div className="mt-3 flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPostImage(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                  <div className="px-3 py-2 border rounded-lg">上傳圖片</div>
+                </label>
+
+                {postPreview && (
+                  <div className="w-20 h-20 bg-gray-50 rounded-md overflow-hidden">
+                    <img src={postPreview} alt="post preview" className="object-cover w-full h-full" />
+                  </div>
+                )}
+
+                <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 border rounded-lg">取消</button>
+                  <button type="submit" disabled={posting} className={`px-4 py-2 rounded-lg ${posting ? "bg-gray-400" : "bg-indigo-600 text-white"}`}>
+                    {posting ? "發文中..." : "發佈"}
+                  </button>
+                </div>
               </div>
-            )}
-
-            <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 border rounded-lg">取消</button>
-              <button type="submit" disabled={posting} className={`px-4 py-2 rounded-lg ${posting ? "bg-gray-400" : "bg-indigo-600 text-white"}`}>
-                {posting ? "發文中..." : "發佈"}
-              </button>
             </div>
-          </div>
+          </form>
         </div>
-      </form>
     </div>
   );
 }

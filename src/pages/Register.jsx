@@ -108,13 +108,11 @@ const RegisterPage = () => {
           </div>
         </div>
 
-        {/* ========== 右側：裝飾圖片 (手機版會自動隱藏) ========== */}
         <div className="relative hidden w-full md:w-1/2 md:flex flex-col items-center justify-center p-8">
-          <img
-            src="https://images.unsplash.com/photo-1552010099-5343440bACf3?auto=format&fit=crop&q=80"
-            alt="Register page decorative image"
-            className="w-full h-full object-cover rounded-r-2xl"
-          />
+          <h1 className="mb-4 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
+            註冊
+          </h1>
+          <img src="/public/穿搭醬logo.png" alt="穿搭醬 Logo" className="w-auto h-auto max-w-xs" />
         </div>
       </div>
     </div>

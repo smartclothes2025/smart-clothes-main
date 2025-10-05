@@ -80,30 +80,18 @@ export default function Assistant({ theme, setTheme }) {
     setMessages(m => [...m, { id: nextIdRef.current++, role, text }]);
   }
 
-  async function sendToBackend(userText) {
-  setIsTyping(true);
-  try {
-    const response = await fetch("http://localhost:8000/api/v1/chat/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ user_input: userText }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    addMessage('assistant', data.reply); // 假設後端回傳 { reply: "..." }
-  } catch (err) {
-    console.error(err);
-    addMessage('assistant', "後端連線失敗，請稍後再試。");
-  } finally {
-    setIsTyping(false);
+  // 模擬後端回覆（暫時替代 fetch）
+  function simulateBackendReply(userText) {
+    setIsTyping(true);
+    // 簡單模擬：根據 userText 回一個範例回覆，延遲 700~1000ms
+    const delay = 700 + Math.floor(Math.random() * 300);
+    setTimeout(() => {
+      // 你可以在這裡把回覆改成更複雜的邏輯或範例集合
+      const reply = `模擬回覆：我收到你的問題「${userText}」，這是示範回覆。`;
+      addMessage('assistant', reply);
+      setIsTyping(false);
+    }, delay);
   }
-}
 
   async function handleSend(e) {
     e?.preventDefault();
@@ -112,17 +100,22 @@ export default function Assistant({ theme, setTheme }) {
     setSending(true);
     addMessage('user', txt);
     setInput('');
+
     try {
-      await sendToBackend(txt);
+      // 改為使用模擬回覆
+      simulateBackendReply(txt);
     } finally {
       setSending(false);
     }
   }
 
+  // 若你曾在其他地方直接呼叫 sendToBackend()，可改成呼叫 simulateBackendReply()
+  // 原本的 sendToBackend() (fetch) 已被移除以暫時停用後端。
+
   const quickPrompts = ['推薦今日穿搭', '正式場合穿搭建議'];
 
   return (
-    <div className="min-h-screen px-4 lg:pl-72 bg-gray-50 overflow-hidden">
+    <div className="min-h-screen pb-32 pt-2 md:pb-0 px-4 lg:pl-72 bg-gray-50 overflow-hidden">
       <Header title="穿搭小助手" theme={theme} setTheme={setTheme} />
       <div className="max-w-5xl mx-auto mt-4">
         <div

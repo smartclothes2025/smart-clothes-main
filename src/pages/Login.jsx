@@ -46,12 +46,14 @@ const LoginPage = ({ onLogin }) => {
   // --- 訪客登入邏輯 ---
   const handleGuestLogin = () => {
     console.log('訪客登入...');
-    // 同樣呼叫父元件的 onLogin 函式
     if (onLogin) {
       onLogin();
+      console.log('onLogin called, navigating to /home');
     } else {
-      navigate('/home');
+      console.log('onLogin not provided, navigating to /home directly');
     }
+    navigate('/home');
+    setLoginState('login'); // 將登入狀態設置為 'login'
   };
 
   return (
@@ -69,7 +71,7 @@ const LoginPage = ({ onLogin }) => {
             <h1 className="mb-2 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
               歡迎回來
             </h1>
-            <p className="mb-8 text-sm text-gray-600">很高興再次見到您！請登入您的帳戶。</p>
+            <p className="mb-8 text-sm text-gray-600">請登入您的帳戶</p>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="relative">
@@ -137,7 +139,6 @@ const LoginPage = ({ onLogin }) => {
 
             <div className="text-center text-sm text-gray-500 mt-10">
               還沒有帳戶嗎?{' '}
-              {/* --- 這裡的 Link 元件會正確導航到 /register --- */}
               <Link to="/register" className="font-semibold text-amber-600 hover:underline">
                 立即註冊
               </Link>
@@ -145,10 +146,9 @@ const LoginPage = ({ onLogin }) => {
           </div>
         </div>
 
-        {/* ========== 右側：Logo 與標語 (手機版會自動隱藏) ========== */}
         <div className="relative hidden w-full md:w-1/2 md:flex flex-col items-center justify-center p-8">
           <h1 className="mb-4 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
-            智慧穿衣
+            登入
           </h1>
           <img src="/public/穿搭醬logo.png" alt="穿搭醬 Logo" className="w-auto h-auto max-w-xs" />
         </div>

@@ -150,16 +150,12 @@ export default function Upload({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-screen pb-40">
+    <div className="min-h-full pb-32 pt-2 md:pb-0 px-2">
       <Header title="新增衣物" theme={theme} setTheme={setTheme} />
-
-      {/* 預留左側側邊欄空間（和 aside 寬度一致） */}
       <div className="lg:pl-72">
-        {/* 與衣櫃一致的最大寬度容器 */}
         <div className="max-w-6xl mx-auto px-4 mt-4">
           {/* 使用 12 欄格：左 8 欄為圖片/大區塊，右 4 欄為欄位 */}
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
-            {/* 左側主要區塊（預覽） */}
             <div className="col-span-12 lg:col-span-8 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <label className="block text-sm text-gray-600 mb-2">上傳照片</label>

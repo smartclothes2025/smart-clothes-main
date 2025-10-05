@@ -14,7 +14,7 @@ export default function BottomNav() {
       >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
           <Link
-            to="/"
+            to="/home"
             className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
             aria-label="首頁"
           >
@@ -108,10 +108,10 @@ export default function BottomNav() {
       )}
 
       {/* Desktop left sidebar - only visible on lg+ */}
-      <aside className="left-sidebar fixed left-0 bg-white/90 z-30 hidden lg:flex lg:top-10 lg:bottom-0 lg:w-72">
+      <aside className="left-sidebar fixed left-0 bg-white/90 z-30 hidden lg:flex lg:top-10 lg:bottom-0 lg:w-50">
         <div className="mt-6 flex-1 overflow-y-auto px-2">
           <nav className="space-y-2">
-            <Link to="/" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
+            <Link to="/home" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:home-outline" className="w-5 h-5" />
               <span>首頁</span>
             </Link>
@@ -122,6 +122,10 @@ export default function BottomNav() {
             <Link to="/upload" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:plus-circle-outline" className="w-5 h-5" />
               <span>新增衣物</span>
+            </Link>
+            <Link to="/post" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
+              <Icon icon="mdi:plus-circle-outline" className="w-5 h-5" />
+              <span>上傳貼文</span>
             </Link>
             <Link to="/assistant" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:robot-excited-outline" className="w-5 h-5" />
