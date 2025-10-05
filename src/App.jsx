@@ -7,6 +7,8 @@ import Header from './components/Header';
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
 import Upload from './pages/Upload';
+import UploadSelect from './pages/UploadSelect';
+import UploadEdit from './pages/UploadEdit';
 import Assistant from './pages/Assistant';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
@@ -74,6 +76,22 @@ export default function App() {
             element={
               <RequireAuth>
                 <Upload theme={theme} setTheme={setTheme} />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/upload/select"
+            element={
+              <RequireAuth>
+                <UploadSelect theme={theme} setTheme={setTheme} />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/upload/edit"
+            element={
+              <RequireAuth>
+                <UploadEdit theme={theme} setTheme={setTheme} />
               </RequireAuth>
             }
           />

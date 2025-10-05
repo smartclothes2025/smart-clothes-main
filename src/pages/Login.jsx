@@ -57,7 +57,7 @@ const LoginPage = ({ onLogin }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-green-50 font-sans p-4">
+    <div className="login">
       <div 
         className={`
           relative flex flex-col m-6 bg-white shadow-2xl rounded-2xl md:flex-row md:space-y-0 w-full max-w-4xl
@@ -67,11 +67,11 @@ const LoginPage = ({ onLogin }) => {
       >
         {/* ========== 左側：登入表單 ========== */}
         <div className="w-full md:w-1/2">
-          <div className="p-8 md:p-12">
-            <h1 className="mb-2 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
+          <div className="p-8 md:p-6">
+            <h1 className="mb-3 text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
               歡迎回來
             </h1>
-            <p className="mb-8 text-sm text-gray-600">請登入您的帳戶</p>
+            <p className="mb-4 text-sm text-gray-600">請登入您的帳戶</p>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="relative">
@@ -80,7 +80,7 @@ const LoginPage = ({ onLogin }) => {
                 </svg>
                 <input
                   type="text"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="w-full p-2 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
                   name="username"
                   placeholder="使用者名稱或電子郵件"
                   value={username}
@@ -95,7 +95,7 @@ const LoginPage = ({ onLogin }) => {
                 <input
                   type="password"
                   id="password"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="w-full p-2 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
                   name="password"
                   placeholder="請輸入您的密碼"
                   value={password}
@@ -116,7 +116,7 @@ const LoginPage = ({ onLogin }) => {
               </button>
             </form>
 
-            <div className="flex items-center my-8">
+            <div className="flex items-center my-5">
               <hr className="flex-grow border-t border-gray-200" />
               <span className="px-4 text-sm text-gray-500">或</span>
               <hr className="flex-grow border-t border-gray-200" />
@@ -137,7 +137,7 @@ const LoginPage = ({ onLogin }) => {
               </button>
             </div>
 
-            <div className="text-center text-sm text-gray-500 mt-10">
+            <div className="text-center text-sm text-gray-500 mt-6">
               還沒有帳戶嗎?{' '}
               <Link to="/register" className="font-semibold text-amber-600 hover:underline">
                 立即註冊

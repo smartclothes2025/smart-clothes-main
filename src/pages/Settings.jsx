@@ -25,11 +25,10 @@ export default function Settings({ theme, setTheme, setIsLoggedIn }) {
   };
 
   return (
-    <div className="min-h-full pb-32 pt-4 md:pb-0 px-4 lg:pl-72">
-      {/* 本頁標題（Header 由 App.jsx 控制，避免重複與跑版） */}
+    <div className="page-wrapper">
+      
       <div className="app-max px-2 mt-2 space-y-4">
-        <h1 className="text-xl font-semibold mb-2">設定</h1>
-
+        <div/>
         <Row onClick={() => { /* 之後可導到通知頁 */ }}>
           <div className="flex items-center gap-3">
             <Bell className="w-5 h-5 text-gray-600" /> 通知

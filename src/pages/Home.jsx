@@ -7,8 +7,8 @@ import Search from '../components/Search';
 
 export default function Home({ theme, setTheme }) {
   return (
-  <div className="min-h-full pb-32 pt-2 md:pb-0 px-4 lg:pl-72">
-      <div className="lg:pr-[320px]">
+  <div className="page-wrapper">
+      <div className="lg:pr-[140px]">
         <Header title="智慧穿搭" theme={theme} setTheme={setTheme} />
         <div className="app-max px-4">
           <main className="space-y-8 pt-4"> 

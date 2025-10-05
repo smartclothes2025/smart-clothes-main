@@ -1,53 +1,143 @@
 #root {
-  max-width: 2000px;
-  margin: 0 auto;
-  padding: 0 2rem; /* 只保留左右 padding，把上方 padding 移除，避免把內容整體往下推 */
+  max-width: 1800px;
+  margin: 0;
+  padding: 0;
   text-align: center;
+  
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-header {
-  min-height: 48px;
-  padding: 0 16px;
+.login {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 0;                   
+  background-color: #f0fdf4;
+  box-sizing: border-box;
 }
-/* hide scrollbar cross-browser (optional) */
+
+
+@keyframes logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo { animation: logo-spin infinite 20s linear; }
+}
+
+.card { padding: 2em; }
+.read-the-docs { color: #888; }
+
+/* hide scrollbar (optional) */
 .flex.overflow-x-auto::-webkit-scrollbar { height: 8px; }
 .flex.overflow-x-auto::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 8px; }
+
+/* ---------- CSS 變數 (共用) ---------- */
+:root{
+  --gutter: 1rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-h: 3.5rem;
+  --bottom-radius: 1rem;
+  --panel-bg: rgba(255,255,255,0.95);
+  --panel-border: #f3f4f6;
+  --shadow-lg: 0 10px 30px rgba(2,6,23,0.08);
+
+  --left-sidebar-w: 12.5rem;  /* lg:w-50 */
+  --right-min: 220px;
+  --right-max: 28%;
+  --gap: 1.5rem;
+
+  --right-panel-top-offset: 4.5rem;
+}
+
+/* 內容頁調整(預設)*/
+.page-wrapper {
+  min-height: 100vh;
+  padding-top: 4rem;    /* pt-2 */
+  padding-bottom: 8rem;   /* pb-32 (留給 bottom nav) */
+  padding-left: 0.5rem;     /* 手機/小螢幕只給 1rem 左側內距 */
+  padding-right: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+/* 內容頁調整(桌機)*/
+@media (min-width: 1024px) {
+  .page-wrapper {
+    width: 75%;
+    padding-left: 1rem; /* 內距維持 1rem */
+    padding-right: 0;
+    padding-bottom: 0;
+    margin-left: var(--left-sidebar-w); /* 預留左側 sidebar 空間（整體右移） */
+  }
+
+  /* optional: 如果你想 bottom-nav 在桌面也避開左側 */
+  .bottom-nav { left: calc(var(--left-sidebar-w) + var(--gutter)); }
+}
+
+
+/* home-grid: single column on mobile, two-column on lg+ */
+.home-grid { display: block; gap: var(--gap); }
+@media (min-width: 1024px) {
+  .home-grid {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(var(--right-min), var(--right-max));
+    gap: var(--gap);
+    align-items: start;
+  }
+}
+
+/* main-content */
+.main-content { width: 100%; }
+
+/* right-panel */
+.right-panel { display: none; }
+@media (min-width: 1024px) { .right-panel { display: block; } }
+.right-panel .inner { position: sticky; top: var(--right-panel-top-offset); align-self: start; }
+
+/* main spacing */
+.main-content main { gap: 2rem; }
+
+/* recommend scroll area */
+.recommend-scroll { max-height: 60vh; overflow-y: auto; }
+
+/* card & thumb */
+.card {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.04);
+}
+.card .thumb {
+  height: 22vh;
+  max-height: 260px;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+@media (min-width: 768px) { .card .thumb { height: 16vh; } }
+
+
+/* 側邊欄*/
+.left-sidebar {
+  position: fixed;
+  left:0;
+  top:2.5rem;
+  bottom:0;
+  width: var(--left-sidebar-w);
+  z-index: 30;
+  background: rgba(255,255,255,0.95);
+  overflow-y: auto;
+  display:none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+}
+@media (min-width:1024px){ .left-sidebar{ display:flex; flex-direction:column; } }
+.left-sidebar nav a { display:flex; align-items:center; gap:.75rem; padding:.6rem .75rem; color:#111827; text-decoration:none; border-radius:.5rem; }
+.left-sidebar nav a:hover { background:#f8fafc; }
+
+
+/* lock body when modal open */
+body.modal-open { overflow: hidden; touch-action: none; }
+
+/* utilities */
+.lg-pl-72-override { padding-left: 0 !important; }
+.lg-pr-320-override { padding-right: 0 !important; }
+.action-sheet-root[style*="display: none"] { display: flex !important; }

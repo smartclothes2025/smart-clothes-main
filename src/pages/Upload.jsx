@@ -1,11 +1,11 @@
 // src/pages/Upload.jsx
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
-import { useNavigate } from 'react-router-dom';
-import { Camera } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Upload({ theme, setTheme }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({
     name: "",
     category: "上衣",
@@ -15,11 +15,11 @@ export default function Upload({ theme, setTheme }) {
     size: "M",
     brand: ""
   });
-  const [autoTag, setAutoTag] = useState(true);
 
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [removeBg, setRemoveBg] = useState(false);
 
   const [postOpen, setPostOpen] = useState(false);
   const [postText, setPostText] = useState("");
@@ -36,6 +36,17 @@ export default function Upload({ theme, setTheme }) {
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // 接收來自編輯頁的檔案與去背選項
+  useEffect(() => {
+    const st = location.state;
+    if (st?.file) {
+      setFile(st.file);
+    }
+    if (typeof st?.removeBg === 'boolean') {
+      setRemoveBg(st.removeBg);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (!postImage) {
@@ -67,8 +78,26 @@ export default function Upload({ theme, setTheme }) {
 
     setUploading(true);
     try {
+      // 這裡可先呼叫「去背」服務，取得處理後影像再上傳
+      // TODO: 後端去背 API 串接位置（若勾選智慧去背 removeBg=true）
+      // let workingFile = file;
+      // if (removeBg) {
+      //   const fdBg = new FormData();
+      //   fdBg.append('file', file);
+      //   const token = localStorage.getItem('token') || '';
+      //   const bgRes = await fetch('/api/remove_bg', {
+      //     method: 'POST',
+      //     headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      //     body: fdBg
+      //   });
+      //   if (!bgRes.ok) throw new Error('去背服務失敗');
+      //   const bgBlob = await bgRes.blob();
+      //   workingFile = new File([bgBlob], file.name.replace(/\.[^.]+$/, '') + '_bg_removed.png', { type: bgBlob.type || 'image/png' });
+      // }
+
+      const workingFile = file; // 目前先直接使用原檔，待上方 TODO 串接完成後改為 workingFile
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', workingFile);
       fd.append('name', form.name);
       fd.append('category', form.category);
       fd.append('color', form.color);
@@ -76,7 +105,7 @@ export default function Upload({ theme, setTheme }) {
       fd.append('style', form.style);
       fd.append('size', form.size);
       fd.append('brand', form.brand);
-      fd.append('auto_tag', autoTag ? '1' : '0');
+      fd.append('remove_bg', removeBg ? '1' : '0');
 
       const token = localStorage.getItem('token') || '';
       const res = await fetch('/api/uploads', {
@@ -158,37 +187,34 @@ export default function Upload({ theme, setTheme }) {
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
             <div className="col-span-12 lg:col-span-8 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <label className="block text-sm text-gray-600 mb-2">上傳照片</label>
+                <label className="block text-sm text-gray-600 mb-2">預覽照片</label>
                 <div className="mt-2 h-64 bg-gray-50 rounded-md flex items-center justify-center border border-dashed">
                   {!preview ? (
-                    <label className="flex flex-col items-center gap-2 cursor-pointer">
-                      <div className="text-sm text-gray-500">拖曳或點擊上傳</div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="text-sm text-gray-500">尚未選擇照片，請先回上一步選擇/編輯照片</div>
+                      <button type="button" className="px-3 py-2 rounded-lg border" onClick={() => navigate('/upload/select')}>
+                        重新上傳
+                      </button>
+                    </div>
                   ) : (
                     <img src={preview} alt="preview" className="object-contain h-60 w-full" />
                   )}
                 </div>
 
+                {removeBg && (
+                  <div className="mt-3 text-xs text-amber-600">
+                    已勾選「智慧去背」。提交時將於此處呼叫後端去背 API（見程式碼 TODO 標註）。
+                  </div>
+                )}
+
                 {preview && (
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" className="text-sm underline" onClick={() => { setFile(null); setPreview(null); }}>
-                      移除照片
+                    <button type="button" className="text-sm underline" onClick={() => navigate('/upload/select')}>
+                      重新上傳
                     </button>
                     <span className="text-sm text-gray-500">預覽中</span>
                   </div>
                 )}
-              </div>
-
-              {/* 可放一些額外說明或大區塊 */}
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <h3 className="font-medium mb-2">上傳說明</h3>
-                <p className="text-sm text-gray-500">建議使用清晰的正面照片，背景簡潔。系統會自動辨識顏色與類別（若啟用 AI 自動分類）。</p>
               </div>
             </div>
 
@@ -258,18 +284,6 @@ export default function Upload({ theme, setTheme }) {
                   />
                 </div>
 
-                <div>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={autoTag}
-                      onChange={(e) => setAutoTag(e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-600">AI 自動分類（模擬 90%）</span>
-                  </label>
-                </div>
-
                 <div className="flex gap-3">
                   <button
                     type="submit"
@@ -278,7 +292,7 @@ export default function Upload({ theme, setTheme }) {
                     {uploading ? '上傳中...' : '完成'}
                   </button>
 
-                  <button type="button" onClick={() => navigate(-1)} className="flex-1 border py-3 rounded-lg">
+                  <button type="button" onClick={() => navigate('/upload/select')} className="flex-1 border py-3 rounded-lg">
                     取消
                   </button>
                 </div>

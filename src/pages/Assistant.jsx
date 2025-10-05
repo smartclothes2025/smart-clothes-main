@@ -115,7 +115,7 @@ export default function Assistant({ theme, setTheme }) {
   const quickPrompts = ['推薦今日穿搭', '正式場合穿搭建議'];
 
   return (
-    <div className="min-h-screen pb-32 pt-2 md:pb-0 px-4 lg:pl-72 bg-gray-50 overflow-hidden">
+    <div className="page-wrapper">
       <Header title="穿搭小助手" theme={theme} setTheme={setTheme} />
       <div className="max-w-5xl mx-auto mt-4">
         <div

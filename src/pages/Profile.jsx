@@ -22,15 +22,14 @@ export default function Profile({theme,setTheme}){
   const [tab, setTab] = useState('posts');
 
   return (
-  <div className="min-h-full pb-32 md:pb-0 px-4 lg:pl-72">
+  <div className="page-wrapper">
       <Header title="個人檔案" theme={theme} setTheme={setTheme} />
-      <div className="app-max px-4 mt-4">
         <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center text-3xl">🙂</div>
+            <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center text-3xl">頭貼</div>
             <div>
-              <div className="text-lg font-semibold">三番</div>
-              <div className="text-sm text-gray-500">穿搭小達人 · 生活紀錄家</div>
+              <div className="text-lg font-semibold">姓名</div>
+              <div className="text-sm text-gray-500">介紹</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -76,6 +75,6 @@ export default function Profile({theme,setTheme}){
           </div>
         </div>
       </div>
-    </div>
+    
   );
 }

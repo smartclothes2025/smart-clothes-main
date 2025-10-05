@@ -55,9 +55,8 @@ export default function Post({ theme, setTheme }) {
   }
 
   return (
-    <div className="min-h-full pb-32 pt-2 md:pb-0 px-2">
+    <div className="page-wrapper">
       <Header title="上傳貼文" theme={theme} setTheme={setTheme} />
-        <div className="lg:pl-72">
          <div className="max-w-6xl mx-auto px-4"></div>
           <form onSubmit={handlePostSubmit} className="mt-4 space-y-4">
             <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -95,6 +94,5 @@ export default function Post({ theme, setTheme }) {
             </div>
           </form>
         </div>
-    </div>
   );
 }

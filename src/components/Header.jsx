@@ -4,7 +4,7 @@ import ThemeSelect from '../components/ThemeSelect';
 
 export default function Header({ title, theme, setTheme }) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 px-4 flex items-center justify-between bg-white/95 backdrop-blur-sm shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 px-10 flex items-center justify-between bg-white/95 backdrop-blur-sm shadow-sm">
       <div className="flex items-center gap-2">
         <img src="/穿搭醬logo.png" alt="穿搭醬 Logo" className="h-8 w-auto" />
         <h1 className="text-xl font-extrabold tracking-tight text-gray-900">{title}</h1>

@@ -74,7 +74,7 @@ export default function BottomNav() {
           >
             <div className="flex items-stretch gap-3">
               <Link
-                to="/upload"
+                to="/upload/select"
                 onClick={() => setOpen(false)}
                 className="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 p-4 active:scale-95"
               >
@@ -119,7 +119,7 @@ export default function BottomNav() {
               <Icon icon="mdi:wardrobe-outline" className="w-5 h-5" />
               <span>智慧衣櫃</span>
             </Link>
-            <Link to="/upload" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
+            <Link to="/upload/select" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:plus-circle-outline" className="w-5 h-5" />
               <span>新增衣物</span>
             </Link>
