@@ -24,7 +24,7 @@ export default function UploadEdit({ theme, setTheme }) {
   if (!srcFile) {
     return (
       <div className="min-h-full pb-24 pt-2 md:pb-0 px-2">
-        <Header title="編輯照片" theme={theme} setTheme={setTheme} />
+        <Header title="編輯照片"/>
         <div className="lg:pl-72">
           <div className="max-w-xl mx-auto p-6 text-center text-gray-500">
             找不到圖片來源，請重新選擇。
@@ -119,7 +119,7 @@ export default function UploadEdit({ theme, setTheme }) {
                   src={previewUrl}
                   alt="preview"
                   style={{ transform: `rotate(${rotate}deg)`, objectFit: fit }}
-                  className="max-h-full max-w-full"
+                   className="w-full h-full"
                 />
               )}
             </div>

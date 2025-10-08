@@ -29,8 +29,6 @@ export default function Settings({ theme, setTheme, setIsLoggedIn, setUser, onLo
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('refreshToken');
-      // 若你有其他 auth 相關 key，也一併清除
-      // localStorage.removeItem('someOtherAuthKey');
 
       // 2) 如果父元件提供 onLogout callback，優先呼叫它（可做 server 登出/撤銷 refresh token）
       if (typeof onLogout === 'function') {
@@ -63,37 +61,29 @@ export default function Settings({ theme, setTheme, setIsLoggedIn, setUser, onLo
       <div className="page-wrapper">
         <div className="app-max px-2 mt-2 space-y-4">
           <div />
-          <Row onClick={() => { /* 通知設定 */ }}>
+          <Row onClick={() => {}}>
             <div className="flex items-center gap-3">
               <Bell className="w-5 h-5 text-gray-600" /> 通知
             </div>
           </Row>
 
-          <Row onClick={() => { /* 收藏的穿搭 */ }}>
+          <Row onClick={() => {}}>
             收藏的穿搭
           </Row>
 
-          <Row onClick={() => { /* 收藏的貼文 */ }}>
+          <Row onClick={() => {}}>
             收藏的貼文
           </Row>
 
-          <Row onClick={() => { /* 使用說明 */ }}>
-            使用說明
-          </Row>
-
-          <Row onClick={() => { /* 帳號設定 */ }}>
+          <Row onClick={() => {}}>
             帳號設定
           </Row>
 
-          <Row onClick={() => { /* 關於 */ }}>
-            關於
-          </Row>
-
-          <Row onClick={() => { /* 聯絡我們 */ }}>
+          <Row onClick={() => {}}>
             聯絡我們
           </Row>
 
-          <Row onClick={() => { /* 切換主題備位 */ }}>
+          <Row onClick={() => {}}>
             <div className="w-full flex items-center justify-between gap-3">
               <span>切換主題</span>
               <ThemeSelect theme={theme} setTheme={setTheme} />

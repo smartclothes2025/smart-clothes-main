@@ -78,18 +78,8 @@ export default function Profile({ theme, setTheme }) {
               <>
                 <ExampleCard
                   emoji="😊"
-                  title="今日穿搭分享"
-                  desc="簡約白T + 黑褲，舒適好搭。"
-                />
-                <ExampleCard
-                  emoji="😕"
-                  title="淺色配件搭配問題"
-                  desc="這雙鞋子搭不搭褲子？"
-                />
-                <ExampleCard
-                  emoji="😂"
-                  title="穿搭小趣事"
-                  desc="出門遇到朋友被誇讚！"
+                  title="標題"
+                  desc="內容"
                 />
               </>
             )}

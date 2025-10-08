@@ -1,5 +1,5 @@
 #root {
-  max-width: 1800px;
+  width: 100%;
   margin: 0;
   padding: 0;
   text-align: center;
@@ -49,10 +49,10 @@
 
 /* 內容頁調整(預設)*/
 .page-wrapper {
-  min-height: 100vh;
-  padding-top: 0;    /* pt-2 */
-  padding-bottom: 8rem;   /* pb-32 (留給 bottom nav) */
-  padding-left: 0.5rem;     /* 手機/小螢幕只給 1rem 左側內距 */
+  min-height: 80vh;
+  padding-top: 0;    
+  padding-bottom: 8rem;  
+  padding-left: 0.5rem;     
   padding-right: 0.5rem;
   box-sizing: border-box;
   width: 100%;
@@ -61,10 +61,10 @@
 @media (min-width: 1024px) {
   .page-wrapper {
     width: 75%;
-    padding-left: 1rem; /* 內距維持 1rem */
+    padding-left: 1rem; 
     padding-right: 0;
-    padding-bottom: 0;
-    margin-left: var(--left-sidebar-w); /* 預留左側 sidebar 空間（整體右移） */
+    padding-bottom: 1rem;
+    margin-left: var(--left-sidebar-w); 
   }
 
   /* optional: 如果你想 bottom-nav 在桌面也避開左側 */
@@ -124,15 +124,15 @@
   bottom:0;
   width: var(--left-sidebar-w);
   z-index: 30;
-  background: rgba(255,255,255,0.95);
+
   overflow-y: auto;
   display:none;
   box-shadow: 0 6px 20px rgba(0,0,0,0.04);
   padding-top: 0;
 }
 @media (min-width:1024px){ .left-sidebar{ display:flex; flex-direction:column; } }
-.left-sidebar nav a { display:flex; align-items:center; gap:.75rem; padding:.6rem .75rem; color:#111827; text-decoration:none; border-radius:.5rem; }
-.left-sidebar nav a:hover { background:#f8fafc; }
+.left-sidebar nav a { display:flex; align-items:center; gap:.75rem;color:#641b61; text-decoration:none; border-radius:.5rem; }
+.left-sidebar nav a:hover { background:#cce6ff; }
 
 
 /* lock body when modal open */
@@ -142,3 +142,14 @@ body.modal-open { overflow: hidden; touch-action: none; }
 .lg-pl-72-override { padding-left: 0 !important; }
 .lg-pr-320-override { padding-right: 0 !important; }
 .action-sheet-root[style*="display: none"] { display: flex !important; }
+
+/* 後臺內容頁調整*/
+.bankpage-wrapper {
+  padding-top: 1rem;    
+  padding-bottom: 1rem;   
+  padding-left: 1rem;  
+  padding-right: 1rem;
+  box-sizing: border-box;
+  margin-left: var(--left-sidebar-w);
+  height: 100vh;
+}

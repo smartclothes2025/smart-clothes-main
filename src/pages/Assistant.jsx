@@ -128,7 +128,7 @@ export default function Assistant({ theme, setTheme }) {
   return (
     <Layout title="穿搭小助手">
       <div className="page-wrapper">
-        <div className="max-w-5xl mx-auto mt-4">
+        <div className="max-w-5xl mx-auto mt-2">
           <div
             className="assistant-card bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col"
             style={cardHeightPx ? { height: `${cardHeightPx}px` } : undefined}
