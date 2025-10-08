@@ -69,66 +69,61 @@ export default function Upload({ theme, setTheme }) {
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    if (uploading) return;
-    if (!file) {
-      alert("請先上傳照片");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // 這裡可先呼叫「去背」服務，取得處理後影像再上傳
-      // TODO: 後端去背 API 串接位置（若勾選智慧去背 removeBg=true）
-      // let workingFile = file;
-      // if (removeBg) {
-      //   const fdBg = new FormData();
-      //   fdBg.append('file', file);
-      //   const token = localStorage.getItem('token') || '';
-      //   const bgRes = await fetch('/api/remove_bg', {
-      //     method: 'POST',
-      //     headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      //     body: fdBg
-      //   });
-      //   if (!bgRes.ok) throw new Error('去背服務失敗');
-      //   const bgBlob = await bgRes.blob();
-      //   workingFile = new File([bgBlob], file.name.replace(/\.[^.]+$/, '') + '_bg_removed.png', { type: bgBlob.type || 'image/png' });
-      // }
-
-      const workingFile = file; // 目前先直接使用原檔，待上方 TODO 串接完成後改為 workingFile
-      const fd = new FormData();
-      fd.append("file", workingFile);
-      fd.append("name", form.name);
-      fd.append("category", form.category);
-      fd.append("color", form.color);
-      fd.append("material", form.material);
-      fd.append("style", form.style);
-      fd.append("size", form.size);
-      fd.append("brand", form.brand);
-      fd.append("remove_bg", removeBg ? "1" : "0");
-
-      const token = localStorage.getItem("token") || "";
-      const res = await fetch("/api/uploads", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || JSON.stringify(err));
-      }
-
-      await res.json();
-      alert("上傳成功！");
-      navigate(-1);
-    } catch (err) {
-      console.error(err);
-      alert("上傳失敗：" + err.message);
-    } finally {
-      setUploading(false);
-    }
+  e.preventDefault();
+  if (uploading) return;
+  if (!file) {
+    alert("請先上傳照片");
+    return;
   }
+  setUploading(true);
+  try {
+    const workingFile = file;
+    const fd = new FormData();
+    fd.append("file", workingFile);
+    fd.append("name", form.name || "");
+    fd.append("category", form.category || "");
+    fd.append("color", form.color || "");
+
+    // tags: 以 style 與 brand 當作 tags 範例（你可改成 user input）
+    const tagsArr = [];
+    if (form.style) tagsArr.push(form.style);
+    if (form.brand) tagsArr.push(form.brand);
+    fd.append("tags", JSON.stringify(tagsArr));
+
+    // attributes: 傳 json string（material, size, brand）
+    const attrs = {
+      material: form.material || "",
+      size: form.size || "",
+      brand: form.brand || ""
+    };
+    fd.append("attributes", JSON.stringify(attrs));
+
+    fd.append("remove_bg", removeBg ? "1" : "0");
+
+    const token = localStorage.getItem("token") || "";
+    const res = await fetch("/api/v1/upload", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || JSON.stringify(err));
+    }
+
+    const data = await res.json();
+    console.log("upload result", data);
+    alert("上傳成功！");
+    navigate(-1);
+  } catch (err) {
+    console.error(err);
+    alert("上傳失敗：" + err.message);
+  } finally {
+    setUploading(false);
+  }
+}
+
 
   async function handlePostSubmit(e) {
     e.preventDefault();

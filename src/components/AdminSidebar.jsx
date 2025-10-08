@@ -19,7 +19,7 @@ export default function AdminSidebar() {
             </Link>
 
             <Link to="/admin/Users" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
-              <Icon icon="mdi:wardrobe-outline" className="w-5 h-5" />
+              <Icon icon="mdi:hanger" className="w-5 h-5" />
               <span>衣櫃管理</span>
             </Link>
 
