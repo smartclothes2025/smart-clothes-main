@@ -1,6 +1,6 @@
 import { Bell, Calendar, User } from 'lucide-react'; 
 import { Link } from 'react-router-dom';
-import ThemeSelect from '../components/ThemeSelect';
+
 
 export default function Header({ title, theme, setTheme }) {
   return (

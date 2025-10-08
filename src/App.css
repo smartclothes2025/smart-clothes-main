@@ -120,7 +120,7 @@
 .left-sidebar {
   position: fixed;
   left:0;
-  top:2.5rem;
+  top:3.6rem;
   bottom:0;
   width: var(--left-sidebar-w);
   z-index: 30;
@@ -128,6 +128,7 @@
   overflow-y: auto;
   display:none;
   box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+  padding-top: 0;
 }
 @media (min-width:1024px){ .left-sidebar{ display:flex; flex-direction:column; } }
 .left-sidebar nav a { display:flex; align-items:center; gap:.75rem; padding:.6rem .75rem; color:#111827; text-decoration:none; border-radius:.5rem; }
