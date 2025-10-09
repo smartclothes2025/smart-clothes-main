@@ -15,51 +15,50 @@ const LoginPage = ({ onLogin }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // 處理登入（目前為 mock；替換成真 API 非常簡單）
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError('');
-    if (!username || !password) {
-      setError('請填寫帳號與密碼');
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  setError('');
+  if (!username || !password) {
+    setError('請填寫帳號與密碼');
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      setError(errData.detail || '登入失敗，請確認帳號密碼');
       return;
     }
 
-    setSubmitting(true);
+    const data = await response.json();
+    // 假設後端回傳格式 { token: 'xxx', user: { id, name, email, role } }
 
-    try {
-      // ===== 開發期 mock（將來請改成真實 API 呼叫） =====
-      // 範例行為：
-      // - admin@example.com -> role: 'admin'
-      // - 其他帳號 -> role: 'user'
-      await new Promise((r) => setTimeout(r, 300)); // 模擬延遲
-
-      const isAdmin = username.trim().toLowerCase() === 'admin@example.com';
-      const fakeResponse = {
-        token: isAdmin ? 'admin-token-xxx' : 'user-token-yyy',
-        user: isAdmin
-          ? { id: 1, name: '管理員', email: username, role: 'admin' }
-          : { id: 2, name: '一般使用者', email: username, role: 'user' },
-      };
-      // ===== mock end =====
-
-      // 呼叫父元件 onLogin，將 token 與 user 傳上去
-      if (onLogin) {
-        onLogin({ token: fakeResponse.token, user: fakeResponse.user });
-      }
-
-      // 根據角色導向（admin -> /admin/dashboard，其他 -> /home）
-      if (fakeResponse.user.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
-      } else {
-        navigate('/home', { replace: true });
-      }
-    } catch (err) {
-      console.error('登入失敗：', err);
-      setError('登入發生錯誤，請稍後再試');
-    } finally {
-      setSubmitting(false);
+    if (onLogin) {
+      onLogin({ token: data.token, user: data.user });
     }
-  };
+
+    if (data.user.role === 'admin') {+
+      navigate('/admin/Dashboard', { replace: true });
+    } else {
+      navigate('/home', { replace: true });
+    }
+  } catch (err) {
+    console.error('登入失敗：', err);
+    setError('登入發生錯誤，請稍後再試');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // 訪客登入：建立一個臨時 user（role: 'user' 或 'guest'）
   const handleGuestLogin = async () => {

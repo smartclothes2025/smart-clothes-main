@@ -113,11 +113,32 @@ export default function Assistant({ theme, setTheme }) {
     setInput("");
 
     try {
-      // 改為使用模擬回覆
-      simulateBackendReply(txt);
-    } finally {
-      setSending(false);
+    // === 改為真實呼叫後端 ===
+    setIsTyping(true);
+    const res = await fetch("http://127.0.0.1:8000/api/v1/chat/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ user_input: txt }),
+    });
+
+    const data = await res.json();
+
+    if (data.reply) {
+      addMessage("assistant", data.reply);
+    } else if (data.error) {
+      addMessage("assistant", `⚠️ 錯誤：${data.error}`);
+    } else {
+      addMessage("assistant", "⚠️ 後端沒有回覆內容。");
     }
+  } catch (err) {
+    addMessage("assistant", `🚨 伺服器連線失敗：${err.message}`);
+  } finally {
+    setIsTyping(false);
+    setSending(false);
+  }
+
   }
 
   // 若你曾在其他地方直接呼叫 sendToBackend()，可改成呼叫 simulateBackendReply()

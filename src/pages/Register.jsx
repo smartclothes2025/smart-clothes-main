@@ -14,20 +14,52 @@ const RegisterPage = () => {
   }, []);
 
   // 表單提交邏輯
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+
     if (!email || !password || !confirmPassword) {
-      alert('請填寫所有欄位！');
+      setError('請填寫所有欄位');
       return;
     }
+
     if (password !== confirmPassword) {
-      alert('兩次輸入的密碼不一致！');
+      setError('兩次輸入的密碼不一致');
       return;
     }
-    // 在這裡，您會將註冊資訊送到後端
-    console.log('註冊資訊:', { email, password });
-    alert('註冊請求已送出（請查看主控台）');
+
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        setError(errData.detail || '註冊失敗，請稍後再試');
+        return;
+      }
+
+      const data = await response.json();
+      // 假設後端回傳 { token, user }
+
+      if (onRegister) {
+        onRegister({ token: data.token, user: data.user });
+      }
+
+      // 註冊成功後直接導向首頁
+      navigate('/home', { replace: true });
+    } catch (err) {
+      console.error('註冊失敗：', err);
+      setError('註冊發生錯誤，請稍後再試');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-green-50 font-sans p-4">
