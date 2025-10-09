@@ -13,7 +13,7 @@ export default function Wardrobe({ theme, setTheme }) {
   return (
     <Layout title="智慧衣櫃">
       <div className="page-wrapper">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-10xl mt-2">
           <div className="mt-3 flex border-b border-gray-200 pb-3 mb-4">
             {mainTabs.map((tab) => (
               <button

@@ -1,14 +1,6 @@
 // src/admin/Clothes.jsx
 import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import AdminHeader from "../components/AdminHeader";
-import { Icon } from "@iconify/react";
-
-/**
- * Admin Clothes 管理頁
- * - 欄位視圖：縮圖、title、owner(email)、category、size、color、status、created_at
- * - 功能：搜尋、篩選、分頁、編輯 modal、檢視 modal、批次 hide/delete、匯入/匯出
- */
 
 export default function AdminClothes() {
   const API = import.meta.env.VITE_API_BASE || "";
@@ -187,7 +179,6 @@ export default function AdminClothes() {
   return (
     <div>
       <Layout title="衣櫃管理" />
-      <AdminHeader title="衣櫃管理" />
       <div className="pt-20 lg:pl-72 px-6 bg-gray-100 min-h-[calc(100vh-5rem)]">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">

@@ -19,7 +19,7 @@ import './index.css';
 import AdminDashboard from './admin/Dashboard';
 import AdminUsers from './admin/Users';
 import AdminSettings from './admin/Settings';
-import AdminSidebar from './components/AdminSidebar';
+import AdminClothes from './admin/Clothes';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
@@ -78,20 +78,27 @@ export default function App() {
           <Route path="/register" element={<Register />} />
 
           {/* 使用者頁面 */}
-          <Route path="/home" element={<Home/>} />
-          <Route path="/wardrobe" element={<Wardrobe/>} />
-          <Route path="/upload" element={<Upload/>} />
-          <Route path="/upload/select" element={<UploadSelect/>} />
-          <Route path="/upload/edit" element={<UploadEdit/>} />
-          <Route path="/post" element={<Post/>} />
-          <Route path="/assistant" element={<Assistant/>} />
-          <Route path="/profile" element={<Profile/>} />
-          <Route path="/settings" element={<Settings/>} />
+          <Route path="/home" element={<Home theme={theme} setTheme={setTheme} />} />
+          <Route path="/wardrobe" element={<Wardrobe theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload" element={<Upload theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload/select" element={<UploadSelect theme={theme} setTheme={setTheme} />} />
+          <Route path="/upload/edit" element={<UploadEdit theme={theme} setTheme={setTheme} />} />
+          <Route path="/post" element={<Post theme={theme} setTheme={setTheme} />} />
+          <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
+          <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
+          <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
 
           {/* 後臺介面 */}
-          <Route path="/admin/Dashboard" element={<AdminDashboard/>}/>
-          <Route path="/admin/Users" element={<AdminUsers/>}/>
-          <Route path="/admin/Settings" element={<AdminSettings/>}/>
+          <Route
+            path="/admin/Dashboard"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminDashboard />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
           <Route
             path="/admin/Users"
             element={
@@ -112,7 +119,16 @@ export default function App() {
               </RequireAuth>
             }
           />
-
+          <Route
+            path="/admin/Clothes"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminClothes />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
           {/* 未知路徑導回登入或首頁 */}
           <Route
             path="*"

@@ -52,16 +52,16 @@
   min-height: 80vh;
   padding-top: 0;    
   padding-bottom: 8rem;  
-  padding-left: 0.5rem;     
-  padding-right: 0.5rem;
+  padding-left: rem;
+  padding-right: 1rem;
   box-sizing: border-box;
   width: 100%;
 }
 /* 內容頁調整(桌機)*/
 @media (min-width: 1024px) {
   .page-wrapper {
-    width: 75%;
-    padding-left: 1rem; 
+    width: 80%;
+    padding-left: 2rem; 
     padding-right: 0;
     padding-bottom: 1rem;
     margin-left: var(--left-sidebar-w); 
@@ -153,3 +153,4 @@ body.modal-open { overflow: hidden; touch-action: none; }
   margin-left: var(--left-sidebar-w);
   height: 100vh;
 }
+
