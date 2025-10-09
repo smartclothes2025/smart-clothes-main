@@ -78,16 +78,17 @@ export default function Upload({ theme, setTheme }) {
       alert("請先上傳照片");
       return;
     }
+
     setUploading(true);
     try {
-      const workingFile = file;
+      const workingFile = file; // 目前先直接使用原檔，待上方 TODO 串接完成後改為 workingFile
       const fd = new FormData();
       fd.append("file", workingFile);
-      fd.append("name", form.name || "");
-      fd.append("category", form.category || "");
-      fd.append("color", form.color || "");
+      fd.append("name", form.name);
+      fd.append("category", form.category);
+      fd.append("color", form.color);
 
-      // tags: 以 style 與 brand 當作 tags 範例（你可改成 user input）
+// tags: 以 style 與 brand 當作 tags 範例（你可改成 user input）
       const tagsArr = [];
       if (form.style) tagsArr.push(form.style);
       if (form.brand) tagsArr.push(form.brand);
@@ -100,7 +101,6 @@ export default function Upload({ theme, setTheme }) {
         brand: form.brand || ""
       };
       fd.append("attributes", JSON.stringify(attrs));
-
       fd.append("remove_bg", removeBg ? "1" : "0");
 
       const token = localStorage.getItem("token") || "";
@@ -110,11 +110,11 @@ export default function Upload({ theme, setTheme }) {
         body: fd,
       });
 
-      if (!res.ok) {
+    if (!res.ok) {
         // 盡量嘗試讀取後端錯誤資訊
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || JSON.stringify(err));
-      }
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || JSON.stringify(err));
+    }
 
       const data = await res.json();
       console.log("upload result", data);
