@@ -1,6 +1,10 @@
 // src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { auth } from '../firebase'; // 路徑依實際檔案
+import { signInWithEmailAndPassword } from "firebase/auth";
+
+
 
 const LoginPage = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -15,50 +19,76 @@ const LoginPage = ({ onLogin }) => {
     return () => clearTimeout(timer);
   }, []);
 
-const handleSubmit = async (event) => {
-  event.preventDefault();
-  setError('');
-  if (!username || !password) {
-    setError('請填寫帳號與密碼');
-    return;
-  }
+  
+ const handleFirebaseLogin = async () => {
 
-  setSubmitting(true);
+    try {
+      // 🔹 Firebase 登入
+      const userCredential = await signInWithEmailAndPassword(auth, username, password);
+      const idToken = await userCredential.user.getIdToken();
+      console.log("[Firebase] ID Token:", idToken);
 
-  try {
-    const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+      // 🔹 呼叫後端
+      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({}),
+      });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      setError(errData.detail || '登入失敗，請確認帳號密碼');
+      console.log("[Backend] HTTP Status:", response.status);
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.warn("[Backend] 無法解析 JSON:", jsonErr);
+      }
+
+      if (!response.ok) {
+        console.error("[Backend] Response Data:", data);
+        throw new Error(data?.detail || data?.message || `登入失敗，HTTP ${response.status}`);
+      }
+
+      console.log("[Backend] Response Data:", data);
+
+      // 🔹 登入成功
+      onLogin({ token: data.token, user: data.user });
+      if (data.user.role === 'admin') {
+        navigate('/admin/Dashboard', { replace: true });
+      } else {
+        navigate('/home', { replace: true });
+      }
+
+    } catch (err) {
+      console.error("[Error] 登入失敗:", err);
+      throw err; // 讓 handleSubmit 可以捕捉
+    }
+  };
+
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!username || !password) {
+      setError('請填寫帳號與密碼');
       return;
     }
 
-    const data = await response.json();
-    // 假設後端回傳格式 { token: 'xxx', user: { id, name, email, role } }
-
-    if (onLogin) {
-      onLogin({ token: data.token, user: data.user });
+    setSubmitting(true);
+    try {
+      await handleFirebaseLogin();
+    } catch (err) {
+      setError(err.message || '登入發生錯誤');
+    } finally {
+      setSubmitting(false); // 🔹 確保一定結束 submitting
     }
+  };
 
-    if (data.user.role === 'admin') {+
-      navigate('/admin/Dashboard', { replace: true });
-    } else {
-      navigate('/home', { replace: true });
-    }
-  } catch (err) {
-    console.error('登入失敗：', err);
-    setError('登入發生錯誤，請稍後再試');
-  } finally {
-    setSubmitting(false);
-  }
-};
 
   // 訪客登入：建立一個臨時 user（role: 'user' 或 'guest'）
   const handleGuestLogin = async () => {

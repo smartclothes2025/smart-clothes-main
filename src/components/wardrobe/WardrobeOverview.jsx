@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 // import inactiveMock from '../../mock/inactiveMock';
 
 // 1) 用 Vite 的資產匯入（確保 HMR 正常）
-import tshirt from '../../assets/t-shirt.png';
+import tshirt from '../../assets/tshirt.png';
 import jeans from '../../assets/jeans.png';
 import blackdress from '../../assets/blackdress.png';
 import windbreakerjacket from '../../assets/windbreakerjacket.png';
