@@ -1,28 +1,23 @@
 // src/admin/Users.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import { Icon } from "@iconify/react";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
-  const [selected, setSelected] = useState(new Set());
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // modal state: edit & create
-  const [editingUser, setEditingUser] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", status: "active" });
 
   const [error, setError] = useState(null);
 
-  const API = import.meta.env.VITE_API_BASE || ""; // use proxy or set env
+  const API_BASE = import.meta.env.VITE_API_BASE || ""; // 例如 http://localhost:8000/api/v1
 
   useEffect(() => {
     fetchUsers();
@@ -33,17 +28,26 @@ export default function AdminUsers() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        query,
-        status: statusFilter,
-        page,
-        pageSize,
+  // 改從後端 auth 模組提供的清單 API 取資料（/api/v1/auth/users）
+  const url = new URL(`${API_BASE}/auth/users`);
+      url.searchParams.set("limit", "1000");
+      const token = localStorage.getItem("token");
+      const res = await fetch(url.toString(), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const res = await fetch(`${API}/api/admin/users?${params.toString()}`);
-      if (!res.ok) throw new Error("fetch users failed");
-      const data = await res.json();
-      setUsers(data.items || []);
-      setTotal(data.total || 0);
+      if (!res.ok) throw new Error("取得使用者列表失敗");
+      const data = await res.json(); // 後端回傳為陣列
+      const normalized = Array.isArray(data)
+        ? data.map((u) => ({
+            id: u.id,
+            name: u.display_name || u.username || u.name || u.email || "",
+            email: u.email || "",
+            status: "active", // 後端尚未提供狀態欄位
+            role: u.role || "user",
+            created_at: u.created_at || u.createdAt || null,
+          }))
+        : [];
+      setUsers(normalized);
     } catch (err) {
       console.error(err);
       setError(err.message || "取得列表失敗");
@@ -52,50 +56,23 @@ export default function AdminUsers() {
     }
   }
 
-  // selection helpers
-  function toggleSelect(id) {
-    setSelected(prev => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
-    });
-  }
-  function selectAllOnPage() {
-    const ids = users.map(u => u.id);
-    setSelected(prev => {
-      const s = new Set(prev);
-      ids.forEach(id => s.add(id));
-      return s;
-    });
-  }
-  function clearSelection() { setSelected(new Set()); }
+  // selection 與編輯暫不提供
 
-  // Edit modal
-  function openEdit(user) {
-    setEditingUser({ ...user });
-    setShowEditModal(true);
-  }
-  async function saveEdit() {
-    if (!editingUser) return;
+  async function handleDelete(id) {
+    if (!confirm("確定要刪除此帳號？此操作無法復原。")) return;
     try {
-      const res = await fetch(`${API}/api/admin/users/${editingUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editingUser.name,
-          email: editingUser.email,
-          status: editingUser.status,
-        }),
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE}/auth/users/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || "更新失敗");
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "刪除失敗");
       }
-      setShowEditModal(false);
-      fetchUsers();
+      setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
-      alert(err.message || "更新失敗");
+      alert(err.message || "刪除失敗");
     }
   }
 
@@ -104,88 +81,64 @@ export default function AdminUsers() {
     return /\S+@\S+\.\S+/.test(e);
   }
   async function createUser() {
-    // basic validation
-    if (!newUser.name.trim()) return alert("請輸入姓名");
+    // 以目前後端 /auth/register 的表單版為主（email、password、display_name）
     if (!validateEmail(newUser.email)) return alert("請輸入有效 Email");
-    if (newUser.password.length < 6) return alert("密碼至少 6 碼");
+    if (!newUser.name?.trim()) return alert("請輸入姓名");
+    if (!newUser.password || newUser.password.length < 6) return alert("密碼至少 6 碼");
 
     try {
-      const res = await fetch(`${API}/api/admin/users`, {
+      const form = new FormData();
+      form.set("email", newUser.email);
+      form.set("password", newUser.password);
+      form.set("display_name", newUser.name);
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser),
+        body: form,
       });
       if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "建立失敗");
+        const t = await res.text().catch(() => "");
+        throw new Error(t || "建立帳號失敗");
       }
       alert("建立成功");
       setShowCreateModal(false);
-      setNewUser({ name: "", email: "", password: "", status: "active" });
       fetchUsers();
     } catch (err) {
-      alert(err.message || "建立失敗");
+      alert(err.message || "建立帳號失敗");
     }
   }
 
-  // ban/unban single
-  async function toggleBan(user) {
-    const action = user.status === "active" ? "ban" : "unban";
-    if (!confirm(`確定要 ${action} ${user.name} 嗎？`)) return;
-    try {
-      const res = await fetch(`${API}/api/admin/users/${user.id}/${action}`, { method: "POST" });
-      if (!res.ok) throw new Error("操作失敗");
-      fetchUsers();
-    } catch (err) {
-      alert(err.message || "操作失敗");
-    }
-  }
-
-  // batch action
-  async function batchAction(action) {
-    if (selected.size === 0) return alert("請先選取使用者");
-    if (!confirm(`確定要對 ${selected.size} 個帳號執行 ${action} 嗎？`)) return;
-    try {
-      const res = await fetch(`${API}/api/admin/users/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selected), action }),
-      });
-      if (!res.ok) throw new Error("批次操作失敗");
-      setSelected(new Set());
-      fetchUsers();
-    } catch (err) {
-      alert(err.message || "操作失敗");
-    }
-  }
+  // 批次操作暫不提供
 
   // CSV export/import placeholders (keep as-is)
-  function exportCSV() {
-    const params = new URLSearchParams({ query, status: statusFilter });
-    window.open(`${API}/api/admin/users/export?${params.toString()}`, "_blank");
-  }
+  function exportCSV() { alert("目前為唯讀模式，暫不支援匯出。"); }
   async function handleImportFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    try {
-      const res = await fetch(`${API}/api/admin/users/import`, { method: "POST", body: fd });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "匯入失敗");
-      }
-      alert("匯入完成");
-      fetchUsers();
-    } catch (err) {
-      alert(err.message || "匯入失敗");
-    } finally {
-      e.target.value = null;
-    }
+    alert("目前為唯讀模式，暫不支援匯入。");
+    e.target.value = null;
   }
 
   // pagination
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  // client-side 篩選與分頁
+  const filtered = useMemo(() => {
+    let arr = users;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      arr = arr.filter((u) =>
+        (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter) {
+      arr = arr.filter((u) => (u.status || "active") === statusFilter);
+    }
+    return arr;
+  }, [users, query, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
   function gotoPage(n) { setPage(Math.max(1, Math.min(totalPages, n))); }
 
   return (
@@ -221,63 +174,55 @@ export default function AdminUsers() {
               <span className="px-3 py-2 rounded bg-gray-100">匯入 CSV</span>
             </label>
             <button onClick={exportCSV} className="px-3 py-2 rounded bg-gray-100">匯出 CSV</button>
-            <button onClick={()=>selectAllOnPage()} className="px-3 py-2 rounded bg-gray-100">全選（本頁）</button>
-            <button onClick={()=>clearSelection()} className="px-3 py-2 rounded bg-gray-100">清除選取</button>
           </div>
         </div>
 
-        {/* Selected toolbar */}
-        {selected.size > 0 && (
-          <div className="mt-3 bg-yellow-50 p-3 rounded flex items-center justify-between">
-            <div>已選取 {selected.size} 個使用者</div>
-            <div className="flex items-center gap-2">
-              <button onClick={()=>batchAction("ban")} className="px-3 py-1 rounded bg-red-600 text-white">批次封禁</button>
-              <button onClick={()=>batchAction("unban")} className="px-3 py-1 rounded bg-green-600 text-white">批次解封</button>
-            </div>
-          </div>
-        )}
+        {/* Selected toolbar：暫不提供 */}
 
         {/* Table */}
-        <div className="mt-4 bg-white rounded shadow overflow-x-auto">
-          <table className="w-full table-auto">
-            <thead className="text-sm text-gray-600 bg-gray-50">
+        <div className="mt-4 bg-white rounded-xl shadow ring-1 ring-black/5 overflow-x-auto">
+          <table className="w-full table-fixed">
+            <thead className="text-sm text-gray-700 bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="p-3 text-left"><input type="checkbox" onChange={e=> e.target.checked ? selectAllOnPage() : clearSelection()} aria-label="全選" /></th>
-                <th className="p-3 text-left">姓名</th>
-                <th className="p-3 text-left">Email</th>
-                <th className="p-3 text-left">註冊日</th>
-                <th className="p-3 text-left">狀態</th>
-                <th className="p-3 text-left">操作</th>
+                <th className="p-3 text-left w-[26%]">姓名</th>
+                <th className="p-3 text-left w-[30%]">Email</th>
+                <th className="p-3 text-left w-[18%]">註冊日</th>
+                <th className="p-3 text-left w-[12%]">狀態</th>
+                <th className="p-3 text-left w-[14%]">操作</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan="6" className="p-6 text-center">載入中...</td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan="6" className="p-6 text-center">查無資料</td></tr>
-              ) : users.map(user => (
-                <tr key={user.id} className="border-t">
-                  <td className="p-3"><input type="checkbox" checked={selected.has(user.id)} onChange={()=>toggleSelect(user.id)} aria-label={`選取 ${user.name || user.email}`} /></td>
-                  <td className="p-3">{user.name}</td>
-                  <td className="p-3">{user.email}</td>
-                  <td className="p-3 text-sm text-gray-500">{user.created_at?.split('T')?.[0] || "-"}</td>
-                  <td className="p-3">{user.status}</td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={()=>openEdit(user)} className="px-2 py-1 rounded bg-gray-100">編輯</button>
-                      <button onClick={()=>toggleBan(user)} className="px-2 py-1 rounded bg-gray-100">{user.status === "active" ? "封禁" : "解封"}</button>
-                      <button onClick={()=>{ window.open(`/admin/users/${user.id}`, "_blank") }} className="px-2 py-1 rounded bg-gray-100">檢視</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                if (loading) {
+                  return (<tr><td colSpan="5" className="p-6 text-center">載入中...</td></tr>);
+                }
+                if (filtered.length === 0) {
+                  return (<tr><td colSpan="5" className="p-6 text-center">查無資料</td></tr>);
+                }
+                return pageItems.map(user => (
+                  <tr key={user.id} className="border-t odd:bg-white even:bg-gray-50">
+                    <td className="p-3 truncate">{user.name}</td>
+                    <td className="p-3 truncate">{user.email}</td>
+                    <td className="p-3 text-sm text-gray-500">{(user.created_at ? new Date(user.created_at).toLocaleDateString() : "-")}</td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${user.status === 'active' ? 'bg-green-50 text-green-700 ring-1 ring-green-600/20' : 'bg-red-50 text-red-700 ring-1 ring-red-600/20'}`}>{user.status}</span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={()=>{ window.open(`/admin/users/${user.id}`, "_blank") }} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">檢視</button>
+                        <button onClick={()=>handleDelete(user.id)} className="px-2 py-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100">刪除</button>
+                      </div>
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-500">共 {total} 筆</div>
+          <div className="text-sm text-gray-500">共 {filtered.length} 筆</div>
           <div className="flex items-center gap-2">
             <button onClick={()=>gotoPage(1)} disabled={page===1} className="px-3 py-1 rounded bg-gray-100">第一頁</button>
             <button onClick={()=>gotoPage(page-1)} disabled={page===1} className="px-3 py-1 rounded bg-gray-100">上一頁</button>
@@ -291,40 +236,18 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Edit Modal */}
-        {showEditModal && editingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={()=>setShowEditModal(false)} />
-            <div role="dialog" aria-modal="true" className="bg-white rounded-lg shadow p-6 z-10 w-[min(600px,95%)]">
-              <h3 className="text-lg font-semibold">編輯使用者</h3>
-              <div className="mt-4 grid grid-cols-1 gap-3">
-                <label className="flex flex-col">
-                  <span className="text-sm text-gray-600">姓名</span>
-                  <input value={editingUser.name || ""} onChange={e=>setEditingUser({...editingUser, name: e.target.value})} className="px-3 py-2 border rounded" />
-                </label>
-                <label className="flex flex-col">
-                  <span className="text-sm text-gray-600">Email</span>
-                  <input value={editingUser.email || ""} onChange={e=>setEditingUser({...editingUser, email: e.target.value})} className="px-3 py-2 border rounded" />
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={editingUser.status !== "active"} onChange={e=>setEditingUser({...editingUser, status: e.target.checked ? "banned" : "active"})} />
-                  <span className="text-sm">封禁此帳號</span>
-                </label>
-              </div>
-
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={()=>setShowEditModal(false)} className="px-4 py-2 rounded bg-gray-100">取消</button>
-                <button onClick={saveEdit} className="px-4 py-2 rounded bg-blue-600 text-white">儲存</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* 編輯視窗暫不提供 */}
 
         {/* Create Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={()=>setShowCreateModal(false)} />
-            <div role="dialog" aria-modal="true" className="bg-white rounded-lg shadow p-6 z-10 w-[min(600px,95%)]">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              onClick={()=>setShowCreateModal(false)}
+              aria-label="關閉建立帳號視窗"
+            />
+            <dialog open className="bg-white rounded-lg shadow p-6 z-10 w-[min(600px,95%)]">
               <h3 className="text-lg font-semibold">新增帳號</h3>
               <div className="mt-4 grid grid-cols-1 gap-3">
                 <label className="flex flex-col">
@@ -353,7 +276,7 @@ export default function AdminUsers() {
                 <button onClick={()=>setShowCreateModal(false)} className="px-4 py-2 rounded bg-gray-100">取消</button>
                 <button onClick={createUser} className="px-4 py-2 rounded bg-indigo-600 text-white">建立帳號</button>
               </div>
-            </div>
+            </dialog>
           </div>
         )}
 
