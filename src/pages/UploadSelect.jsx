@@ -11,14 +11,14 @@ export default function UploadSelect({ theme, setTheme }) {
   const fileInputRef = useRef(null);
 
   function onPickedFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    const list = Array.from(e.target.files || []);
+    const images = list.filter((f) => f.type?.startsWith("image/"));
+    if (!images.length) {
       alert("請選擇圖片檔");
       return;
     }
-    // 前往編輯頁
-    navigate("/upload/edit", { state: { file } });
+    // 前往編輯頁（多張）
+    navigate("/upload/edit", { state: { files: images } });
   }
 
   return (
@@ -61,6 +61,7 @@ export default function UploadSelect({ theme, setTheme }) {
               ref={libInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={onPickedFile}
               className="hidden"
             />
@@ -69,6 +70,7 @@ export default function UploadSelect({ theme, setTheme }) {
               type="file"
               accept="image/*"
               capture="environment"
+              multiple
               onChange={onPickedFile}
               className="hidden"
             />
@@ -76,6 +78,7 @@ export default function UploadSelect({ theme, setTheme }) {
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={onPickedFile}
               className="hidden"
             />

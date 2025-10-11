@@ -10,31 +10,91 @@ export default function UploadEdit({ theme, setTheme }) {
   const navigate = useNavigate();
   const { state } = useLocation();
   const srcFile = state?.file || null;
+  const srcFiles = state?.files || (srcFile ? [srcFile] : []);
 
   const imgRef = useRef(null);
   const cropWrapRef = useRef(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [rotate, setRotate] = useState(0); // degree
-  const [fit, setFit] = useState("cover"); // 'contain' | 'cover'
+  const [previewUrls, setPreviewUrls] = useState([]); // per-image preview urls
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
   const [removeBg, setRemoveBg] = useState(true);
+  const [aiDetect, setAiDetect] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  // 裁切相關狀態（支援手機雙指縮放/拖移）
-  const [cropMode, setCropMode] = useState(true);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [showGrid, setShowGrid] = useState(true);
-  const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
+  const [showAIDesc, setShowAIDesc] = useState(false);
+  // per-image states
+  const [rotateArr, setRotateArr] = useState([]); // degree per image
+  const [fitArr, setFitArr] = useState([]); // 'free' | 'cover' per image
+  const [cropModeArr, setCropModeArr] = useState([]);
+  const [cropArr, setCropArr] = useState([]);
+  const [zoomArr, setZoomArr] = useState([]);
+  const [croppedAreaPixelsArr, setCroppedAreaPixelsArr] = useState([]);
+  // 永遠顯示格線
+  const showGrid = true;
+  const [mediaSizeArr, setMediaSizeArr] = useState([]);
+  const [minZoomArr, setMinZoomArr] = useState([]); // per-image minZoom to avoid gaps
+  const [viewportSide, setViewportSide] = useState(0); // square side of the viewport
 
-  // 將圖片縮放到剛好「滿版」覆蓋容器
-  const applyCoverZoom = (ms = mediaSize) => {
+  // 監聽容器大小，讓 cropSize 填滿正方形容器
+  useEffect(() => {
+    const wrap = cropWrapRef.current;
+    if (!wrap) return;
+    const ro = new ResizeObserver(() => {
+      const side = Math.min(wrap.clientWidth || 0, wrap.clientHeight || 0);
+      setViewportSide(side);
+    });
+    ro.observe(wrap);
+    // 初始設置
+    const side = Math.min(wrap.clientWidth || 0, wrap.clientHeight || 0);
+    setViewportSide(side);
+    return () => ro.disconnect();
+  }, []);
+
+  // 計算 cover/contain 需用的 zoom 值
+  const computeCoverZoom = (viewportW, viewportH, ms) => {
+    return Math.max(viewportW / ms.width, viewportH / ms.height);
+  };
+  const computeContainZoom = (viewportW, viewportH, ms) => {
+    return Math.min(viewportW / ms.width, viewportH / ms.height);
+  };
+
+  // 設定為「滿版 cover」的縮放
+  const applyCoverZoom = (ms, index = currentIndex) => {
     const wrap = cropWrapRef.current;
     if (!wrap || !ms.width || !ms.height) return;
     const cw = wrap.clientWidth;
     const ch = wrap.clientHeight;
-    const coverZoom = Math.max(cw / ms.width, ch / ms.height);
-    setZoom(coverZoom);
-    setCrop({ x: 0, y: 0 });
+    const coverZoom = computeCoverZoom(cw, ch, ms);
+    setZoomArr((prev) => {
+      const arr = prev.slice();
+      arr[index] = coverZoom;
+      return arr;
+    });
+    setCropArr((prev) => {
+      const arr = prev.slice();
+      arr[index] = { x: 0, y: 0 };
+      return arr;
+    });
+    setMinZoomArr((prev) => { const arr = prev.slice(); arr[index] = coverZoom; return arr; });
+  };
+
+  // 設定為「置中 contain」的縮放
+  const applyContainZoom = (ms, index = currentIndex) => {
+    const wrap = cropWrapRef.current;
+    if (!wrap || !ms.width || !ms.height) return;
+    const cw = wrap.clientWidth;
+    const ch = wrap.clientHeight;
+    const containZoom = computeContainZoom(cw, ch, ms);
+    setZoomArr((prev) => {
+      const arr = prev.slice();
+      arr[index] = containZoom;
+      return arr;
+    });
+    setCropArr((prev) => {
+      const arr = prev.slice();
+      arr[index] = { x: 0, y: 0 };
+      return arr;
+    });
+    setMinZoomArr((prev) => { const arr = prev.slice(); arr[index] = containZoom; return arr; });
   };
 
   // 工具：載入圖片、角度與旋轉後尺寸、裁切出圖（支援旋轉）
@@ -72,8 +132,7 @@ export default function UploadEdit({ theme, setTheme }) {
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-
-    canvas.width = bBoxW;ㄎ
+    canvas.width = bBoxW;
     canvas.height = bBoxH;
 
     // 先把來源圖 rotate 到畫布中央
@@ -98,13 +157,24 @@ export default function UploadEdit({ theme, setTheme }) {
   }
 
   useEffect(() => {
-    if (!srcFile) return;
-    const url = URL.createObjectURL(srcFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [srcFile]);
+    if (!srcFiles.length) return;
+    const urls = srcFiles.map((f) => URL.createObjectURL(f));
+    setPreviewUrls(urls);
+    // init per-image states
+    const n = srcFiles.length;
+    setRotateArr(Array(n).fill(0));
+    setFitArr(Array(n).fill("free"));
+    setCropModeArr(Array(n).fill(true));
+    setCropArr(Array(n).fill({ x: 0, y: 0 }));
+    setZoomArr(Array(n).fill(1));
+    setCroppedAreaPixelsArr(Array(n).fill(null));
+    setMediaSizeArr(Array(n).fill({ width: 0, height: 0 }));
+    setCurrentIndex(0);
+    setPrimaryIndex(0);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [srcFiles]);
 
-  if (!srcFile) {
+  if (!srcFiles.length) {
     return (
       <div className="min-h-full pb-24 pt-2 md:pb-0 px-2">
         <Header title="編輯照片"/>
@@ -127,73 +197,40 @@ export default function UploadEdit({ theme, setTheme }) {
 
   async function handleNext() {
     // 若在裁切模式，使用旋轉裁切輸出
-    const img = imgRef.current;
-
-    if (cropMode && croppedAreaPixels) {
-      const blob = await getCroppedImg(previewUrl, {
-        x: Math.round(croppedAreaPixels.x),
-        y: Math.round(croppedAreaPixels.y),
-        width: Math.round(croppedAreaPixels.width),
-        height: Math.round(croppedAreaPixels.height),
-      }, rotate);
-      const edited = new File(
-        [blob],
-        srcFile.name.replace(/\.[^.]+$/, "") + "_edited.jpg",
-        { type: "image/jpeg" }
-      );
-      navigate("/upload", { state: { file: edited, removeBg } });
-      return;
+    const editedFiles = [];
+    for (let i = 0; i < srcFiles.length; i++) {
+      const pv = previewUrls[i];
+      const rot = rotateArr[i] || 0;
+      const cap = croppedAreaPixelsArr[i];
+      
+      // 如果該圖片尚未被載入過（沒有 croppedAreaPixels），先載入取得原始尺寸
+      let cropPixels = cap;
+      if (!cropPixels) {
+        // 載入圖片取得原始尺寸
+        try {
+          const img = await createImage(pv);
+          cropPixels = { x: 0, y: 0, width: img.width, height: img.height };
+        } catch (err) {
+          console.error(`無法載入第 ${i+1} 張圖片`, err);
+          alert(`第 ${i+1} 張圖片載入失敗，請重試。`);
+          return;
+        }
+      }
+      
+      const blob = await getCroppedImg(pv, {
+        x: Math.round(cropPixels.x),
+        y: Math.round(cropPixels.y),
+        width: Math.round(cropPixels.width),
+        height: Math.round(cropPixels.height),
+      }, rot);
+      const baseName = srcFiles[i].name?.replace(/\.[^.]+$/, "") || `image_${i+1}`;
+      const file = new File([blob], `${baseName}_edited.jpg`, { type: "image/jpeg" });
+      editedFiles.push(file);
     }
+    navigate("/upload", { state: { files: editedFiles, primaryIndex, removeBg, aiDetect } });
 
     // 非裁切模式：沿用原本 cover/contain 與旋轉規則，輸出成正方形
-    const size = 1024; // 輸出解析度
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = size;
-    canvas.height = size;
-
-    ctx.save();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, size, size);
-
-    ctx.translate(size / 2, size / 2);
-    ctx.rotate((rotate * Math.PI) / 180);
-
-    const { naturalWidth: iw, naturalHeight: ih } = img;
-    const targetW = size;
-    const targetH = size;
-    const ir = iw / ih;
-    const tr = targetW / targetH;
-
-    let drawW, drawH;
-    if (fit === "cover") {
-      if (ir > tr) {
-        drawH = targetH;
-        drawW = drawH * ir;
-      } else {
-        drawW = targetW;
-        drawH = drawW / ir;
-      }
-    } else {
-      if (ir > tr) {
-        drawW = targetW;
-        drawH = drawW / ir;
-      } else {
-        drawH = targetH;
-        drawW = drawH * ir;
-      }
-    }
-
-    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
-
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-    const edited = new File(
-      [blob],
-      srcFile.name.replace(/\.[^.]+$/, "") + "_edited.jpg",
-      { type: "image/jpeg" }
-    );
-    navigate("/upload", { state: { file: edited, removeBg } });
+    // 已改為逐張裁切/輸出流程
   }
 
   return (
@@ -201,59 +238,64 @@ export default function UploadEdit({ theme, setTheme }) {
       <div className="page-wrapper pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-3xl mx-auto px-4 mt-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
-            <div ref={cropWrapRef} className="w-full h-[70vh] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center relative">
-              {previewUrl && (
-                cropMode ? (
+            {/* Preview area */}
+            <div ref={cropWrapRef} className="w-full max-w-[480px] mx-auto aspect-square bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center relative">
+              {previewUrls[currentIndex] && (
+                (cropModeArr[currentIndex] ?? true) ? (
                   // 裁切模式下，使用 Cropper 支援雙指縮放與拖移
                   <Cropper
-                    image={previewUrl}
-                    crop={crop}
-                    zoom={zoom}
+                    image={previewUrls[currentIndex]}
+                    crop={cropArr[currentIndex] || { x: 0, y: 0 }}
+                    zoom={zoomArr[currentIndex] || 1}
+                    aspect={1}
+                    cropSize={viewportSide ? { width: viewportSide, height: viewportSide } : undefined}
                     // 不固定比例，避免被壓縮，使用者可自由縮放與拖移
                     // aspect 未設定代表自由比例
-                    onCropChange={setCrop}
-                    onZoomChange={setZoom}
-                    onCropComplete={(_, areaPixels) => setCroppedAreaPixels(areaPixels)}
-                    rotation={rotate}
-                    objectFit={fit === "cover" ? "cover" : "contain"}
-                    minZoom={1}
+                    onCropChange={(v) => setCropArr((prev) => { const arr = prev.slice(); arr[currentIndex] = v; return arr; })}
+                    onZoomChange={(v) => setZoomArr((prev) => { const arr = prev.slice(); arr[currentIndex] = v; return arr; })}
+                    onCropComplete={(_, areaPixels) => setCroppedAreaPixelsArr((prev) => { const arr = prev.slice(); arr[currentIndex] = areaPixels; return arr; })}
+                    rotation={rotateArr[currentIndex] || 0}
+                    objectFit={(fitArr[currentIndex] || 'free') === 'cover' ? 'cover' : 'contain'}
+                    minZoom={minZoomArr[currentIndex] || 0.2}
                     maxZoom={8}
-                    restrictPosition={false}
+                    restrictPosition={(fitArr[currentIndex] || 'free') === 'cover'}
                     showGrid={showGrid}
                     onMediaLoaded={({ width, height }) => {
-                      setMediaSize({ width, height });
-                      if (fit === "cover") {
-                        // 初次載入時自動滿版
-                        requestAnimationFrame(() => applyCoverZoom({ width, height }));
+                      setMediaSizeArr((prev) => { const arr = prev.slice(); arr[currentIndex] = { width, height }; return arr; });
+                      const mode = fitArr[currentIndex] || 'free';
+                      if (mode === 'cover') {
+                        requestAnimationFrame(() => applyCoverZoom({ width, height }, currentIndex));
                       } else {
-                        setZoom(1);
+                        requestAnimationFrame(() => applyContainZoom({ width, height }, currentIndex));
                       }
                     }}
                   />
                 ) : (
                   <img
                     ref={imgRef}
-                    src={previewUrl}
+                    src={previewUrls[currentIndex]}
                     alt="preview"
-                    style={{ transform: `rotate(${rotate}deg)`, objectFit: fit }}
+                    style={{ transform: `rotate(${(rotateArr[currentIndex]||0)}deg)`, objectFit: 'cover' }}
                     className="w-full h-full"
                   />
                 )
               )}
             </div>
 
+            {/* Controls */}
             <div className="mt-4 grid grid-cols-4 sm:grid-cols-5 gap-2">
               <button
                 type="button"
-                className={`border rounded-lg py-2 ${fit === "cover" ? "bg-gray-900 text-white border-gray-900" : ""}`}
+                className={`border rounded-lg py-2 ${(fitArr[currentIndex]||'free') === 'cover' ? 'bg-gray-900 text-white border-gray-900' : ''}`}
                 onClick={() => {
-                  const next = fit === "cover" ? "contain" : "cover";
-                  setFit(next);
-                  if (next === "cover") {
-                    applyCoverZoom();
+                  const mode = fitArr[currentIndex] || 'free';
+                  const next = mode === 'cover' ? 'free' : 'cover';
+                  setFitArr((prev)=>{ const arr=prev.slice(); arr[currentIndex]=next; return arr; });
+                  const ms = mediaSizeArr[currentIndex] || { width: 0, height: 0 };
+                  if (next === 'cover') {
+                    applyCoverZoom(ms, currentIndex);
                   } else {
-                    setCrop({ x: 0, y: 0 });
-                    setZoom(1);
+                    applyContainZoom(ms, currentIndex);
                   }
                 }}
               >
@@ -262,58 +304,110 @@ export default function UploadEdit({ theme, setTheme }) {
               <button
                 type="button"
                 className={`border rounded-lg py-2`}
-                onClick={() => setRotate((r) => (r + 90) % 360)}
+                onClick={() => setRotateArr((prev) => { const arr = prev.slice(); arr[currentIndex] = ((arr[currentIndex]||0) + 90) % 360; return arr; })}
               >
                 旋轉 90°
               </button>
               <button
                 type="button"
-                className={`border rounded-lg py-2 ${showGrid ? "bg-gray-900 text-white border-gray-900" : ""}`}
-                onClick={() => setShowGrid((v) => !v)}
-              >
-                格線
-              </button>
-              <button
-                type="button"
-                className="border rounded-lg py-2 col-span-1 sm:col-span-2"
+                className="border rounded-lg py-2 col-span-2"
                 onClick={() => {
-                  setRotate(0);
-                  setFit("contain");
-                  setCropMode(true);
-                  setCrop({ x: 0, y: 0 });
-                  setZoom(1);
-                  setCroppedAreaPixels(null);
+                  setRotateArr((prev) => { const arr = prev.slice(); arr[currentIndex] = 0; return arr; });
+                  setCropModeArr((prev) => { const arr = prev.slice(); arr[currentIndex] = true; return arr; });
+                  setCropArr((prev) => { const arr = prev.slice(); arr[currentIndex] = { x: 0, y: 0 }; return arr; });
+                  const ms = mediaSizeArr[currentIndex] || { width: 0, height: 0 };
+                  // 重置為自由模式的初始縮放
+                  const wrap = cropWrapRef.current;
+                  if (wrap && ms.width && ms.height) {
+                    const cw = wrap.clientWidth, ch = wrap.clientHeight;
+                    const containZoom = Math.min(cw / ms.width, ch / ms.height);
+                    setZoomArr((prev) => { const arr = prev.slice(); arr[currentIndex] = containZoom; return arr; });
+                    setMinZoomArr((prev) => { const arr = prev.slice(); arr[currentIndex] = containZoom; return arr; });
+                    setFitArr((prev)=>{ const arr=prev.slice(); arr[currentIndex]='free'; return arr; });
+                  } else {
+                    setZoomArr((prev) => { const arr = prev.slice(); arr[currentIndex] = 1; return arr; });
+                  }
+                  setCroppedAreaPixelsArr((prev) => { const arr = prev.slice(); arr[currentIndex] = null; return arr; });
                 }}
               >
                 重置
               </button>
             </div>
 
-            <div className="mt-4 flex items-center relative">
-              <label className="inline-flex items-center gap-2">
+            <div className="mt-4 flex items-center gap-4 relative">
+              <div className="inline-flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={removeBg}
                   onChange={(e) => setRemoveBg(e.target.checked)}
                 />
                 <span>智慧去背</span>
-              </label>
-              {/* 說明按鈕（手機點擊可顯示） */}
-              <button
-                type="button"
-                aria-label="去背說明"
-                className="ml-2 w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 active:scale-95"
-                onClick={() => setShowInfo((v) => !v)}
-              >
-                <Icon path={mdiInformationSlabCircleOutline} size={0.9} color="currentColor" />
-              </button>
+                <button
+                  type="button"
+                  aria-label="去背說明"
+                  className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 active:scale-95"
+                  onClick={() => { setShowInfo((v) => !v); setShowAIDesc(false); }}
+                >
+                  <Icon path={mdiInformationSlabCircleOutline} size={0.9} color="currentColor" />
+                </button>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={aiDetect}
+                  onChange={(e) => setAiDetect(e.target.checked)}
+                />
+                <span>AI 辨識</span>
+                <button
+                  type="button"
+                  aria-label="AI 辨識說明"
+                  className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 active:scale-95"
+                  onClick={() => { setShowAIDesc((v) => !v); setShowInfo(false); }}
+                >
+                  <Icon path={mdiInformationSlabCircleOutline} size={0.9} color="currentColor" />
+                </button>
+              </div>
 
               {showInfo && (
-                <div className="absolute left-0 top-full mt-2 max-w-xs text-sm bg-black text-white px-3 py-2 rounded-lg shadow-lg z-10">
-                  會在下一步呼叫後端 API 進行去背。
+                <div className="absolute left-0 top-full mt-2 max-w-xs text-sm bg-black text-white px-3 py-2 rounded-lg shadow-lg z-10 pointer-events-none">
+                  使用去背功能需要較長的處理時間，請耐心等待。
                 </div>
               )}
+              {showAIDesc && (
+                <div className="absolute left-0 top-full mt-2 max-w-xs text-sm bg-black text-white px-3 py-2 rounded-lg shadow-lg z-10 pointer-events-none">
+                  使用AI辨識，幫你辨識衣物名稱、類別、顏色與風格。
+                </div>
+              )}
+            </div>
 
+            {/* Thumbnails and primary selector */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-gray-600">共 {previewUrls.length} 張，當前第 {currentIndex+1} 張</div>
+                <button
+                  type="button"
+                  className={`px-3 py-1 rounded border ${primaryIndex===currentIndex? 'bg-black text-white border-black':'border-gray-300'}`}
+                  onClick={() => setPrimaryIndex(currentIndex)}
+                >
+                  設為主圖
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {previewUrls.map((u, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentIndex(i)}
+                    className={`relative w-20 h-20 rounded overflow-hidden border ${i===currentIndex? 'border-blue-600':'border-gray-200'}`}
+                  >
+                    <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full" />
+                    {i===primaryIndex && (
+                      <span className="absolute top-1 left-1 bg-black text-white text-[10px] px-1 rounded">主圖</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* 去除上一張/下一張按鈕，改由點選縮圖切換 */}
             </div>
 
             <div className="mt-6 flex gap-3">

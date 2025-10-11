@@ -17,10 +17,14 @@ export default function Upload({ theme, setTheme }) {
     brand: "",
   });
 
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [file, setFile] = useState(null); // primary file (for backward compatibility)
+  const [files, setFiles] = useState([]); // all files
+  const [primaryIndex, setPrimaryIndex] = useState(0);
+  const [previewList, setPreviewList] = useState([]); // previews for all files
+  const [currentIndex, setCurrentIndex] = useState(0); // current preview focus
   const [uploading, setUploading] = useState(false);
   const [removeBg, setRemoveBg] = useState(false);
+  const [aiDetect, setAiDetect] = useState(false);
 
   const [postOpen, setPostOpen] = useState(false);
   const [postText, setPostText] = useState("");
@@ -28,25 +32,38 @@ export default function Upload({ theme, setTheme }) {
   const [postPreview, setPostPreview] = useState(null);
   const [posting, setPosting] = useState(false);
 
-  // 產生圖片預覽（上傳主圖）
+  // 預覽（多張）
   useEffect(() => {
-    if (!file) {
-      setPreview(null);
+    if (!files.length) {
+      setPreviewList([]);
       return;
     }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewList(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
 
-  // 接收來自編輯頁的檔案與去背選項（如你有 /upload/select 流程）
+  // 接收來自編輯頁的檔案與去背選項（支援多張）
   useEffect(() => {
     const st = location.state;
-    if (st?.file) {
+    if (st?.files && Array.isArray(st.files) && st.files.length) {
+      setFiles(st.files);
+      const p = Number.isInteger(st.primaryIndex) ? Math.min(Math.max(0, st.primaryIndex), st.files.length - 1) : 0;
+      setPrimaryIndex(p);
+      setCurrentIndex(p);
+      setFile(st.files[p]);
+    } else if (st?.file) {
+      // 兼容舊流程（單張）
+      setFiles([st.file]);
+      setPrimaryIndex(0);
+      setCurrentIndex(0);
       setFile(st.file);
     }
     if (typeof st?.removeBg === "boolean") {
       setRemoveBg(st.removeBg);
+    }
+    if (typeof st?.aiDetect === "boolean") {
+      setAiDetect(st.aiDetect);
     }
   }, [location.state]);
 
@@ -62,13 +79,20 @@ export default function Upload({ theme, setTheme }) {
   }, [postImage]);
 
   function handleFileChange(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      alert("請上傳圖片檔（jpg, png）");
-      return;
-    }
-    setFile(f);
+    const list = Array.from(e.target.files || []);
+    const imgs = list.filter((f) => f.type?.startsWith("image/"));
+    if (!imgs.length) return;
+    // 添加到現有清單
+    setFiles((prev) => {
+      const merged = [...prev, ...imgs];
+      // 若之前沒有檔案，初始化主圖
+      if (prev.length === 0) {
+        setPrimaryIndex(0);
+        setCurrentIndex(0);
+        setFile(imgs[0]);
+      }
+      return merged;
+    });
   }
 
   async function handleSubmit(e) {
@@ -81,9 +105,13 @@ export default function Upload({ theme, setTheme }) {
 
     setUploading(true);
     try {
-      const workingFile = file; // 目前先直接使用原檔，待上方 TODO 串接完成後改為 workingFile
+      const workingFile = file; // 主圖
       const fd = new FormData();
       fd.append("file", workingFile);
+      // 其餘附圖（後端若不支援會忽略）
+      files.forEach((f, idx) => {
+        if (idx !== primaryIndex) fd.append("additional_files", f);
+      });
       fd.append("name", form.name);
       fd.append("category", form.category);
       fd.append("color", form.color);
@@ -102,6 +130,7 @@ export default function Upload({ theme, setTheme }) {
       };
       fd.append("attributes", JSON.stringify(attrs));
       fd.append("remove_bg", removeBg ? "1" : "0");
+      fd.append("ai_detect", aiDetect ? "1" : "0");
 
       const token = localStorage.getItem("token") || "";
       const res = await fetch("/api/v1/upload", {
@@ -187,17 +216,18 @@ export default function Upload({ theme, setTheme }) {
                 <label className="block text-sm text-gray-600 mb-2">
                   預覽照片
                 </label>
-                <div className="mt-2 h-64 bg-gray-50 rounded-md flex items-center justify-center border border-dashed relative">
-                  {/* 檔案選取按鈕（若你有 /upload/select 流程可保留） */}
+                <div className="w-full max-w-[480px] mx-auto aspect-square bg-gray-50 rounded-lg flex items-center justify-center border border-dashed relative overflow-hidden">
+                  {/* 檔案選取按鈕 */}
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     aria-label="上傳照片"
                   />
 
-                  {!preview ? (
+                  {previewList.length === 0 ? (
                     <div className="flex flex-col items-center gap-3 pointer-events-none">
                       <div className="text-sm text-gray-500">
                         尚未選擇照片，點擊方框或使用上一步選擇/編輯照片
@@ -209,7 +239,7 @@ export default function Upload({ theme, setTheme }) {
                         </div>
                         <button
                           type="button"
-                          className="px-3 py-2 rounded-lg border"
+                          className="px-3 py-2 rounded-lg border pointer-events-auto"
                           onClick={() => navigate("/upload/select")}
                         >
                           重新上傳（編輯）
@@ -218,68 +248,68 @@ export default function Upload({ theme, setTheme }) {
                     </div>
                   ) : (
                     <img
-                      src={preview}
+                      src={previewList[currentIndex]}
                       alt="preview"
-                      className="object-contain h-60 w-full"
+                      className="object-cover w-full h-full"
                     />
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={removeBg}
-                      onChange={(e) => setRemoveBg(e.target.checked)}
-                      className="form-checkbox"
-                    />
-                    <span>智慧去背（上傳時後端處理）</span>
-                  </label>
-
-                  {preview && (
-                    <div className="flex items-center gap-3">
+                {previewList.length > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-gray-600">共 {previewList.length} 張，當前第 {currentIndex + 1} 張</div>
                       <button
                         type="button"
-                        className="text-sm underline"
+                        className={`px-3 py-1 rounded border ${primaryIndex === currentIndex ? 'bg-black text-white border-black' : 'border-gray-300'}`}
                         onClick={() => {
-                          setFile(null);
-                          setPreview(null);
+                          setPrimaryIndex(currentIndex);
+                          setFile(files[currentIndex]);
                         }}
                       >
-                        重新選擇
+                        設為主圖
                       </button>
-                      <span className="text-sm text-gray-500">預覽中</span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-2 overflow-x-auto">
+                      {previewList.map((u, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setCurrentIndex(i)}
+                          className={`relative w-20 h-20 rounded overflow-hidden border ${i === currentIndex ? 'border-blue-600' : 'border-gray-200'}`}
+                        >
+                          <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full" />
+                          {i === primaryIndex && (
+                            <span className="absolute top-1 left-1 bg-black text-white text-[10px] px-1 rounded">主圖</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
 
             {/* 右側欄位 */}
             <div className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">
-                    名稱
-                  </label>
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 items-center">
+                  <label className="text-sm text-gray-600">名稱</label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full mt-1 p-3 border rounded-lg"
+                    className="p-3 border rounded-lg"
                     placeholder="例：白色T恤"
                   />
-                </div>
 
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">
-                    類別
-                  </label>
+                  <label className="text-sm text-gray-600">類別</label>
                   <select
                     value={form.category}
                     onChange={(e) =>
                       setForm({ ...form, category: e.target.value })
                     }
-                    className="w-full p-3 border rounded-lg"
+                    className="p-3 border rounded-lg"
                   >
                     <option>上衣</option>
                     <option>褲裝</option>
@@ -350,10 +380,10 @@ export default function Upload({ theme, setTheme }) {
 
                   <button
                     type="button"
-                    onClick={() => navigate("/upload/select")}
+                    onClick={() => navigate("/upload/edit", { state: { files: files, primaryIndex, removeBg, aiDetect } })}
                     className="flex-1 border py-3 rounded-lg"
                   >
-                    取消
+                    上一步
                   </button>
                 </div>
               </div>
