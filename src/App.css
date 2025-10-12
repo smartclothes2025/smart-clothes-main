@@ -146,11 +146,11 @@ body.modal-open { overflow: hidden; touch-action: none; }
 /* 後臺內容頁調整*/
 .bankpage-wrapper {
   padding-top: 1rem;    
-  padding-bottom: 1rem;   
-  padding-left: 1rem;  
+  padding-left: 2rem;  
   padding-right: 1rem;
   box-sizing: border-box;
   margin-left: var(--left-sidebar-w);
   height: 100vh;
+  overflow: hidden;
 }
 
