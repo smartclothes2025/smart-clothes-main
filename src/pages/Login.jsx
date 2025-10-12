@@ -235,7 +235,7 @@ const LoginPage = ({ onLogin }) => {
         `}
       >
         <div className="w-full md:w-1/2">
-          <div className="p-8 md:p-6">
+          <div className="p-8 md:p-8">
             <h1 className="mb-3 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
               歡迎回來
             </h1>
@@ -279,7 +279,7 @@ const LoginPage = ({ onLogin }) => {
                     checked={remember}
                     onChange={(e) => handleRememberToggle(e.target.checked)}
                   />
-                  <label htmlFor="remember">記住帳號（僅儲存帳號，不儲存密碼）</label>
+                  <label htmlFor="remember">記住帳號</label>
                 </div>
                 <button type="button" onClick={(ev) => { ev.preventDefault(); addToast({ type: 'info', message: '忘記密碼流程尚未串接', autoDismiss: 3000 }); }} className="font-semibold text-amber-600 hover:underline">
                   忘記密碼?

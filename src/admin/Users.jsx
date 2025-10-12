@@ -144,7 +144,8 @@ export default function AdminUsers() {
   return (
     <div>
       <Layout title="帳號管理" />
-      <div className="bankpage-wrapper bg-gray-100">
+      <div className="h-100vh  bg-gray-100">
+      <div className="bankpage-wrapper">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -177,16 +178,13 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Selected toolbar：暫不提供 */}
-
-        {/* Table */}
         <div className="mt-4 bg-white rounded-xl shadow ring-1 ring-black/5 overflow-x-auto">
           <table className="w-full table-fixed">
             <thead className="text-sm text-gray-700 bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="p-3 text-left w-[15%]">姓名</th>
+                <th className="p-3 text-left w-[20%]">姓名</th>
                 <th className="p-3 text-left w-[25%]">Email</th>
-                <th className="p-3 text-left w-[25%]">註冊日</th>
+                <th className="p-3 text-left w-[20%]">註冊日</th>
                 <th className="p-3 text-left w-[15%]">狀態</th>
                 <th className="p-3 text-left w-[20%]">操作</th>
               </tr>
@@ -219,24 +217,22 @@ export default function AdminUsers() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-500">共 {filtered.length} 筆</div>
-          <div className="flex items-center gap-2">
-            <button onClick={()=>gotoPage(1)} disabled={page===1} className="px-3 py-1 rounded bg-gray-100">第一頁</button>
-            <button onClick={()=>gotoPage(page-1)} disabled={page===1} className="px-3 py-1 rounded bg-gray-100">上一頁</button>
-            <span className="px-2">第 {page} / {totalPages} 頁</span>
-            <button onClick={()=>gotoPage(page+1)} disabled={page===totalPages} className="px-3 py-1 rounded bg-gray-100">下一頁</button>
-            <select value={pageSize} onChange={e=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="px-2 py-1 border rounded">
-              <option value={12}>12</option>
-              <option value={24}>24</option>
-              <option value={50}>50</option>
+        
+        <div className="fixed bottom-0 left-[200px] right-0 z-10 bg-white/80 backdrop-blur-md border-t border-gray-200" style={{minWidth:'calc(100vw - 220px)'}}>
+          <div className="flex flex-wrap justify-center items-center gap-6 p-2 w-full">
+            <button onClick={()=>gotoPage(1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">第一頁</button>
+            <button onClick={()=>gotoPage(page-1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">上一頁</button>
+            <span className="px-2 text-sm text-gray-700">第 {page} / {totalPages} 頁</span>
+            <button onClick={()=>gotoPage(page+1)} disabled={page===totalPages} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">下一頁</button>
+            <div className="text-sm text-gray-600">顯示</div>
+            <select value={pageSize} onChange={e=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="px-2 py-1 border rounded-md">
+              <option value={12}>12筆</option>
+              <option value={24}>24筆</option>
+              <option value={50}>50筆</option>
             </select>
+            <div className="text-sm text-gray-600">共 {filtered.length} 筆</div>
           </div>
         </div>
-
-        {/* 編輯視窗暫不提供 */}
 
         {/* Create Modal */}
         {showCreateModal && (
@@ -281,6 +277,7 @@ export default function AdminUsers() {
         )}
 
         {error && <div className="mt-4 text-red-600">錯誤：{error}</div>}
+      </div>
       </div>
     </div>
   );
