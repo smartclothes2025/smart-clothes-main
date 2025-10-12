@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import { Icon } from "@iconify/react";
-
+import "../assets/TableStyles.css";
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [query, setQuery] = useState("");
@@ -184,11 +184,11 @@ export default function AdminUsers() {
           <table className="w-full table-fixed">
             <thead className="text-sm text-gray-700 bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="p-3 text-left w-[26%]">姓名</th>
-                <th className="p-3 text-left w-[30%]">Email</th>
-                <th className="p-3 text-left w-[18%]">註冊日</th>
-                <th className="p-3 text-left w-[12%]">狀態</th>
-                <th className="p-3 text-left w-[14%]">操作</th>
+                <th className="p-3 text-left w-[15%]">姓名</th>
+                <th className="p-3 text-left w-[25%]">Email</th>
+                <th className="p-3 text-left w-[25%]">註冊日</th>
+                <th className="p-3 text-left w-[15%]">狀態</th>
+                <th className="p-3 text-left w-[20%]">操作</th>
               </tr>
             </thead>
             <tbody>
