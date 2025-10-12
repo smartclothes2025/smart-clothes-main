@@ -1,5 +1,6 @@
 // src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../firebase'; // 路徑依實際檔案
 import { signInWithEmailAndPassword } from "firebase/auth";
@@ -76,7 +77,7 @@ const LoginPage = ({ onLogin }) => {
       // 取得 idToken，若你沒有 custom claim 更新的需求改成 getIdToken()
       const idToken = await userCredential.user.getIdToken(true);
 
-      console.log("[Firebase] ID Token (truncated):", idToken && idToken.slice ? idToken.slice(0, 40) + '...' : idToken);
+  console.log("[Firebase] ID Token (truncated):", idToken?.slice ? idToken.slice(0, 40) + '...' : idToken);
 
       const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
         method: 'POST',
@@ -140,7 +141,7 @@ const LoginPage = ({ onLogin }) => {
       // Firebase 的錯誤（例如 auth/invalid-credential）通常會有 err.code
       let friendly = '登入發生錯誤';
       try {
-        const code = err?.code || (err?.message && err.message.includes('auth/') ? err.message.split(':')[0] : null);
+  const code = err?.code || (err?.message?.includes('auth/') ? err.message.split(':')[0] : null);
         if (code && FIREBASE_ERROR_MAP[code]) {
           friendly = FIREBASE_ERROR_MAP[code];
         } else if (err?.message) {
@@ -151,7 +152,8 @@ const LoginPage = ({ onLogin }) => {
           else friendly = err.message;
         }
       } catch (e) {
-        friendly = err?.message || '登入發生錯誤';
+        console.warn('解析錯誤訊息時發生例外：', e);
+        friendly = err?.message || e?.message || '登入發生錯誤';
       }
 
       // 顯示給使用者的錯誤 (中文)
@@ -194,11 +196,51 @@ const LoginPage = ({ onLogin }) => {
       try {
         localStorage.setItem('token', fake.token);
         localStorage.setItem('user', JSON.stringify(fake.user));
-      } catch (e) {}
+      } catch (e) {
+        console.warn('LocalStorage 儲存失敗：', e);
+      }
       navigate('/home', { replace: true });
     } catch (err) {
       console.error(err);
       setError('訪客登入失敗');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 臨時後台登入（僅供測試使用）
+  const handleTempAdminLogin = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      // 模擬延遲
+      await new Promise((r) => setTimeout(r, 200));
+      const fake = {
+        token: 'admin-token-temp-000',
+        user: {
+          id: 'admin-1',
+          name: '臨時管理員',
+          email: 'admin@local',
+          role: 'admin',
+        },
+      };
+
+      // 觸發上層狀態
+      if (onLogin) onLogin({ token: fake.token, user: fake.user });
+
+      // 儲存至 localStorage 供後續請求使用
+      try {
+        localStorage.setItem('token', fake.token);
+        localStorage.setItem('user', JSON.stringify(fake.user));
+      } catch (e) {
+        console.warn('LocalStorage 儲存失敗：', e);
+      }
+
+      // 導向後台儀表板
+      navigate('/admin/Dashboard', { replace: true });
+    } catch (err) {
+      console.error(err);
+      setError('臨時後台登入失敗');
     } finally {
       setSubmitting(false);
     }
@@ -266,7 +308,13 @@ const LoginPage = ({ onLogin }) => {
                   />
                   <label htmlFor="remember">記住我</label>
                 </div>
-                <a href="#" className="font-semibold text-amber-600 hover:underline">忘記密碼?</a>
+                <button
+                  type="button"
+                  className="font-semibold text-amber-600 hover:underline"
+                  onClick={() => alert('請聯絡管理員或使用註冊郵件的重設功能')}
+                >
+                  忘記密碼?
+                </button>
               </div>
 
               {error && (
@@ -311,6 +359,17 @@ const LoginPage = ({ onLogin }) => {
               >
                 <span>訪客登入</span>
               </button>
+
+              {/* 臨時後台登入（僅測試環境使用） */}
+              <button
+                type="button"
+                onClick={handleTempAdminLogin}
+                className="w-full p-3 rounded-lg font-semibold border border-green-700 text-green-800 hover:bg-green-50 hover:text-green-900 active:bg-green-100 transition-colors disabled:opacity-60"
+                disabled={submitting}
+                title="僅供開發測試用，正式環境請移除"
+              >
+                <span>臨時後台登入</span>
+              </button>
             </div>
 
             <div className="text-center text-sm text-gray-500 mt-6">
@@ -334,3 +393,7 @@ const LoginPage = ({ onLogin }) => {
 };
 
 export default LoginPage;
+
+LoginPage.propTypes = {
+  onLogin: PropTypes.func,
+};
