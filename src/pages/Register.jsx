@@ -1,6 +1,7 @@
 // src/pages/Register.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '../components/ToastProvider';
 
 const RegisterPage = () => {
   const [email, setEmail] = useState('');
@@ -8,12 +9,10 @@ const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isVisible, setIsVisible] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);
@@ -22,38 +21,47 @@ const RegisterPage = () => {
 
   const isValidEmail = (e) => /\S+@\S+\.\S+/.test(e);
 
+  const formatServerError = async (response) => {
+    let errMsg = `註冊失敗 (HTTP ${response.status})`;
+    try {
+      const errData = await response.json();
+      if (errData) {
+        errMsg = errData.detail || errData.message || JSON.stringify(errData);
+      }
+    } catch (e) {
+      // 無法解析 JSON -> 保留預設錯誤訊息
+    }
+    return errMsg;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setSuccessMsg('');
 
     if (!email || !displayName || !password || !confirmPassword) {
-      setError('請填寫所有欄位');
+      addToast({ type: 'error', title: '欄位不足', message: '請填寫所有欄位以完成註冊。' });
       return;
     }
     if (!isValidEmail(email)) {
-      setError('請輸入有效的電子郵件地址');
+      addToast({ type: 'error', title: 'Email 格式錯誤', message: '請輸入有效的電子郵件地址。' });
       return;
     }
     if (password.length < 6) {
-      setError('密碼至少要 6 個字元');
+      addToast({ type: 'error', title: '密碼太短', message: '密碼至少需要 6 個字元。' });
       return;
     }
     if (password !== confirmPassword) {
-      setError('兩次輸入的密碼不一致');
+      addToast({ type: 'error', title: '密碼不一致', message: '請確認兩次輸入的密碼相同。' });
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // use x-www-form-urlencoded to match backend Form(...)
       const body = new URLSearchParams();
       body.append('email', email);
       body.append('password', password);
       body.append('display_name', displayName);
 
-      // 注意：若你的後端路由為 /api/v1/auth/register/（包含尾 slash）也可通
       const response = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -61,25 +69,25 @@ const RegisterPage = () => {
       });
 
       if (!response.ok) {
-        let errMsg = `註冊失敗，HTTP ${response.status}`;
-        try {
-          const errData = await response.json();
-          errMsg = errData.detail || errData.message || JSON.stringify(errData);
-        } catch (e) { /* 無法 parse */ }
-        setError(errMsg);
+        const errMsg = await formatServerError(response);
+        addToast({ type: 'error', title: '註冊失敗', message: errMsg, autoDismiss: 6000 });
         return;
       }
 
-      const data = await response.json();
-      setSuccessMsg(data.message || '註冊成功，請至登入頁登入');
-      // 顯示成功提示後，1 秒導回登入頁（你可以調整時間）
-      setTimeout(() => {
-        navigate('/login', { replace: true });
-      }, 5000);
-
+      addToast({
+        type: 'success',
+        title: '註冊成功！',
+        message: `歡迎 ${displayName}！即將為您轉到登入頁面。`,
+        autoDismiss: 3500,
+      });
     } catch (err) {
       console.error('註冊失敗：', err);
-      setError('註冊發生錯誤，請稍後再試');
+      addToast({
+        type: 'error',
+        title: '伺服器錯誤',
+        message: '註冊時發生預期外的錯誤，請稍後再試。',
+        autoDismiss: 6000,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -101,63 +109,42 @@ const RegisterPage = () => {
             </h1>
             <p className="mb-8 text-sm text-gray-600">只需幾步，即可開始您的智慧穿搭旅程！</p>
 
-            <form onSubmit={handleSubmit} className="space-y-5" aria-describedby="register-error register-success">
-              <div className="relative">
-                <input
-                  type="text"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg"
-                  name="display_name"
-                  placeholder="顯示名稱（例：王小明）"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-
-              <div className="relative">
-                <input
-                  type="email"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg"
-                  name="email"
-                  placeholder="請輸入您的電子郵件"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-
-              <div className="relative">
-                <input
-                  type="password"
-                  id="password"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg"
-                  name="password"
-                  placeholder="請設定您的密碼（至少 6 字元）"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-
-              <div className="relative">
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  className="w-full p-3 pl-12 border border-gray-200 rounded-lg"
-                  name="confirmPassword"
-                  placeholder="請再次確認密碼"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-
-              {error && <div id="register-error" className="text-sm text-red-600">{error}</div>}
-              {successMsg && <div id="register-success" className="text-sm text-green-600">{successMsg}</div>}
-
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <input
+                type="text"
+                className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300 transition"
+                placeholder="顯示名稱（例：王小明）"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                disabled={submitting}
+              />
+              <input
+                type="email"
+                className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300 transition"
+                placeholder="請輸入您的電子郵件"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={submitting}
+              />
+              <input
+                type="password"
+                className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300 transition"
+                placeholder="請設定您的密碼（至少 6 字元）"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+              />
+              <input
+                type="password"
+                className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300 transition"
+                placeholder="請再次確認密碼"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={submitting}
+              />
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-green-800 to-green-600 text-white p-3 rounded-lg font-semibold shadow-md disabled:opacity-60"
+                className="w-full bg-gradient-to-r from-green-800 to-green-600 text-white p-3 rounded-lg font-semibold shadow-md disabled:opacity-60 hover:from-green-700 hover:to-green-500 transition-all duration-300"
                 disabled={submitting}
               >
                 {submitting ? '註冊中...' : '註冊帳戶'}
@@ -172,7 +159,6 @@ const RegisterPage = () => {
         </div>
 
         <div className="relative hidden w-full md:w-1/2 md:flex flex-col items-center justify-center p-8">
-          <h1 className="mb-4 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">註冊</h1>
           <img src="/穿搭醬logo.png" alt="穿搭醬 Logo" className="w-auto h-auto max-w-xs" />
         </div>
       </div>

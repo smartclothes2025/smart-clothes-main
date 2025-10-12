@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
+import { ToastProvider } from './components/ToastProvider';
 // 使用者頁面
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
@@ -29,7 +29,7 @@ export default function App() {
   useEffect(() => {
     try {
       document.documentElement.setAttribute('data-theme', theme);
-    } catch (e) {}
+    } catch (e) { }
   }, [theme]);
 
   // 啟動時從 localStorage 檢查是否已登入（開發用）
@@ -70,75 +70,77 @@ export default function App() {
   };
 
   return (
-    <BrowserRouter>
-      <div>
-        <Routes>
-          {/* 登入頁：把 handleLogin 傳入，Login 負責依照 role 導向 */}
-          <Route path="/" element={<Login onLogin={handleLogin} />} />
-          <Route path="/register" element={<Register />} />
+    <ToastProvider>
+      <BrowserRouter>
+        <div>
+          <Routes>
+            {/* 登入頁：把 handleLogin 傳入，Login 負責依照 role 導向 */}
+            <Route path="/" element={<Login onLogin={handleLogin} />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* 使用者頁面 */}
-          <Route path="/home" element={<Home theme={theme} setTheme={setTheme} />} />
-          <Route path="/wardrobe" element={<Wardrobe theme={theme} setTheme={setTheme} />} />
-          <Route path="/upload" element={<Upload theme={theme} setTheme={setTheme} />} />
-          <Route path="/upload/select" element={<UploadSelect theme={theme} setTheme={setTheme} />} />
-          <Route path="/upload/edit" element={<UploadEdit theme={theme} setTheme={setTheme} />} />
-          <Route path="/post" element={<Post theme={theme} setTheme={setTheme} />} />
-          <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
-          <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
-          <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
+            {/* 使用者頁面 */}
+            <Route path="/home" element={<Home theme={theme} setTheme={setTheme} />} />
+            <Route path="/wardrobe" element={<Wardrobe theme={theme} setTheme={setTheme} />} />
+            <Route path="/upload" element={<Upload theme={theme} setTheme={setTheme} />} />
+            <Route path="/upload/select" element={<UploadSelect theme={theme} setTheme={setTheme} />} />
+            <Route path="/upload/edit" element={<UploadEdit theme={theme} setTheme={setTheme} />} />
+            <Route path="/post" element={<Post theme={theme} setTheme={setTheme} />} />
+            <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
+            <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
+            <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
 
-          {/* 後臺介面 */}
-          <Route
-            path="/admin/Dashboard"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AdminDashboard />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin/Users"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AdminUsers />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin/Settings"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AdminSettings />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin/Clothes"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AdminClothes />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          {/* 未知路徑導回登入或首頁 */}
-          <Route
-            path="*"
-            element={
-              isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/" replace />
-            }
-          />
-        </Routes>
+            {/* 後臺介面 */}
+            <Route
+              path="/admin/Dashboard"
+              element={
+                <RequireAuth>
+                  <RequireRole role="admin">
+                    <AdminDashboard />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/Users"
+              element={
+                <RequireAuth>
+                  <RequireRole role="admin">
+                    <AdminUsers />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/Settings"
+              element={
+                <RequireAuth>
+                  <RequireRole role="admin">
+                    <AdminSettings />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/Clothes"
+              element={
+                <RequireAuth>
+                  <RequireRole role="admin">
+                    <AdminClothes />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            {/* 未知路徑導回登入或首頁 */}
+            <Route
+              path="*"
+              element={
+                isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/" replace />
+              }
+            />
+          </Routes>
 
-      </div>
-    </BrowserRouter>
+        </div>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }

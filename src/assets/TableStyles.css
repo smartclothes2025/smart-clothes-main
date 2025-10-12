@@ -49,3 +49,48 @@
 .data-table .action-delete {
   @apply text-rose-600 hover:text-rose-900 font-medium;
 }
+/* === 強制表格內容靠左（針對 admin Users 頁面的表格） ===
+   加到 src/assets/TableStyles.css（或你實際 import 的檔案）底部 */
+
+.bankpage-wrapper table,
+.bankpage-wrapper table th,
+.bankpage-wrapper table td,
+.bankpage-wrapper table caption {
+  text-align: left !important;    /* 強制靠左 */
+  vertical-align: middle;         /* 垂直置中，視覺較好 */
+}
+
+/* colspan / 被標上 text-center 的情況也一併覆寫 */
+.bankpage-wrapper table td[colspan],
+.bankpage-wrapper table td[class*="text-center"],
+.bankpage-wrapper table th[class*="text-center"] {
+  text-align: left !important;
+}
+
+/* 若 cell 內有 block 元素（div/span/input 等）也確保其文字靠左 */
+.bankpage-wrapper table td > * {
+  text-align: left !important;
+}
+
+/* 若你也有 .data-table 這類 class，可同時保護它 */
+.data-table,
+.data-table th,
+.data-table td {
+  text-align: left !important;
+  vertical-align: middle;
+}
+
+/* 特例：載入 / 查無資料那種 colSpan 大的 cell，移除預設置中 */
+.bankpage-wrapper td.p-6.text-center,
+.bankpage-wrapper td.p-6 {
+  text-align: left !important;
+}
+
+/* 如果你希望 name/email 使用 truncate 且仍靠左（避免被其他 utility 覆寫） */
+.bankpage-wrapper td.truncate,
+.bankpage-wrapper td .truncate {
+  text-align: left !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,11 +1,10 @@
 // src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from '../firebase'; // 路徑依專案實際位置調整
+import { auth } from '../firebase'; 
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { useFancyToast } from '../components/FancyToast'; // <- 從新檔匯入
+import { useToast } from '../components/ToastProvider';
 
-// Friendly error mapping (同之前)
 const FIREBASE_ERROR_MAP = {
   'auth/invalid-email': '請輸入有效電子郵件',
   'auth/wrong-password': '帳號或密碼錯誤',
@@ -44,11 +43,11 @@ const LoginPage = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [remember, setRemember] = useState(false); // 記住帳號（僅帳號）
+  const [remember, setRemember] = useState(false); // 記住帳號
   const navigate = useNavigate();
 
-  // 使用外部 hook
-  const { addToast, ToastContainer } = useFancyToast();
+  // 使用全域 toast
+  const { addToast } = useToast();
 
   useEffect(() => {
     try {
@@ -91,7 +90,7 @@ const LoginPage = ({ onLogin }) => {
     }
   }, [username, remember]);
 
-  // 登入流程（同之前：Firebase -> backend, fallback）
+  // 登入流程（Firebase -> backend, fallback backend form）
   const handleFirebaseLogin = async () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
@@ -228,8 +227,6 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="login">
-      <ToastContainer />
-
       <div
         className={`
           relative flex flex-col m-6 bg-white shadow-2xl rounded-2xl md:flex-row md:space-y-0 w-full max-w-4xl
@@ -282,7 +279,7 @@ const LoginPage = ({ onLogin }) => {
                     checked={remember}
                     onChange={(e) => handleRememberToggle(e.target.checked)}
                   />
-                  <label htmlFor="remember">記住帳號</label>
+                  <label htmlFor="remember">記住帳號（僅儲存帳號，不儲存密碼）</label>
                 </div>
                 <button type="button" onClick={(ev) => { ev.preventDefault(); addToast({ type: 'info', message: '忘記密碼流程尚未串接', autoDismiss: 3000 }); }} className="font-semibold text-amber-600 hover:underline">
                   忘記密碼?
