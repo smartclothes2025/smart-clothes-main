@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import Layout from "../components/Layout";
 import { Link } from "react-router-dom";
 
@@ -27,6 +28,50 @@ const ExampleCard = ({ emoji, title, desc }) => (
 
 export default function Profile({ theme, setTheme }) {
   const [tab, setTab] = useState("posts");
+  const [displayName, setDisplayName] = useState("");
+
+  useEffect(() => {
+    // 先從 localStorage 拿 user，立即顯示暫存名稱，避免初始閃爍
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      if (storedUser) {
+        setDisplayName(
+          storedUser.display_name || storedUser.name || storedUser.email || "姓名"
+        );
+      }
+    } catch (e) {
+      console.warn("讀取使用者暫存資料失敗：", e);
+      throw e;
+    }
+
+    // 再呼叫後端 /api/v1/me 取得最新 display_name
+    const token = localStorage.getItem("token");
+    if (!token) return; // 未登入就跳過
+
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const form = new FormData();
+        form.append("token", token);
+
+        // 後端為 /api/v1/auth/me（雖為 GET，依賴的 get_current_user 目前期待 Form，因此先用 POST 呼叫；若後端調整為 Header/Query，這裡再同步修改）
+        const res = await fetch("http://127.0.0.1:8000/api/v1/auth/me", {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const name = data?.display_name || data?.email || displayName || "姓名";
+        setDisplayName(name);
+      } catch (err) {
+        // 靜默失敗，保留 localStorage 顯示即可
+        console.warn("取得使用者資料失敗：", err);
+      }
+    })();
+
+    return () => controller.abort();
+  }, []);
 
   return (
     <Layout title="個人檔案">
@@ -37,7 +82,7 @@ export default function Profile({ theme, setTheme }) {
               頭貼
             </div>
             <div>
-              <div className="text-lg font-semibold">姓名</div>
+              <div className="text-lg font-semibold">{displayName || "姓名"}</div>
               <div className="text-sm text-gray-500">介紹</div>
             </div>
           </div>
@@ -75,13 +120,7 @@ export default function Profile({ theme, setTheme }) {
 
           <div className="mt-4 space-y-4">
             {tab === "posts" && (
-              <>
-                <ExampleCard
-                  emoji="😊"
-                  title="標題"
-                  desc="內容"
-                />
-              </>
+              <ExampleCard emoji="😊" title="標題" desc="內容" />
             )}
 
             {tab === "activity" && (
@@ -124,3 +163,15 @@ export default function Profile({ theme, setTheme }) {
     </Layout>
   );
 }
+
+TabButton.propTypes = {
+  label: PropTypes.string.isRequired,
+  active: PropTypes.bool,
+  onClick: PropTypes.func,
+};
+
+ExampleCard.propTypes = {
+  emoji: PropTypes.node,
+  title: PropTypes.string,
+  desc: PropTypes.string,
+};

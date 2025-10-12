@@ -1,15 +1,42 @@
 // src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from '../firebase'; // 路徑依實際檔案
+import { auth } from '../firebase'; // 路徑依專案實際位置調整
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { useFancyToast } from '../components/FancyToast'; // <- 從新檔匯入
 
+// Friendly error mapping (同之前)
 const FIREBASE_ERROR_MAP = {
-  'auth/invalid-credential': '帳號或密碼錯誤',
+  'auth/invalid-email': '請輸入有效電子郵件',
   'auth/wrong-password': '帳號或密碼錯誤',
   'auth/user-not-found': '帳號或密碼錯誤',
-  'auth/invalid-email': '請輸入有效電子郵件',
-  // 其他可擴充
+  'auth/too-many-requests': '嘗試次數過多，請稍後再試',
+};
+
+const getFriendlyError = (err) => {
+  if (!err) return '登入失敗，請稍後再試';
+  const raw = (err.message || String(err)).toLowerCase();
+
+  if (raw.includes('failed to fetch') || raw.includes('network') || raw.includes('net::err')) {
+    return '網路連線失敗，請檢查網路或後端是否已啟動';
+  }
+  if (raw.includes('auth/wrong-password') || raw.includes('wrong-password') || raw.includes('invalid-credential') || raw.includes('401')) {
+    return '帳號或密碼錯誤';
+  }
+  if (raw.includes('auth/user-not-found') || raw.includes('user-not-found') || raw.includes('找不到')) {
+    return '找不到該帳號';
+  }
+  if (raw.includes('invalid-email') || raw.includes('email')) {
+    return '請輸入有效電子郵件';
+  }
+  if (raw.includes('too-many-requests')) {
+    return '嘗試次數過多，請稍後再試';
+  }
+  if (raw.includes('timeout')) {
+    return '伺服器連線逾時，請稍後再試';
+  }
+  const maybeDetail = err?.message || err?.detail || err?.toString();
+  return maybeDetail || '登入失敗，請稍後再試';
 };
 
 const LoginPage = ({ onLogin }) => {
@@ -17,19 +44,18 @@ const LoginPage = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [remember, setRemember] = useState(false); // 記住我
+  const [remember, setRemember] = useState(false); // 記住帳號（僅帳號）
   const navigate = useNavigate();
 
-  // 讀 localStorage（若先前有儲存帳密就 prefill）
+  // 使用外部 hook
+  const { addToast, ToastContainer } = useFancyToast();
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('rememberCredentials');
       if (saved === 'true') {
         const savedUser = localStorage.getItem('savedUsername') || '';
-        const savedPass = localStorage.getItem('savedPassword') || '';
         setUsername(savedUser);
-        setPassword(savedPass);
         setRemember(true);
       }
     } catch (e) {
@@ -40,43 +66,36 @@ const LoginPage = ({ onLogin }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // 當 remember checkbox 改變：如果勾選就立刻存當前帳密；取消就移除儲存
   const handleRememberToggle = (checked) => {
     setRemember(checked);
     try {
       if (checked) {
         localStorage.setItem('rememberCredentials', 'true');
         localStorage.setItem('savedUsername', username || '');
-        localStorage.setItem('savedPassword', password || '');
       } else {
         localStorage.removeItem('rememberCredentials');
         localStorage.removeItem('savedUsername');
-        localStorage.removeItem('savedPassword');
       }
     } catch (e) {
       console.warn('LocalStorage 儲存失敗：', e);
     }
   };
 
-  // 當 username/password 改變，如果目前有勾選 remember，就同步更新儲存的帳密
   useEffect(() => {
     if (remember) {
       try {
         localStorage.setItem('savedUsername', username);
-        localStorage.setItem('savedPassword', password);
       } catch (e) {
         console.warn('LocalStorage 儲存失敗：', e);
       }
     }
-  }, [username, password, remember]);
+  }, [username, remember]);
 
+  // 登入流程（同之前：Firebase -> backend, fallback）
   const handleFirebaseLogin = async () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
-      // 取得 idToken，若你沒有 custom claim 更新的需求改成 getIdToken()
       const idToken = await userCredential.user.getIdToken(true);
-
-      console.log("[Firebase] ID Token (truncated):", idToken && idToken.slice ? idToken.slice(0, 40) + '...' : idToken);
 
       const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
         method: 'POST',
@@ -87,85 +106,89 @@ const LoginPage = ({ onLogin }) => {
         body: JSON.stringify({}),
       });
 
-      console.log("[Backend] HTTP Status:", response.status);
-
       let data = null;
-      try {
-        data = await response.json();
-      } catch (jsonErr) {
-        console.warn("[Backend] 無法解析 JSON:", jsonErr);
-      }
+      try { data = await response.json(); } catch (_) { data = null; }
 
       if (!response.ok) {
-        console.error("[Backend] Response Data:", data);
-        const serverMsg = data?.detail || data?.message || data?.error || `登入失敗，HTTP ${response.status}`;
+        const serverMsg = data?.detail || data?.message || data?.error || `登入失敗（HTTP ${response.status})`;
         throw new Error(serverMsg);
       }
-
-      console.log("[Backend] Response Data:", data);
 
       const userFromBackend = data?.user || {};
       const role = userFromBackend.role || 'user';
 
-      // 儲存 token 與 user（便於其他 request）
       if (onLogin) onLogin({ token: data?.token || '', user: userFromBackend });
       try {
         if (data?.token) localStorage.setItem('token', data.token);
         if (userFromBackend) localStorage.setItem('user', JSON.stringify(userFromBackend));
-      } catch (e) {
-        console.warn("LocalStorage 儲存失敗：", e);
-      }
+      } catch (e) { console.warn('LocalStorage 儲存失敗：', e); }
 
-      // 如果勾選記住我，確認已儲存帳密（前面已有處理）
       if (remember) {
         try {
           localStorage.setItem('rememberCredentials', 'true');
           localStorage.setItem('savedUsername', username);
-          localStorage.setItem('savedPassword', password);
-        } catch (e) {
-          console.warn('LocalStorage 儲存失敗：', e);
-        }
+        } catch (e) {}
       }
 
-      // 導頁
-      if (role === 'admin') {
-        navigate('/admin/Dashboard', { replace: true });
-      } else {
-        navigate('/home', { replace: true });
-      }
+      addToast({ type: 'success', title: '登入成功', message: `歡迎回來 ${userFromBackend.name || ''}`, autoDismiss: 2500 });
 
+      if (role === 'admin') navigate('/admin/Dashboard', { replace: true });
+      else navigate('/home', { replace: true });
+
+      return;
     } catch (err) {
-      console.error("[Error] 登入失敗:", err);
+      const code = err?.code;
+      if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') {
+        throw new Error(FIREBASE_ERROR_MAP[code] || getFriendlyError(err));
+      }
+      console.warn('Firebase 登入失敗或非認證錯誤，轉為後端直接登入：', err);
+    }
 
-      // Firebase 的錯誤（例如 auth/invalid-credential）通常會有 err.code
-      let friendly = '登入發生錯誤';
-      try {
-        const code = err?.code || (err?.message && err.message.includes('auth/') ? err.message.split(':')[0] : null);
-        if (code && FIREBASE_ERROR_MAP[code]) {
-          friendly = FIREBASE_ERROR_MAP[code];
-        } else if (err?.message) {
-          // 若伺服器回傳像 "auth/invalid-credential" 的字串在 message 中，也處理
-          const msg = err.message;
-          const found = Object.keys(FIREBASE_ERROR_MAP).find(k => msg.includes(k));
-          if (found) friendly = FIREBASE_ERROR_MAP[found];
-          else friendly = err.message;
-        }
-      } catch (e) {
-        friendly = err?.message || '登入發生錯誤';
+    // fallback: 後端直接驗證
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ email: username, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || data.error || `登入失敗（HTTP ${response.status})`);
       }
 
-      // 顯示給使用者的錯誤 (中文)
-      setError(friendly);
-      throw new Error(friendly); // 保持原本外層 catch 也能捕捉到
+      const userFromBackend = data?.user || {};
+      const role = userFromBackend.role || 'user';
+
+      if (onLogin) onLogin({ token: data?.token || '', user: userFromBackend });
+      try {
+        if (data?.token) localStorage.setItem('token', data.token);
+        if (userFromBackend) localStorage.setItem('user', JSON.stringify(userFromBackend));
+      } catch (e) {}
+
+      if (remember) {
+        try {
+          localStorage.setItem('rememberCredentials', 'true');
+          localStorage.setItem('savedUsername', username);
+        } catch (e) {}
+      }
+
+      addToast({ type: 'success', title: '登入成功', message: `歡迎回來 ${userFromBackend.name || ''}`, autoDismiss: 2500 });
+
+      if (role === 'admin') navigate('/admin/Dashboard', { replace: true });
+      else navigate('/home', { replace: true });
+
+      return;
+    } catch (err) {
+      console.error('[Login] 最終錯誤：', err);
+      throw new Error(getFriendlyError(err));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
     if (!username || !password) {
-      setError('請填寫帳號與密碼');
+      addToast({ type: 'error', title: '欄位不足', message: '請填寫帳號與密碼', autoDismiss: 3500 });
       return;
     }
 
@@ -173,16 +196,14 @@ const LoginPage = ({ onLogin }) => {
     try {
       await handleFirebaseLogin();
     } catch (err) {
-      // handleFirebaseLogin 內會 setError，這裡可做補充動作或記錄
       console.warn('handleSubmit catch:', err);
+      addToast({ type: 'error', title: '登入失敗', message: getFriendlyError(err), autoDismiss: 5000 });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 訪客登入（保留原邏輯）
   const handleGuestLogin = async () => {
-    setError('');
     setSubmitting(true);
     try {
       await new Promise((r) => setTimeout(r, 200));
@@ -195,10 +216,11 @@ const LoginPage = ({ onLogin }) => {
         localStorage.setItem('token', fake.token);
         localStorage.setItem('user', JSON.stringify(fake.user));
       } catch (e) {}
+      addToast({ type: 'success', message: '已以訪客身分登入', autoDismiss: 2200 });
       navigate('/home', { replace: true });
     } catch (err) {
       console.error(err);
-      setError('訪客登入失敗');
+      addToast({ type: 'error', message: '訪客登入失敗', autoDismiss: 3500 });
     } finally {
       setSubmitting(false);
     }
@@ -206,6 +228,8 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="login">
+      <ToastContainer />
+
       <div
         className={`
           relative flex flex-col m-6 bg-white shadow-2xl rounded-2xl md:flex-row md:space-y-0 w-full max-w-4xl
@@ -222,14 +246,11 @@ const LoginPage = ({ onLogin }) => {
 
             <form onSubmit={handleSubmit} className="space-y-5" aria-describedby="login-error">
               <div className="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
                 <input
                   type="text"
                   name="username"
                   id="username"
-                  className="w-full p-2 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="w-full p-2 pl-4 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
                   placeholder="使用者名稱或電子郵件"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -238,14 +259,11 @@ const LoginPage = ({ onLogin }) => {
               </div>
 
               <div className="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
                 <input
                   type="password"
                   id="password"
                   name="password"
-                  className="w-full p-2 pl-12 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="w-full p-2 pl-4 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
                   placeholder="請輸入您的密碼"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -264,20 +282,16 @@ const LoginPage = ({ onLogin }) => {
                     checked={remember}
                     onChange={(e) => handleRememberToggle(e.target.checked)}
                   />
-                  <label htmlFor="remember">記住我</label>
+                  <label htmlFor="remember">記住帳號</label>
                 </div>
-                <a href="#" className="font-semibold text-amber-600 hover:underline">忘記密碼?</a>
+                <button type="button" onClick={(ev) => { ev.preventDefault(); addToast({ type: 'info', message: '忘記密碼流程尚未串接', autoDismiss: 3000 }); }} className="font-semibold text-amber-600 hover:underline">
+                  忘記密碼?
+                </button>
               </div>
-
-              {error && (
-                <div id="login-error" className="text-sm text-red-600">
-                  {error}
-                </div>
-              )}
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-green-800 to-green-600 text-white p-3 rounded-lg font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-300 disabled:opacity-60"
+                className="w-full bg-gradient-to-r from-green-800 to-green-600 text-white p-3 rounded-lg font-semibold shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all duration-300 disabled:opacity-60"
                 disabled={submitting}
               >
                 {submitting ? '登入中...' : '登入'}
@@ -296,7 +310,7 @@ const LoginPage = ({ onLogin }) => {
                 className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 disabled={submitting}
                 onClick={() => {
-                  alert('Google OAuth 尚未串接');
+                  addToast({ type: 'info', message: 'Google OAuth 尚未串接', autoDismiss: 3000 });
                 }}
               >
                 <img src="/Google.png" alt="Google Logo" className="w-5 h-5 mr-3" />
