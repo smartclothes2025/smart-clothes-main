@@ -1,3 +1,12 @@
+.bankpage-wrapper {
+  background: #f3f4f6 !important; /* Tailwind bg-gray-100 */
+  min-height: 100vh;
+
+}
+/* 增加底部空間給分頁工具列，避免被內容擋住 */
+.bankpage-wrapper {
+  padding-bottom: 4.5rem !important;
+}
 /* src/styles/TableStyles.css */
 
 /* 表格的外部容器樣式 */

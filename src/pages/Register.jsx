@@ -80,6 +80,10 @@ const RegisterPage = () => {
         message: `歡迎 ${displayName}！即將為您轉到登入頁面。`,
         autoDismiss: 3500,
       });
+      setTimeout(() => {
+        navigate('/');
+      }, 3500);
+      
     } catch (err) {
       console.error('註冊失敗：', err);
       addToast({
@@ -97,13 +101,13 @@ const RegisterPage = () => {
     <div className="flex items-center justify-center min-h-screen bg-green-50 font-sans p-4">
       <div
         className={`
-          relative flex flex-col m-6 bg-white shadow-2xl rounded-2xl md:flex-row md:space-y-0 w-full max-w-4xl
+          relative flex flex-col m-4 bg-white shadow-2xl rounded-2xl md:flex-row md:space-y-0 w-full max-w-4xl
           transition-all duration-1000 ease-in-out
           ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}
         `}
       >
         <div className="w-full md:w-1/2">
-          <div className="p-8 md:p-12">
+          <div className="p-8 md:p-8">
             <h1 className="mb-2 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
               建立您的帳戶
             </h1>
@@ -113,7 +117,7 @@ const RegisterPage = () => {
               <input
                 type="text"
                 className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300 transition"
-                placeholder="顯示名稱（例：王小明）"
+                placeholder="使用者名稱"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 disabled={submitting}
@@ -142,6 +146,7 @@ const RegisterPage = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={submitting}
               />
+              
               <button
                 type="submit"
                 className="w-full bg-gradient-to-r from-green-800 to-green-600 text-white p-3 rounded-lg font-semibold shadow-md disabled:opacity-60 hover:from-green-700 hover:to-green-500 transition-all duration-300"
@@ -151,7 +156,7 @@ const RegisterPage = () => {
               </button>
             </form>
 
-            <div className="text-center text-sm text-gray-500 mt-10">
+            <div className="text-center text-sm text-gray-500 mt-6">
               已經有帳戶了?{' '}
               <Link to="/login" className="font-semibold text-amber-600 hover:underline">立即登入</Link>
             </div>
@@ -159,6 +164,9 @@ const RegisterPage = () => {
         </div>
 
         <div className="relative hidden w-full md:w-1/2 md:flex flex-col items-center justify-center p-8">
+          <h1 className="mb-4 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 to-green-600">
+            註冊
+          </h1>
           <img src="/穿搭醬logo.png" alt="穿搭醬 Logo" className="w-auto h-auto max-w-xs" />
         </div>
       </div>
