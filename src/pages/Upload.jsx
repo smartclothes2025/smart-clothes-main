@@ -1,4 +1,3 @@
-// src/pages/Upload.jsx
 import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -17,11 +16,11 @@ export default function Upload({ theme, setTheme }) {
     brand: "",
   });
 
-  const [file, setFile] = useState(null); // primary file (for backward compatibility)
-  const [files, setFiles] = useState([]); // all files
+  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
-  const [previewList, setPreviewList] = useState([]); // previews for all files
-  const [currentIndex, setCurrentIndex] = useState(0); // current preview focus
+  const [previewList, setPreviewList] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [removeBg, setRemoveBg] = useState(false);
   const [aiDetect, setAiDetect] = useState(false);
@@ -32,7 +31,6 @@ export default function Upload({ theme, setTheme }) {
   const [postPreview, setPostPreview] = useState(null);
   const [posting, setPosting] = useState(false);
 
-  // 預覽（多張）
   useEffect(() => {
     if (!files.length) {
       setPreviewList([]);
@@ -43,7 +41,6 @@ export default function Upload({ theme, setTheme }) {
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [files]);
 
-  // 接收來自編輯頁的檔案與去背選項（支援多張）
   useEffect(() => {
     const st = location.state;
     if (st?.files && Array.isArray(st.files) && st.files.length) {
@@ -53,7 +50,6 @@ export default function Upload({ theme, setTheme }) {
       setCurrentIndex(p);
       setFile(st.files[p]);
     } else if (st?.file) {
-      // 兼容舊流程（單張）
       setFiles([st.file]);
       setPrimaryIndex(0);
       setCurrentIndex(0);
@@ -67,7 +63,6 @@ export default function Upload({ theme, setTheme }) {
     }
   }, [location.state]);
 
-  // 發文圖片預覽
   useEffect(() => {
     if (!postImage) {
       setPostPreview(null);
@@ -82,10 +77,8 @@ export default function Upload({ theme, setTheme }) {
     const list = Array.from(e.target.files || []);
     const imgs = list.filter((f) => f.type?.startsWith("image/"));
     if (!imgs.length) return;
-    // 添加到現有清單
     setFiles((prev) => {
       const merged = [...prev, ...imgs];
-      // 若之前沒有檔案，初始化主圖
       if (prev.length === 0) {
         setPrimaryIndex(0);
         setCurrentIndex(0);
@@ -95,34 +88,34 @@ export default function Upload({ theme, setTheme }) {
     });
   }
 
+  // ...existing code...
   async function handleSubmit(e) {
     e.preventDefault();
     if (uploading) return;
-    if (!file) {
+    if (!files.length) {
       alert("請先上傳照片");
       return;
     }
 
     setUploading(true);
     try {
-      const workingFile = file; // 主圖
       const fd = new FormData();
-      fd.append("file", workingFile);
-      // 其餘附圖（後端若不支援會忽略）
-      files.forEach((f, idx) => {
-        if (idx !== primaryIndex) fd.append("additional_files", f);
-      });
-      fd.append("name", form.name);
-      fd.append("category", form.category);
-      fd.append("color", form.color);
 
-// tags: 以 style 與 brand 當作 tags 範例（你可改成 user input）
+      // append 所有檔案 (後端期望欄位名為 "files")
+      files.forEach((f, idx) => {
+        // 前端決定哪個當主圖/次圖可由後端依 stored order 處理或加入額外 meta
+        fd.append("files", f, f.name);
+      });
+
+      fd.append("name", form.name || "");
+      fd.append("category", form.category || "");
+      fd.append("color", form.color || "");
+
       const tagsArr = [];
       if (form.style) tagsArr.push(form.style);
       if (form.brand) tagsArr.push(form.brand);
       fd.append("tags", JSON.stringify(tagsArr));
 
-      // attributes: 傳 json string（material, size, brand）
       const attrs = {
         material: form.material || "",
         size: form.size || "",
@@ -133,29 +126,48 @@ export default function Upload({ theme, setTheme }) {
       fd.append("ai_detect", aiDetect ? "1" : "0");
 
       const token = localStorage.getItem("token") || "";
-      const res = await fetch("/api/v1/upload", {
+      if (token) fd.append("token", token);
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      console.log("Upload debug:", { filesCount: files.length, primaryIndex, tokenExists: !!token });
+
+      const res = await fetch("http://localhost:8000/api/v1/upload/", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers,
         body: fd,
       });
 
-    if (!res.ok) {
-        // 盡量嘗試讀取後端錯誤資訊
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || JSON.stringify(err));
-    }
-
-      const data = await res.json();
-      console.log("upload result", data);
+      if (!res.ok) {
+        // 先抓 response headers / status
+        console.error("Upload status", res.status, res.statusText);
+        // 先讀 text，再嘗試 parse JSON，最後把原始與解析結果都印出來
+        const text = await res.text().catch(() => "");
+        console.error("Upload response raw text:", text);
+        let parsed = null;
+        try {
+          parsed = JSON.parse(text);
+          console.error("Upload response parsed json:", parsed);
+        } catch (e) {
+          console.warn("Response is not JSON");
+        }
+        // Throw 一個包含完整訊息的 Error（確保是字串）
+        const errMsg = parsed?.detail ? parsed.detail : (text || `${res.status} ${res.statusText}`);
+        throw new Error(errMsg);
+      }
+  
+      await res.json();
       alert("上傳成功！");
       navigate(-1);
+      
     } catch (err) {
-      console.error(err);
-      alert("上傳失敗：" + (err.message || err));
+      console.error("upload error:", err);
+      alert("上傳失敗：" + (err.message || String(err)));
     } finally {
       setUploading(false);
     }
   }
+
 
   async function handlePostSubmit(e) {
     e.preventDefault();
@@ -190,8 +202,7 @@ export default function Upload({ theme, setTheme }) {
       setPostImage(null);
       setPostPreview(null);
     } catch (err) {
-      console.error(err);
-      alert("發文失敗：" + err.message);
+      alert("發文失敗：" + (err.message || err));
     } finally {
       setPosting(false);
     }
@@ -209,7 +220,6 @@ export default function Upload({ theme, setTheme }) {
     <Layout title="新增衣物">
       <div className="page-wrapper">
         <div className="max-w-6xl mx-auto px-4 mt-4">
-          {/* 使用 12 欄格：左 8 欄為圖片/大區塊，右 4 欄為欄位 */}
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
             <div className="col-span-12 lg:col-span-8 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -217,7 +227,6 @@ export default function Upload({ theme, setTheme }) {
                   預覽照片
                 </label>
                 <div className="w-full max-w-[480px] mx-auto aspect-square bg-gray-50 rounded-lg flex items-center justify-center border border-dashed relative overflow-hidden">
-                  {/* 檔案選取按鈕 */}
                   <input
                     type="file"
                     accept="image/*"
@@ -291,7 +300,6 @@ export default function Upload({ theme, setTheme }) {
               </div>
             </div>
 
-            {/* 右側欄位 */}
             <div className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 items-center">
@@ -369,11 +377,10 @@ export default function Upload({ theme, setTheme }) {
                   <button
                     type="submit"
                     disabled={uploading}
-                    className={`flex-1 py-3 rounded-lg ${
-                      uploading
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-indigo-600 text-white"
-                    }`}
+                    className={`flex-1 py-3 rounded-lg ${uploading
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-indigo-600 text-white"
+                      }`}
                   >
                     {uploading ? "上傳中..." : "完成"}
                   </button>
@@ -391,7 +398,6 @@ export default function Upload({ theme, setTheme }) {
           </form>
         </div>
 
-        {/* 發文 Modal（保留原有功能） */}
         {postOpen && (
           <div className="fixed inset-0 z-50 flex items-end justify-center">
             <div
@@ -442,9 +448,8 @@ export default function Upload({ theme, setTheme }) {
                     <button
                       type="submit"
                       disabled={posting}
-                      className={`px-4 py-2 rounded-lg ${
-                        posting ? "bg-gray-400" : "bg-indigo-600 text-white"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${posting ? "bg-gray-400" : "bg-indigo-600 text-white"
+                        }`}
                     >
                       {posting ? "發文中..." : "發佈"}
                     </button>

@@ -5,6 +5,7 @@ import { mdiInformationSlabCircleOutline } from "@mdi/js";
 import Cropper from "react-easy-crop";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import Header from "../components/Header";
 
 export default function UploadEdit({ theme, setTheme }) {
   const navigate = useNavigate();
