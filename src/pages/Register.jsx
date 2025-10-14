@@ -158,7 +158,7 @@ const RegisterPage = () => {
 
             <div className="text-center text-sm text-gray-500 mt-6">
               已經有帳戶了?{' '}
-              <Link to="/login" className="font-semibold text-amber-600 hover:underline">立即登入</Link>
+              <Link to="/" className="font-semibold text-amber-600 hover:underline">立即登入</Link>
             </div>
           </div>
         </div>

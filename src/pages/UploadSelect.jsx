@@ -1,10 +1,11 @@
 // src/pages/UploadSelect.jsx
-import React, { useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 
 export default function UploadSelect({ theme, setTheme }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const libInputRef = useRef(null);
   const cameraInputRef = useRef(null);

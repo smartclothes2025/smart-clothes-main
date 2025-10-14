@@ -2,34 +2,27 @@ import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Camera } from "lucide-react";
+import Icon from "@mdi/react";
+import { mdiUpload, mdiCloudUploadOutline, mdiChevronLeft } from "@mdi/js";
+import { useToast } from "../components/ToastProvider";
+
+function getToken() {
+  return localStorage.getItem("token") || "";
+}
 
 export default function Upload({ theme, setTheme }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({
-    name: "",
-    category: "上衣",
-    color: "",
-    material: "棉",
-    style: "休閒",
-    size: "M",
-    brand: "",
-  });
+  const { addToast } = useToast();
 
-  const [file, setFile] = useState(null);
+  const [forms, setForms] = useState([]);
   const [files, setFiles] = useState([]);
-  const [primaryIndex, setPrimaryIndex] = useState(0);
   const [previewList, setPreviewList] = useState([]);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [uploading, setUploading] = useState(false);
   const [removeBg, setRemoveBg] = useState(false);
   const [aiDetect, setAiDetect] = useState(false);
-
-  const [postOpen, setPostOpen] = useState(false);
-  const [postText, setPostText] = useState("");
-  const [postImage, setPostImage] = useState(null);
-  const [postPreview, setPostPreview] = useState(null);
-  const [posting, setPosting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!files.length) {
@@ -45,188 +38,155 @@ export default function Upload({ theme, setTheme }) {
     const st = location.state;
     if (st?.files && Array.isArray(st.files) && st.files.length) {
       setFiles(st.files);
-      const p = Number.isInteger(st.primaryIndex) ? Math.min(Math.max(0, st.primaryIndex), st.files.length - 1) : 0;
-      setPrimaryIndex(p);
+      setPrimaryIndex(st.primaryIndex ?? 0);
+      const p = Number.isInteger(st.primaryIndex)
+        ? Math.min(Math.max(0, st.primaryIndex), st.files.length - 1)
+        : 0;
       setCurrentIndex(p);
-      setFile(st.files[p]);
+      const initForms = st.files.map(() => ({
+        name: "",
+        category: "上衣",
+        color: "",
+        material: "棉",
+        style: "休閒",
+        size: "M",
+        brand: "",
+      }));
+      setForms(initForms);
     } else if (st?.file) {
       setFiles([st.file]);
       setPrimaryIndex(0);
       setCurrentIndex(0);
-      setFile(st.file);
+      setForms([
+        {
+          name: "",
+          category: "上衣",
+          color: "",
+          material: "棉",
+          style: "休閒",
+          size: "M",
+          brand: "",
+        },
+      ]);
     }
-    if (typeof st?.removeBg === "boolean") {
-      setRemoveBg(st.removeBg);
-    }
-    if (typeof st?.aiDetect === "boolean") {
-      setAiDetect(st.aiDetect);
-    }
+    if (typeof st?.removeBg === "boolean") setRemoveBg(st.removeBg);
+    if (typeof st?.aiDetect === "boolean") setAiDetect(st.aiDetect);
   }, [location.state]);
-
-  useEffect(() => {
-    if (!postImage) {
-      setPostPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(postImage);
-    setPostPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [postImage]);
 
   function handleFileChange(e) {
     const list = Array.from(e.target.files || []);
     const imgs = list.filter((f) => f.type?.startsWith("image/"));
     if (!imgs.length) return;
+
     setFiles((prev) => {
       const merged = [...prev, ...imgs];
-      if (prev.length === 0) {
-        setPrimaryIndex(0);
-        setCurrentIndex(0);
-        setFile(imgs[0]);
-      }
+      if (prev.length === 0) setCurrentIndex(0);
       return merged;
+    });
+
+    setForms((prev) => {
+      const newForms = imgs.map(() => ({
+        name: "",
+        category: "上衣",
+        color: "",
+        material: "棉",
+        style: "休閒",
+        size: "M",
+        brand: "",
+      }));
+      return [...prev, ...newForms];
     });
   }
 
-  // ...existing code...
+  function updateFormAt(index, patch) {
+    setForms((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...(copy[index] || {}), ...patch };
+      return copy;
+    });
+  }
+
+  function buildFormDataForIndex(idx) {
+    const file = files[idx];
+    const form = forms[idx] || {};
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    fd.append("name", form.name || "");
+    fd.append("category", form.category || "上衣");
+    fd.append("color", form.color || "");
+    const tagsArr = [];
+    if (form.style) tagsArr.push(form.style);
+    if (form.brand) tagsArr.push(form.brand);
+    fd.append("tags", JSON.stringify(tagsArr));
+    const attrs = { material: form.material || "", size: form.size || "", brand: form.brand || "" };
+    fd.append("attributes", JSON.stringify(attrs));
+    fd.append("remove_bg", removeBg ? "1" : "0");
+    fd.append("ai_detect", aiDetect ? "1" : "0");
+    const token = getToken();
+    if (token) fd.append("token", token);
+    return fd;
+  }
+
+  async function performSingleUpload(fd) {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch("http://localhost:8000/api/v1/upload/", {
+      method: "POST",
+      headers,
+      body: fd,
+    });
+    return res;
+  }
   async function handleSubmit(e) {
     e.preventDefault();
     if (uploading) return;
     if (!files.length) {
-      alert("請先上傳照片");
+      addToast({ type: "warning", title: "尚未選擇照片", message: "請先上傳照片再完成操作。" });
       return;
     }
 
     setUploading(true);
     try {
-      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        const fd = buildFormDataForIndex(i);
+        const res = await performSingleUpload(fd);
 
-      // append 所有檔案 (後端期望欄位名為 "files")
-      files.forEach((f, idx) => {
-        // 前端決定哪個當主圖/次圖可由後端依 stored order 處理或加入額外 meta
-        fd.append("files", f, f.name);
-      });
-
-      fd.append("name", form.name || "");
-      fd.append("category", form.category || "");
-      fd.append("color", form.color || "");
-
-      const tagsArr = [];
-      if (form.style) tagsArr.push(form.style);
-      if (form.brand) tagsArr.push(form.brand);
-      fd.append("tags", JSON.stringify(tagsArr));
-
-      const attrs = {
-        material: form.material || "",
-        size: form.size || "",
-        brand: form.brand || ""
-      };
-      fd.append("attributes", JSON.stringify(attrs));
-      fd.append("remove_bg", removeBg ? "1" : "0");
-      fd.append("ai_detect", aiDetect ? "1" : "0");
-
-      const token = localStorage.getItem("token") || "";
-      if (token) fd.append("token", token);
-      const headers = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      console.log("Upload debug:", { filesCount: files.length, primaryIndex, tokenExists: !!token });
-
-      const res = await fetch("http://localhost:8000/api/v1/upload/", {
-        method: "POST",
-        headers,
-        body: fd,
-      });
-
-      if (!res.ok) {
-        // 先抓 response headers / status
-        console.error("Upload status", res.status, res.statusText);
-        // 先讀 text，再嘗試 parse JSON，最後把原始與解析結果都印出來
-        const text = await res.text().catch(() => "");
-        console.error("Upload response raw text:", text);
-        let parsed = null;
-        try {
-          parsed = JSON.parse(text);
-          console.error("Upload response parsed json:", parsed);
-        } catch (e) {
-          console.warn("Response is not JSON");
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          let parsed = null;
+          try {
+            parsed = JSON.parse(text);
+          } catch {}
+          const errMsg = parsed?.detail || text || `${res.status} ${res.statusText}`;
+          throw new Error(`第 ${i + 1} 件上傳失敗：${errMsg}`);
         }
-        // Throw 一個包含完整訊息的 Error（確保是字串）
-        const errMsg = parsed?.detail ? parsed.detail : (text || `${res.status} ${res.statusText}`);
-        throw new Error(errMsg);
       }
-  
-      await res.json();
-      alert("上傳成功！");
-      navigate(-1);
-      
+
+      addToast({ type: "success", title: "上傳完成", message: `成功上傳 ${files.length} 件衣物！`, autoDismiss: 3000 });
+      navigate("/upload/select");
     } catch (err) {
       console.error("upload error:", err);
-      alert("上傳失敗：" + (err.message || String(err)));
+      addToast({ type: "error", title: "上傳失敗", message: err.message || String(err), autoDismiss: 6000 });
     } finally {
       setUploading(false);
-    }
-  }
-
-
-  async function handlePostSubmit(e) {
-    e.preventDefault();
-    if (posting) return;
-    if (!postText.trim() && !postImage) {
-      alert("請輸入貼文或上傳圖片");
-      return;
-    }
-
-    setPosting(true);
-    try {
-      const fd = new FormData();
-      fd.append("content", postText);
-      if (postImage) fd.append("file", postImage);
-
-      const token = localStorage.getItem("token") || "";
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || JSON.stringify(err));
-      }
-
-      await res.json();
-      alert("發文成功！");
-      setPostOpen(false);
-      setPostText("");
-      setPostImage(null);
-      setPostPreview(null);
-    } catch (err) {
-      alert("發文失敗：" + (err.message || err));
-    } finally {
-      setPosting(false);
     }
   }
 
   function handleGoQuickAdd() {
     navigate("/quick-add");
   }
-
-  function handleOpenPost() {
-    setPostOpen(true);
+  function handleOpenEdit() {
+    navigate("/upload/edit", { state: { files: files, primaryIndex, removeBg, aiDetect } });
   }
 
   return (
     <Layout title="新增衣物">
       <div className="page-wrapper">
         <div className="max-w-6xl mx-auto px-4 mt-4">
-          <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6">
-            <div className="col-span-12 lg:col-span-8 space-y-6">
+          <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6 items-start">
+            <div className="col-span-12 lg:col-span-7 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <label className="block text-sm text-gray-600 mb-2">
-                  預覽照片
-                </label>
-                <div className="w-full max-w-[480px] mx-auto aspect-square bg-gray-50 rounded-lg flex items-center justify-center border border-dashed relative overflow-hidden">
+                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative max-h-[70vh]">
                   <input
                     type="file"
                     accept="image/*"
@@ -235,20 +195,28 @@ export default function Upload({ theme, setTheme }) {
                     className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     aria-label="上傳照片"
                   />
-
                   {previewList.length === 0 ? (
-                    <div className="flex flex-col items-center gap-3 pointer-events-none">
-                      <div className="text-sm text-gray-500">
-                        尚未選擇照片，點擊方框或使用上一步選擇/編輯照片
+                    <div className="flex flex-col items-center gap-4 justify-center h-full p-6 pointer-events-none text-center">
+                      <div className="rounded-full bg-white/80 p-4 shadow">
+                        <Camera className="w-6 h-6 text-gray-700" />
                       </div>
+                      <div className="text-sm text-gray-500">
+                        尚未選擇照片<br />點擊方框或拖曳圖片來上傳
+                      </div>
+
                       <div className="flex items-center gap-2">
-                        <div className="px-3 py-2 rounded-lg border flex items-center gap-2 bg-white">
-                          <Camera className="w-5 h-5" />
-                          <span className="text-sm">選擇圖片</span>
-                        </div>
                         <button
                           type="button"
-                          className="px-3 py-2 rounded-lg border pointer-events-auto"
+                          onClick={() => document.querySelector('input[type="file"]').click()}
+                          className="px-3 py-2 rounded-lg border flex items-center gap-2 bg-white"
+                        >
+                          <Icon path={mdiUpload} size={0.9} />
+                          <span className="text-sm">選擇圖片</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="px-3 py-2 rounded-lg border"
                           onClick={() => navigate("/upload/select")}
                         >
                           重新上傳（編輯）
@@ -256,11 +224,7 @@ export default function Upload({ theme, setTheme }) {
                       </div>
                     </div>
                   ) : (
-                    <img
-                      src={previewList[currentIndex]}
-                      alt="preview"
-                      className="object-cover w-full h-full"
-                    />
+                    <img src={previewList[currentIndex]} alt="preview" className="object-cover w-full h-full block bg-white" />
                   )}
                 </div>
 
@@ -268,55 +232,43 @@ export default function Upload({ theme, setTheme }) {
                   <div className="mt-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-sm text-gray-600">共 {previewList.length} 張，當前第 {currentIndex + 1} 張</div>
-                      <button
-                        type="button"
-                        className={`px-3 py-1 rounded border ${primaryIndex === currentIndex ? 'bg-black text-white border-black' : 'border-gray-300'}`}
-                        onClick={() => {
-                          setPrimaryIndex(currentIndex);
-                          setFile(files[currentIndex]);
-                        }}
-                      >
-                        設為主圖
-                      </button>
+                      <div className="flex items-center gap-2">
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 overflow-x-auto">
+
+                    <div className="flex items-center gap-2 overflow-x-auto py-1">
                       {previewList.map((u, i) => (
                         <button
                           key={i}
                           type="button"
                           onClick={() => setCurrentIndex(i)}
-                          className={`relative w-20 h-20 rounded overflow-hidden border ${i === currentIndex ? 'border-blue-600' : 'border-gray-200'}`}
+                          className={`relative w-20 h-20 rounded overflow-hidden border ${i === currentIndex ? "border-blue-600" : "border-gray-200"} transition transform hover:scale-105`}
+                          title={`第 ${i + 1} 張`}
                         >
-                          <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full" />
-                          {i === primaryIndex && (
-                            <span className="absolute top-1 left-1 bg-black text-white text-[10px] px-1 rounded">主圖</span>
-                          )}
+                          <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full block bg-white" />
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
 
-            <div className="col-span-12 lg:col-span-4">
-              <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 items-center">
+            <div className="col-span-12 lg:col-span-5">
+              <aside className="rounded-xl p-4 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg sticky top-6">
+                <div className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 items-center">
                   <label className="text-sm text-gray-600">名稱</label>
                   <input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    value={forms[currentIndex]?.name || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { name: e.target.value })}
                     className="p-3 border rounded-lg"
                     placeholder="例：白色T恤"
                   />
 
                   <label className="text-sm text-gray-600">類別</label>
                   <select
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm({ ...form, category: e.target.value })
-                    }
+                    value={forms[currentIndex]?.category || "上衣"}
+                    onChange={(e) => updateFormAt(currentIndex, { category: e.target.value })}
                     className="p-3 border rounded-lg"
                   >
                     <option>上衣</option>
@@ -324,141 +276,70 @@ export default function Upload({ theme, setTheme }) {
                     <option>裙子</option>
                     <option>連衣裙</option>
                   </select>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-sm text-gray-600">顏色</label>
                   <input
-                    value={form.color}
-                    onChange={(e) =>
-                      setForm({ ...form, color: e.target.value })
-                    }
+                    value={forms[currentIndex]?.color || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { color: e.target.value })}
                     placeholder="顏色"
                     className="p-3 border rounded-lg"
                   />
+
+                  <label className="text-sm text-gray-600">材質</label>
                   <input
-                    value={form.material}
-                    onChange={(e) =>
-                      setForm({ ...form, material: e.target.value })
-                    }
+                    value={forms[currentIndex]?.material || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { material: e.target.value })}
                     placeholder="材質"
                     className="p-3 border rounded-lg"
                   />
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-sm text-gray-600">風格</label>
                   <input
-                    value={form.style}
-                    onChange={(e) =>
-                      setForm({ ...form, style: e.target.value })
-                    }
+                    value={forms[currentIndex]?.style || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { style: e.target.value })}
                     placeholder="風格"
                     className="p-3 border rounded-lg"
                   />
+
+                  <label className="text-sm text-gray-600">尺寸</label>
                   <input
-                    value={form.size}
-                    onChange={(e) => setForm({ ...form, size: e.target.value })}
+                    value={forms[currentIndex]?.size || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { size: e.target.value })}
                     placeholder="尺寸"
                     className="p-3 border rounded-lg"
                   />
-                </div>
 
-                <div>
+                  <label className="text-sm text-gray-600">品牌</label>
                   <input
-                    value={form.brand}
-                    onChange={(e) =>
-                      setForm({ ...form, brand: e.target.value })
-                    }
+                    value={forms[currentIndex]?.brand || ""}
+                    onChange={(e) => updateFormAt(currentIndex, { brand: e.target.value })}
                     placeholder="品牌"
                     className="w-full p-3 border rounded-lg"
                   />
                 </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className={`flex-1 py-3 rounded-lg ${uploading
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-indigo-600 text-white"
-                      }`}
-                  >
-                    {uploading ? "上傳中..." : "完成"}
-                  </button>
-
+                <div className="p-2 rounded-lg bg-white/5 flex gap-3">
                   <button
                     type="button"
                     onClick={() => navigate("/upload/edit", { state: { files: files, primaryIndex, removeBg, aiDetect } })}
-                    className="flex-1 border py-3 rounded-lg"
+                    className="flex-1 flex items-center justify-center gap-2 border rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
-                    上一步
+                    <Icon path={mdiChevronLeft} size={0.95} />
+                    <span>上一步</span>
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1 flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
+                    <span>{uploading ? "上傳中..." : "完成"}</span>
+                    <Icon path={mdiCloudUploadOutline} size={0.95} />
                   </button>
                 </div>
-              </div>
+              </aside>
             </div>
           </form>
         </div>
-
-        {postOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setPostOpen(false)}
-            />
-            <div className="relative w-full max-w-3xl bg-white rounded-t-2xl p-4 shadow-xl">
-              <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
-              <form onSubmit={handlePostSubmit} className="space-y-3 pb-6">
-                <textarea
-                  value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                  placeholder="想要分享什麼？（可輸入文字或上傳一張圖片）"
-                  className="w-full border rounded-lg p-3 min-h-[120px] resize-none"
-                />
-
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        setPostImage(e.target.files?.[0] || null)
-                      }
-                      className="hidden"
-                    />
-                    <div className="px-3 py-2 border rounded-lg">上傳圖片</div>
-                  </label>
-
-                  {postPreview && (
-                    <div className="w-20 h-20 bg-gray-50 rounded-md overflow-hidden">
-                      <img
-                        src={postPreview}
-                        alt="post preview"
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                  )}
-
-                  <div className="ml-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPostOpen(false)}
-                      className="px-4 py-2 border rounded-lg"
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={posting}
-                      className={`px-4 py-2 rounded-lg ${posting ? "bg-gray-400" : "bg-indigo-600 text-white"
-                        }`}
-                    >
-                      {posting ? "發文中..." : "發佈"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );
