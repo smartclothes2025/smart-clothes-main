@@ -86,6 +86,7 @@ const RegisterPage = () => {
       
     } catch (err) {
       console.error('註冊失敗：', err);
+      console.error('詳細錯誤資訊:', err.message, err.stack); 
       addToast({
         type: 'error',
         title: '伺服器錯誤',

@@ -53,11 +53,7 @@ export default function WeatherCard() {
         </div>
         <img src={iconUrl} alt={weather.description} className="w-20 h-20" />
       </div>
-      <div className="mt-3 flex gap-2">
-        <button className="px-3 py-1 bg-white/90 rounded-full text-sm shadow-sm">外出</button>
-        <button className="px-3 py-1 bg-white/90 rounded-full text-sm shadow-sm">上班</button>
-        <button className="px-3 py-1 bg-white/90 rounded-full text-sm shadow-sm">約會</button>
-      </div>
+    
     </div>
   );
 }
