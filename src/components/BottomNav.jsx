@@ -7,9 +7,9 @@ export default function BottomNav() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      {/* Mobile bottom nav - hidden on md+ */}
+      {/* Mobile bottom nav - hidden on lg+ */}
       <nav
-        className="fixed left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 md:hidden"
+        className="fixed left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 lg:hidden"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)" }}
       >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
@@ -64,7 +64,7 @@ export default function BottomNav() {
 
       {/* Action Sheet for + button (mobile) */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           {/* Sheet */}

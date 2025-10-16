@@ -50,11 +50,12 @@ export default function UploadEdit({ theme, setTheme }) {
     const wrap = cropWrapRef.current;
     if (!wrap) return;
     const ro = new ResizeObserver(() => {
-      const side = wrap.clientWidth || 0;
+      // 使用寬高最小值確保 cropSize 不會超出可見區域
+      const side = Math.min(wrap.clientWidth || 0, wrap.clientHeight || 0);
       setViewportSide(side);
     });
     ro.observe(wrap);
-    const side = wrap.clientWidth || 0;
+    const side = Math.min(wrap.clientWidth || 0, wrap.clientHeight || 0);
     setViewportSide(side);
     return () => ro.disconnect();
   }, []);
@@ -186,7 +187,8 @@ export default function UploadEdit({ theme, setTheme }) {
               <div className="lg:col-span-3">
                 <div
                   ref={cropWrapRef}
-                  className="w-full max-w-none aspect-square max-h-[70vh] bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center relative"
+                  className="w-full max-w-none bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center relative"
+                  style={{ aspectRatio: '1 / 1', maxHeight: 'min(100vw, 70vh)' }}
                 >
                   {previewUrls[currentIndex] &&
                     ((cropModeArr[currentIndex] ?? true) ? (

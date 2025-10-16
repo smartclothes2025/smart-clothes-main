@@ -39,3 +39,59 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* 全局手機端響應式約束 */
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 防止手機端橫向滾動 */
+body {
+  overscroll-behavior-x: none;
+}
+
+/* 統一的頁面容器 */
+.page-wrapper {
+  min-height: calc(100vh - 3.5rem - env(safe-area-inset-bottom));
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* 手機端優化：確保內容不超出螢幕 */
+@media (max-width: 768px) {
+  .page-wrapper {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* 統一的內容最大寬度 */
+  .max-w-10xl,
+  .max-w-5xl,
+  .max-w-3xl {
+    max-width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  /* 確保圖片不超出容器 */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* 確保所有卡片和容器不超出螢幕 */
+  .bg-white,
+  .rounded-xl,
+  .shadow-lg,
+  .shadow-sm {
+    max-width: 100%;
+  }
+}
