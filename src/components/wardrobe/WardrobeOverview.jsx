@@ -1,5 +1,6 @@
 // src/components/wardrobe/WardrobeOverview.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import WardrobeItem from "./WardrobeItem";
 
 const OUTFIT_KEY = "outfit_history";
@@ -47,7 +48,7 @@ export default function WardrobeOverview() {
 
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [note, setNote] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -161,13 +162,12 @@ export default function WardrobeOverview() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const createTodayOutfit = () => {
+  const goToVirtualFitting = () => {
     if (selectedIds.length === 0) return;
-    addOutfit({ clothesIds: selectedIds, note });
-    setSelectedIds([]);
-    setNote("");
-    setSelecting(false);
-    alert("已加入今日穿搭！請到「穿搭」分頁查看。");
+    // 將選中的單品 ID 存到 localStorage，然後導航到虛擬試衣頁面
+    const selectedItems = items.filter(item => selectedIds.includes(item.id));
+    localStorage.setItem('virtual_fitting_items', JSON.stringify(selectedItems));
+    navigate('/virtual-fitting');
   };
 
   return (
@@ -191,24 +191,17 @@ export default function WardrobeOverview() {
             </button>
           ) : (
             <>
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="今日穿搭備註"
-                className="border rounded-md px-2 py-1 text-sm"
-              />
               <button
-                onClick={createTodayOutfit}
+                onClick={goToVirtualFitting}
                 disabled={selectedIds.length === 0}
                 className="px-3 py-1 text-sm rounded-md bg-green-600 text-white disabled:opacity-50"
               >
-                加入今日穿搭（{selectedIds.length}）
+                虛擬試衣（{selectedIds.length}）
               </button>
               <button
                 onClick={() => {
                   setSelecting(false);
                   setSelectedIds([]);
-                  setNote("");
                 }}
                 className="px-3 py-1 text-sm rounded-md bg-gray-200"
               >
