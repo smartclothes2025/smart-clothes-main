@@ -23,6 +23,8 @@ export default function Upload({ theme, setTheme }) {
   const [removeBg, setRemoveBg] = useState(false);
   const [aiDetect, setAiDetect] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // 預設允許的風格（對應後端 enum 的預期值），若後端有不同請同步調整
+  const ALLOWED_STYLES = ["休閒", "正式", "運動", "可愛", "個性", "簡約", "復古", "其他"];
 
   useEffect(() => {
     if (!files.length) {
@@ -114,9 +116,18 @@ export default function Upload({ theme, setTheme }) {
     fd.append("name", form.name || "");
     fd.append("category", form.category || "上衣");
     fd.append("color", form.color || "");
+    // 驗證 style，避免送出後端 enum 無效值
+    let validatedStyle = (form.style || "").trim();
+    if (!validatedStyle) validatedStyle = "休閒";
+    if (!ALLOWED_STYLES.includes(validatedStyle)) {
+      // 若不在允許清單中，改為其他或預設值（避免 DB enum error）
+      validatedStyle = "其他";
+    }
     const tagsArr = [];
-    if (form.style) tagsArr.push(form.style);
+    if (validatedStyle) tagsArr.push(validatedStyle);
     if (form.brand) tagsArr.push(form.brand);
+    // 將 validatedStyle 明確加入 form data，後端會直接使用此欄位
+    fd.append("style", validatedStyle);
     fd.append("tags", JSON.stringify(tagsArr));
     const attrs = { material: form.material || "", size: form.size || "", brand: form.brand || "" };
     fd.append("attributes", JSON.stringify(attrs));
@@ -186,7 +197,7 @@ export default function Upload({ theme, setTheme }) {
           <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6 items-start">
             <div className="col-span-12 lg:col-span-7 space-y-6">
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative max-h-[70vh]">
+                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative max-h-[100vh]">
                   <input
                     type="file"
                     accept="image/*"
@@ -272,9 +283,15 @@ export default function Upload({ theme, setTheme }) {
                     className="p-3 border rounded-lg"
                   >
                     <option>上衣</option>
-                    <option>褲裝</option>
+                    <option>褲子</option>
                     <option>裙子</option>
-                    <option>連衣裙</option>
+                    <option>洋裝</option>
+                    <option>外套</option>
+                    <option>鞋子</option>
+                    <option>帽子</option>
+                    <option>包包</option>
+                    <option>配件</option>
+                    <option>襪子</option>
                   </select>
 
                   <label className="text-sm text-gray-600">顏色</label>

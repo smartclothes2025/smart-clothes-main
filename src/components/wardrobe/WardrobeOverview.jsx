@@ -30,7 +30,7 @@ const addOutfit = ({ clothesIds = [], note = "", img = "" }) => {
   } catch {}
 };
 
-const filters = ["全部", "上衣", "褲裝", "外套", "裙裝", "配飾"];
+const filters = ["全部", "上衣", "褲子", "裙子", "洋裝", "外套", "鞋子", "帽子", "包包", "配件", "襪子"];
 const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : "http://127.0.0.1:8000";
 
 export default function WardrobeOverview() {
@@ -111,6 +111,10 @@ export default function WardrobeOverview() {
           if (img && img.startsWith("/")) {
             // 使用絕對主機路徑，但保留當前 API_BASE 的協定與 host
             img = `${API_BASE}${img}`;
+          } else {
+            // 非絕對也非以 / 開頭的相對路徑，視為 uploads 內的檔案
+            const rel = img.startsWith("uploads") ? `/${img}` : `/uploads/${img}`;
+            img = `${API_BASE}${rel}`;
           }
           return {
             id: Number.isInteger(+it.id) ? +it.id : it.id,
