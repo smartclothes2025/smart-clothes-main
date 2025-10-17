@@ -197,7 +197,7 @@ export default function Upload({ theme, setTheme }) {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl p-3 shadow-sm">
-                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative" style={{ maxHeight: 'min(100vw, 40vh)' }}>
+                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative" style={{ maxHeight: 'min(100vw, 90vh)' }}>
                   <input
                     type="file"
                     accept="image/*"

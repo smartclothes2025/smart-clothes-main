@@ -182,13 +182,13 @@ export default function UploadEdit({ theme, setTheme }) {
   return (
     <Layout title="編輯照片">
       <div className="page-wrapper pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-6xl mx-auto px-4 mt-4">
+  <div className="max-w-6xl mx-auto px-4 mt-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
               <div className="lg:col-span-1">
                 <div
                   ref={cropWrapRef}
-                  className="w-full max-w-none bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center relative"
-                  style={{ aspectRatio: '1 / 1', maxHeight: 'min(100vw, 40vh)' }}
+                  className="w-full max-w-none bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center relative"
+                  style={{ aspectRatio: '1 / 1', maxHeight: 'min(100vw, 70vh)' }}
                 >
                   {previewUrls[currentIndex] &&
                     ((cropModeArr[currentIndex] ?? true) ? (
@@ -197,7 +197,7 @@ export default function UploadEdit({ theme, setTheme }) {
                         crop={cropArr[currentIndex] || { x: 0, y: 0 }}
                         zoom={zoomArr[currentIndex] || 1}
                         aspect={1}
-                        cropSize={viewportSide ? { width: viewportSide, height: viewportSide } : undefined}
+                        cropSize={undefined}
                         onCropChange={(v) => setCropArr((prev) => { const arr = [...prev]; arr[currentIndex] = v; return arr; })}
                         onZoomChange={(v) => setZoomArr((prev) => { const arr = [...prev]; arr[currentIndex] = v; return arr; })}
                         onCropComplete={(_, areaPixels) => setCroppedAreaPixelsArr((prev) => { const arr = [...prev]; arr[currentIndex] = areaPixels; return arr; })}
@@ -213,7 +213,7 @@ export default function UploadEdit({ theme, setTheme }) {
                           requestAnimationFrame(() => mode === "cover" ? applyCoverZoom({ width, height }, currentIndex) : applyContainZoom({ width, height }, currentIndex));
                         }}
                       />
-                    ) : (
+                      ) : (
                       <img
                         ref={imgRef}
                         src={previewUrls[currentIndex]}
@@ -224,7 +224,6 @@ export default function UploadEdit({ theme, setTheme }) {
                     ))}
                 </div>
               </div>
-
               <div className="lg:col-span-1">
                 <div className="rounded-xl p-3 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg lg:sticky lg:top-4">
                   <div className="mb-3 grid grid-cols-3 gap-2">
