@@ -10,8 +10,13 @@ export default function Header({ title, theme, setTheme }) {
         <h1 className="text-xl font-extrabold tracking-tight text-gray-900">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
-        <button className="p-1.5 bg-white rounded-md shadow-sm"><Calendar className="w-4 h-4 text-gray-600" /></button>
-        <Bell className="w-5 h-5 text-gray-600" />
+        <Link to="/Wardrobe" className="ml-2">
+          <Calendar className="w-5 h-5 text-gray-600" />
+        </Link>
+        <Link to="/settings" className="ml-2">
+          <Bell className="w-5 h-5 text-gray-600" />
+        </Link>
+        
         <Link to="/settings" className="ml-2">
           <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-semibold">U</div>
         </Link>

@@ -1,7 +1,6 @@
 // src/components/wardrobe/WardrobeOverview.jsx
 import React, { useEffect, useState } from "react";
 import WardrobeItem from "./WardrobeItem";
-import placeholderImg from "../../assets/t-shirt.png";
 
 const OUTFIT_KEY = "outfit_history";
 const getOutfits = () => {
@@ -23,11 +22,9 @@ const addOutfit = ({ clothesIds = [], note = "", img = "" }) => {
     img: img || "/default-outfit.png",
   });
   saveOutfits(list);
-  // 觸發 storage 事件（其他 tab 可監聽）
   try {
-    // 寫一個臨時 key 促發 storage event（大部分瀏覽器在同一 tab 不會觸發 storage，但跨 tab 會）
     localStorage.setItem(`${OUTFIT_KEY}_last_update`, Date.now().toString());
-  } catch {}
+  } catch { }
 };
 
 const filters = ["全部", "上衣", "褲子", "裙子", "洋裝", "外套", "鞋子", "帽子", "包包", "配件", "襪子"];
@@ -36,12 +33,11 @@ const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BAS
 export default function WardrobeOverview() {
   const INACTIVE_THRESHOLD = 90;
 
-  // 清掉舊的 items 緩存避免覆蓋（保留）
   useEffect(() => {
     try {
       localStorage.removeItem("wardrobe_items");
       localStorage.removeItem("wardrobe_items_seed");
-    } catch {}
+    } catch { }
   }, []);
 
   const [items, setItems] = useState([]);
@@ -49,7 +45,6 @@ export default function WardrobeOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 選取相關 state
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [note, setNote] = useState("");
@@ -61,8 +56,22 @@ export default function WardrobeOverview() {
       setError("");
       try {
         const token = localStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        // 嘗試多個可能的 endpoint（不同部署或 router mount 位置）
+        // 若為訪客帳號則不顯示衣物
+        let storedUser = null;
+        try {
+          const u = localStorage.getItem('user');
+          storedUser = u ? JSON.parse(u) : null;
+        } catch (e) {
+          storedUser = null;
+        }
+        const isGuest = token === 'guest-token-000' || storedUser?.id === 99 || storedUser?.name === '訪客' || storedUser?.email === 'guest@local';
+        if (isGuest) {
+          setItems([]);
+          setError('訪客無法查看衣櫃，請用註冊帳號或其他使用者登入');
+          setLoading(false);
+          return;
+        }
+        const headers = { Authorization: `Bearer ${token}` };
         const candidates = [
           `${API_BASE}/api/v1/wardrobe/clothes`,
           `${API_BASE}/api/v1/clothes`,
@@ -99,7 +108,6 @@ export default function WardrobeOverview() {
           throw new Error(`fetch failed (all candidates) ${JSON.stringify(lastInfo)}`);
         }
 
-        // 支援兩種格式：直接陣列或 { initialItems: [...] }
         const arr = Array.isArray(data) ? data : (Array.isArray(data?.initialItems) ? data.initialItems : null);
         if (!arr) {
           throw new Error("API 回傳格式非預期（請檢查後端是否回傳陣列或 { initialItems: [...] }）");
@@ -107,14 +115,20 @@ export default function WardrobeOverview() {
 
         const mapped = arr.map((it) => {
           let img = it.img || "";
-          // 若 img 以 / 開頭，補上 API_BASE（避免跨域問題）
-          if (img && img.startsWith("/")) {
-            // 使用絕對主機路徑，但保留當前 API_BASE 的協定與 host
-            img = `${API_BASE}${img}`;
+          // 若為完整 URL 就直接使用
+          if (img && (img.startsWith("http://") || img.startsWith("https://"))) {
+            // leave as-is
           } else {
-            // 非絕對也非以 / 開頭的相對路徑，視為 uploads 內的檔案
-            const rel = img.startsWith("uploads") ? `/${img}` : `/uploads/${img}`;
-            img = `${API_BASE}${rel}`;
+            // 移除可能被夾帶的後端路由前綴 /api/v1
+            if (img.startsWith("/api/v1")) img = img.replace(/^\/api\/v1/, "");
+            // 若 img 以 / 開頭，補上 API_BASE（避免跨域問題）
+            if (img && img.startsWith("/")) {
+              img = `${API_BASE}${img}`;
+            } else {
+              // 非絕對也非以 / 開頭的相對路徑，視為 uploads 內的檔案
+              const rel = img.startsWith("uploads") ? `/${img}` : `/uploads/${img}`;
+              img = `${API_BASE}${rel}`;
+            }
           }
           return {
             id: Number.isInteger(+it.id) ? +it.id : it.id,
@@ -139,8 +153,7 @@ export default function WardrobeOverview() {
     })();
 
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 只在 mount 時抓一次
+  }, []);
 
   const filteredItems = items.filter((it) => activeFilter === "全部" || it.category === activeFilter);
 
@@ -154,21 +167,18 @@ export default function WardrobeOverview() {
     setSelectedIds([]);
     setNote("");
     setSelecting(false);
-    // 提示使用者
     alert("已加入今日穿搭！請到「穿搭」分頁查看。");
   };
 
   return (
     <div>
-      {/* 篩選 + 操作列 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {filters.map((f) => (
           <button
             key={f}
             onClick={() => setActiveFilter(f)}
-            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-              activeFilter === f ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-3 py-1 text-sm rounded-full transition-colors ${activeFilter === f ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             {f}
           </button>
@@ -184,7 +194,7 @@ export default function WardrobeOverview() {
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="今日穿搭備註（可留空）"
+                placeholder="今日穿搭備註"
                 className="border rounded-md px-2 py-1 text-sm"
               />
               <button
@@ -209,7 +219,6 @@ export default function WardrobeOverview() {
         </div>
       </div>
 
-      {/* loading / error */}
       {loading && <div className="py-6 text-gray-500">載入中…</div>}
       {error && <div className="py-2 text-red-600">{error}</div>}
 

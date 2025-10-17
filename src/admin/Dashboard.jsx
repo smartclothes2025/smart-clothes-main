@@ -49,7 +49,18 @@ export default function AdminDashboard() {
 
   const kpis = useMemo(() => ([
     { title: "使用者總數", value: users.length.toLocaleString() },
-    { title: "衣物總數", value: clothes.length.toLocaleString() },
+    // 衣物總數：優先使用每個 user 內的衣物計數（例如後端可能回傳 clothes_count 或 wardrobe_count），
+    // 若無則退回 fetch /clothes 的陣列長度
+    { title: "衣物總數", value: (() => {
+      if (Array.isArray(users) && users.length > 0) {
+        const hasPerUser = users.some(u => typeof u.clothes_count === 'number' || typeof u.wardrobe_count === 'number');
+        if (hasPerUser) {
+          const sum = users.reduce((s, u) => s + (Number(u.clothes_count ?? u.wardrobe_count ?? 0)), 0);
+          return sum.toLocaleString();
+        }
+      }
+      return (Array.isArray(clothes) ? clothes.length : 0).toLocaleString();
+    })() },
     { title: "貼文總數", value: posts.length.toLocaleString() },
     { title: "穿搭總數", value: outfits.length.toLocaleString() },
   ]), [users.length, clothes.length, posts.length, outfits.length]);
