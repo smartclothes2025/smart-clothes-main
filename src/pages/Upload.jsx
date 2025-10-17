@@ -3,7 +3,7 @@ import Layout from "../components/Layout";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Camera } from "lucide-react";
 import Icon from "@mdi/react";
-import { mdiUpload, mdiCloudUploadOutline, mdiChevronLeft } from "@mdi/js";
+import { mdiUpload, mdiCloudUploadOutline, mdiChevronLeft, mdiChevronRight, mdiImageMultiple } from "@mdi/js";
 import { useToast } from "../components/ToastProvider";
 
 function getToken() {
@@ -183,10 +183,10 @@ export default function Upload({ theme, setTheme }) {
     <Layout title="新增衣物">
       <div className="page-wrapper">
         <div className="max-w-6xl mx-auto px-4 mt-4">
-          <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-6 items-start">
-            <div className="col-span-12 lg:col-span-7 space-y-6">
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative max-h-[70vh]">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl p-3 shadow-sm">
+                <div className="w-full mx-auto aspect-square bg-gray-50 rounded-lg overflow-hidden border border-dashed relative" style={{ maxHeight: 'min(100vw, 40vh)' }}>
                   <input
                     type="file"
                     accept="image/*"
@@ -228,40 +228,47 @@ export default function Upload({ theme, setTheme }) {
                   )}
                 </div>
 
-                {previewList.length > 0 && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-600">共 {previewList.length} 張，當前第 {currentIndex + 1} 張</div>
-                      <div className="flex items-center gap-2">
+                {previewList.length > 1 && (
+                  <div className="mt-2 p-2 rounded-lg bg-gray-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : previewList.length - 1))}
+                        className="p-2 rounded-lg bg-white hover:bg-gray-50 transition shadow-sm"
+                        title="上一張"
+                      >
+                        <Icon path={mdiChevronLeft} size={0.8} />
+                      </button>
+                      
+                      <div className="flex-1 flex items-center justify-center gap-2">
+                        <Icon path={mdiImageMultiple} size={0.8} className="text-gray-600" />
+                        <span className="text-sm text-gray-700 whitespace-nowrap">
+                          {currentIndex + 1} / {previewList.length}
+                        </span>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 overflow-x-auto py-1">
-                      {previewList.map((u, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setCurrentIndex(i)}
-                          className={`relative w-20 h-20 rounded overflow-hidden border ${i === currentIndex ? "border-blue-600" : "border-gray-200"} transition transform hover:scale-105`}
-                          title={`第 ${i + 1} 張`}
-                        >
-                          <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full block bg-white" />
-                        </button>
-                      ))}
+                      
+                      <button
+                        type="button"
+                        onClick={() => setCurrentIndex((prev) => (prev < previewList.length - 1 ? prev + 1 : 0))}
+                        className="p-2 rounded-lg bg-white hover:bg-gray-50 transition shadow-sm"
+                        title="下一張"
+                      >
+                        <Icon path={mdiChevronRight} size={0.8} />
+                      </button>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="col-span-12 lg:col-span-5">
-              <aside className="rounded-xl p-4 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg sticky top-6">
-                <div className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-4 items-center">
+            <div className="lg:col-span-1">
+              <aside className="rounded-xl p-3 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg lg:sticky lg:top-4">
+                <div className="mb-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 items-center">
                   <label className="text-sm text-gray-600">名稱</label>
                   <input
                     value={forms[currentIndex]?.name || ""}
                     onChange={(e) => updateFormAt(currentIndex, { name: e.target.value })}
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                     placeholder="例：白色T恤"
                   />
 
@@ -269,7 +276,7 @@ export default function Upload({ theme, setTheme }) {
                   <select
                     value={forms[currentIndex]?.category || "上衣"}
                     onChange={(e) => updateFormAt(currentIndex, { category: e.target.value })}
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                   >
                     <option>上衣</option>
                     <option>褲裝</option>
@@ -282,7 +289,7 @@ export default function Upload({ theme, setTheme }) {
                     value={forms[currentIndex]?.color || ""}
                     onChange={(e) => updateFormAt(currentIndex, { color: e.target.value })}
                     placeholder="顏色"
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                   />
 
                   <label className="text-sm text-gray-600">材質</label>
@@ -290,7 +297,7 @@ export default function Upload({ theme, setTheme }) {
                     value={forms[currentIndex]?.material || ""}
                     onChange={(e) => updateFormAt(currentIndex, { material: e.target.value })}
                     placeholder="材質"
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                   />
 
                   <label className="text-sm text-gray-600">風格</label>
@@ -298,7 +305,7 @@ export default function Upload({ theme, setTheme }) {
                     value={forms[currentIndex]?.style || ""}
                     onChange={(e) => updateFormAt(currentIndex, { style: e.target.value })}
                     placeholder="風格"
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                   />
 
                   <label className="text-sm text-gray-600">尺寸</label>
@@ -306,7 +313,7 @@ export default function Upload({ theme, setTheme }) {
                     value={forms[currentIndex]?.size || ""}
                     onChange={(e) => updateFormAt(currentIndex, { size: e.target.value })}
                     placeholder="尺寸"
-                    className="p-3 border rounded-lg"
+                    className="p-2 border rounded-lg text-sm"
                   />
 
                   <label className="text-sm text-gray-600">品牌</label>
@@ -314,26 +321,26 @@ export default function Upload({ theme, setTheme }) {
                     value={forms[currentIndex]?.brand || ""}
                     onChange={(e) => updateFormAt(currentIndex, { brand: e.target.value })}
                     placeholder="品牌"
-                    className="w-full p-3 border rounded-lg"
+                    className="w-full p-2 border rounded-lg text-sm"
                   />
                 </div>
 
-                <div className="p-2 rounded-lg bg-white/5 flex gap-3">
+                <div className="p-2 rounded-lg bg-white/5 flex gap-2">
                   <button
                     type="button"
                     onClick={() => navigate("/upload/edit", { state: { files: files, primaryIndex, removeBg, aiDetect } })}
-                    className="flex-1 flex items-center justify-center gap-2 border rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
-                    <Icon path={mdiChevronLeft} size={0.95} />
-                    <span>上一步</span>
+                    <Icon path={mdiChevronLeft} size={0.9} />
+                    <span className="text-sm">上一步</span>
                   </button>
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="flex-1 flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-black text-white rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
-                    <span>{uploading ? "上傳中..." : "完成"}</span>
-                    <Icon path={mdiCloudUploadOutline} size={0.95} />
+                    <span className="text-sm">{uploading ? "上傳中..." : "完成"}</span>
+                    <Icon path={mdiCloudUploadOutline} size={0.9} />
                   </button>
                 </div>
               </aside>
