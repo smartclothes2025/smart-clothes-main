@@ -182,13 +182,13 @@ export default function UploadEdit({ theme, setTheme }) {
   return (
     <Layout title="編輯照片">
       <div className="page-wrapper pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-5xl mx-auto px-4 mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-              <div className="lg:col-span-3">
+        <div className="max-w-6xl mx-auto px-4 mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              <div className="lg:col-span-1">
                 <div
                   ref={cropWrapRef}
                   className="w-full max-w-none bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center relative"
-                  style={{ aspectRatio: '1 / 1', maxHeight: 'min(100vw, 70vh)' }}
+                  style={{ aspectRatio: '1 / 1', maxHeight: 'min(100vw, 40vh)' }}
                 >
                   {previewUrls[currentIndex] &&
                     ((cropModeArr[currentIndex] ?? true) ? (
@@ -223,106 +223,113 @@ export default function UploadEdit({ theme, setTheme }) {
                       />
                     ))}
                 </div>
-                <div className="mt-2 text-sm text-gray-600">共 {previewUrls.length} 張，當前第 {currentIndex + 1} 張</div>
               </div>
 
-              <div className="lg:col-span-2">
-                <div className="rounded-xl p-4 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg">
-                  <div className="mb-4 grid grid-cols-3 gap-3">
+              <div className="lg:col-span-1">
+                <div className="rounded-xl p-3 backdrop-blur-md bg-white/30 border border-white/20 shadow-lg lg:sticky lg:top-4">
+                  <div className="mb-3 grid grid-cols-3 gap-2">
                     <button title="切換滿版 / 自由" type="button" onClick={() => {
                       const next = (fitArr[currentIndex] || "free") === "cover" ? "free" : "cover";
                       setFitArr((prev) => { const arr = [...prev]; arr[currentIndex] = next; return arr; });
                       const ms = mediaSizeArr[currentIndex];
                       if (next === "cover") applyCoverZoom(ms, currentIndex); else applyContainZoom(ms, currentIndex);
                     }}
-                    className={`flex flex-col items-center justify-center gap-1 py-3 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 ${ (fitArr[currentIndex] || "free") === "cover" ? "bg-white/10" : "bg-white/5" }`}>
-                      <Icon path={mdiCropFree} size={1} aria-hidden />
-                      <span className="text-xs mt-1 whitespace-nowrap">滿版</span>
+                    className={`flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 ${ (fitArr[currentIndex] || "free") === "cover" ? "bg-white/10" : "bg-white/5" }`}>
+                      <Icon path={mdiCropFree} size={0.9} aria-hidden />
+                      <span className="text-xs whitespace-nowrap">滿版</span>
                     </button>
 
                     <button title="旋轉 90°" type="button" onClick={() => setRotateArr((prev) => { const arr = [...prev]; arr[currentIndex] = ((arr[currentIndex] || 0) + 90) % 360; return arr; })}
-                    className="flex flex-col items-center justify-center gap-1 py-3 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/5">
-                      <Icon path={mdiRotateRight} size={1} aria-hidden />
-                      <span className="text-xs mt-1 whitespace-nowrap">旋轉</span>
+                    className="flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/5">
+                      <Icon path={mdiRotateRight} size={0.9} aria-hidden />
+                      <span className="text-xs whitespace-nowrap">旋轉</span>
                     </button>
 
                     <button title="重置" type="button" onClick={() => {
                       setRotateArr((prev) => { const arr = [...prev]; arr[currentIndex] = 0; return arr; });
                       setCropArr((prev) => { const arr = [...prev]; arr[currentIndex] = { x: 0, y: 0 }; return arr; });
                       setFitArr((prev) => { const arr = [...prev]; arr[currentIndex] = "free"; return arr; });
-                      applyContainZoom(mediaSizeArr[currentIndex]);
+                      applyContainZoom(mediaSizeArr[currentIndex], currentIndex);
                     }}
-                    className="flex flex-col items-center justify-center gap-1 py-3 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/5">
-                      <Icon path={mdiRefresh} size={1} aria-hidden />
-                      <span className="text-xs mt-1 whitespace-nowrap">重置</span>
+                    className="flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/5">
+                      <Icon path={mdiRefresh} size={0.9} aria-hidden />
+                      <span className="text-xs whitespace-nowrap">重置</span>
                     </button>
                   </div>
 
-                  <div className="mb-4 p-3 rounded-lg bg-white/5">
+                  <div className="mb-3 p-2 rounded-lg bg-white/5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                           <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} className="form-checkbox" />
-                          <span className="select-none">智慧去背</span>
+                          <span className="select-none text-sm">智慧去背</span>
                         </label>
                         <button type="button" aria-label="去背說明" title="去背說明"
                           onClick={() => addToast({ type: 'info', title: '智慧去背說明', message: '使用去背功能需要較長的處理時間，請耐心等待。' })}
-                          className="p-2 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                          <Icon path={mdiInformationSlabCircleOutline} size={0.9} />
+                          className="p-1.5 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                          <Icon path={mdiInformationSlabCircleOutline} size={0.8} />
                         </button>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                           <input type="checkbox" checked={aiDetect} onChange={(e) => setAiDetect(e.target.checked)} className="form-checkbox" />
-                          <span className="select-none">AI 辨識</span>
+                          <span className="select-none text-sm">AI 辨識</span>
                         </label>
                         <button type="button" aria-label="AI 說明" title="AI 說明"
                           onClick={() => addToast({ type: 'info', title: 'AI 辨識說明', message: '使用 AI 辨識可幫你自動判斷衣物類別、顏色與風格，加速標註流程。' })}
-                          className="p-2 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                          <Icon path={mdiInformationSlabCircleOutline} size={0.9} />
+                          className="p-1.5 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                          <Icon path={mdiInformationSlabCircleOutline} size={0.8} />
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mb-4 p-3 rounded-lg bg-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-700 flex items-center gap-2">
-                        <Icon path={mdiImageMultiple} size={0.9} />
-                        <span className="whitespace-nowrap">共 {previewUrls.length} 張</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {previewUrls.map((u, i) => (
+                  {previewUrls.length > 1 && (
+                    <div className="mb-3 p-2 rounded-lg bg-white/5">
+                      <div className="flex items-center justify-between gap-2">
                         <button
-                          key={i}
                           type="button"
-                          onClick={() => setCurrentIndex(i)}
-                          className={`relative w-20 h-20 rounded overflow-hidden border ${i === currentIndex ? "border-blue-600" : "border-white/20"} transition transform hover:scale-105`}
-                          title={`第 ${i + 1} 張`}
+                          onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : previewUrls.length - 1))}
+                          className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition disabled:opacity-50"
+                          title="上一張"
                         >
-                          <img src={u} alt={`thumb-${i}`} className="object-cover w-full h-full" />
+                          <Icon path={mdiChevronLeft} size={0.8} />
                         </button>
-                      ))}
+                        
+                        <div className="flex-1 flex items-center justify-center gap-2">
+                          <Icon path={mdiImageMultiple} size={0.8} className="text-gray-600" />
+                          <span className="text-sm text-gray-700 whitespace-nowrap">
+                            {currentIndex + 1} / {previewUrls.length}
+                          </span>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setCurrentIndex((prev) => (prev < previewUrls.length - 1 ? prev + 1 : 0))}
+                          className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition disabled:opacity-50"
+                          title="下一張"
+                        >
+                          <Icon path={mdiChevronRight} size={0.8} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="p-2 rounded-lg bg-white/5 flex gap-3">
+                  <div className="p-2 rounded-lg bg-white/5 flex gap-2">
                     <button
-                      className="flex-1 flex items-center justify-center gap-2 border rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       onClick={() => navigate("/upload/select")}
                     >
-                      <Icon path={mdiChevronLeft} size={1} />
-                      <span className="whitespace-nowrap">上一步</span>
+                      <Icon path={mdiChevronLeft} size={0.9} />
+                      <span className="whitespace-nowrap text-sm">上一步</span>
                     </button>
                     <button
-                      className="flex-1 flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-black text-white rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       onClick={handleNext}
                     >
-                      <span className="whitespace-nowrap">下一步</span>
-                      <Icon path={mdiChevronRight} size={1} />
+                      <span className="whitespace-nowrap text-sm">下一步</span>
+                      <Icon path={mdiChevronRight} size={0.9} />
                     </button>
                   </div>
                 </div>
