@@ -61,8 +61,9 @@ export default function Profile() {
         let metrics = {};
         if (r2.ok) metrics = await r2.json().catch(() => ({}));
 
-        const displayName = (metrics.display_name || authData.display_name || authData.name || "用戶");
-        const bio = metrics.display_name ? (metrics.display_name) : (authData.bio || "");
+  // 優先使用 app_users 的 display_name (authData.display_name)，其次才使用 body_metrics.display_name
+  const displayName = (authData.display_name || metrics.display_name || authData.name || "用戶");
+  const bio = authData.bio || "";
 
         setUser({
           displayName,
@@ -146,11 +147,11 @@ export default function Profile() {
     }
   };
 
-  const avatarChar = (user.displayName && user.displayName.charAt(0).toUpperCase()) || "?";
+  const avatarChar = user.displayName?.charAt(0)?.toUpperCase() || "?";
 
   return (
     <Layout title="個人檔案">
-      <div className="page-wrapper">
+  <div className="page-wrapper" aria-busy={loading}>
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white p-6 rounded-2xl shadow-md w-full">
             <div className="flex flex-col sm:flex-row items-center gap-6">

@@ -65,17 +65,17 @@ export default function EditProfileModal({ user, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-slide-up-fast">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-2 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-[92vw] max-w-md max-h-[100vh] overflow-hidden flex flex-col animate-slide-up-fast">
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <div className="p-5 border-b border-slate-200 flex justify-between items-center flex-shrink-0">
+          <div className="p-4 border-b border-slate-200 flex justify-between items-center flex-shrink-0">
             <h2 className="text-lg font-bold text-slate-800">編輯個人檔案</h2>
             <button type="button" onClick={onClose} className="p-1.5 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="p-6 bg-slate-50/50 flex-grow overflow-y-auto space-y-5">
+          <div className="p-4 bg-slate-50/50 flex-grow overflow-y-auto space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2 mb-4">公開資訊</h3>
               <div className="space-y-4">
@@ -86,10 +86,10 @@ export default function EditProfileModal({ user, onClose, onSave }) {
                 </div>
               </div>
             </div>
-
+80
             <div>
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2 mb-4">穿搭數據 (選填)</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <FormField label="身高" name="height" type="number" value={formData.height} onChange={handleChange} unit="cm" />
                 <FormField label="體重" name="weight" type="number" value={formData.weight} onChange={handleChange} unit="kg" />
                 <FormField label="胸圍" name="bust" type="number" value={formData.bust} onChange={handleChange} unit="cm" />
@@ -98,7 +98,7 @@ export default function EditProfileModal({ user, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="p-4 bg-white border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
+          <div className="p-3 bg-white border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
             <ModalButton type="button" variant="secondary" onClick={onClose} disabled={isSaving}>取消</ModalButton>
             <ModalButton type="submit" variant="primary" disabled={isSaving}>
               {isSaving ? '儲存中...' : '儲存變更'}
