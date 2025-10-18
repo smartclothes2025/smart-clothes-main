@@ -112,34 +112,42 @@ export default function Assistant({ theme, setTheme }) {
     addMessage("user", txt);
     setInput("");
 
-    try {
-    // === 改為真實呼叫後端 ===
     setIsTyping(true);
-    const res = await fetch("http://127.0.0.1:8000/api/v1/chat/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ user_input: txt }),
-    });
 
-    const data = await res.json();
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/v1/chat/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_input: txt }),
+      });
 
-    if (data.reply) {
-      addMessage("assistant", data.reply);
-    } else if (data.error) {
-      addMessage("assistant", `⚠️ 錯誤：${data.error}`);
-    } else {
-      addMessage("assistant", "⚠️ 後端沒有回覆內容。");
+      const data = await res.json();
+
+      if (data.reply || data.outfit_image) {
+        if (data.reply) addMessage("assistant", data.reply);
+
+        if (data.outfit_image) {
+          addMessage("assistant", (
+            <img
+              src={data.outfit_image}
+              alt="穿搭建議"
+              className="mt-2 max-w-[70ch] rounded-xl"
+            />
+          ));
+        }
+      } else if (data.error) {
+        addMessage("assistant", `⚠️ 錯誤：${data.error}`);
+      } else {
+        addMessage("assistant", "⚠️ 後端沒有回覆內容。");
+      }
+    } catch (err) {
+      addMessage("assistant", `🚨 伺服器連線失敗：${err.message}`);
+    } finally {
+      setIsTyping(false);
+      setSending(false);
     }
-  } catch (err) {
-    addMessage("assistant", `🚨 伺服器連線失敗：${err.message}`);
-  } finally {
-    setIsTyping(false);
-    setSending(false);
   }
 
-  }
 
   // 若你曾在其他地方直接呼叫 sendToBackend()，可改成呼叫 simulateBackendReply()
   // 原本的 sendToBackend() (fetch) 已被移除以暫時停用後端。
@@ -183,7 +191,7 @@ export default function Assistant({ theme, setTheme }) {
                           : "bg-indigo-600 text-white rounded-xl rounded-tr-none"
                       }`}
                     >
-                      {m.text}
+                      {typeof m.text === "string" ? m.text : m.text}
                     </div>
                   </div>
 
