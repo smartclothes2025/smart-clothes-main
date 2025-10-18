@@ -1,12 +1,15 @@
 // src/admin/Dashboard.jsx（以 /api/v1 端點取得 KPI 與近期使用者）
 import React, { useEffect, useMemo, useState } from "react";
+import useAllClothes from "../hooks/useAllClothes";
 import Layout from "../components/Layout";
 
 export default function AdminDashboard() {
   const API_BASE = import.meta.env.VITE_API_BASE || "";
+  const { allItems, loading: clothesLoading, error: clothesError } = useAllClothes(API_BASE);
 
   const [users, setUsers] = useState([]);
-  const [clothes, setClothes] = useState([]);
+  // allItems 由 useAllClothes 提供
+  // 移除 clothes 狀態，改用 allItems
   const [posts, setPosts] = useState([]);
   const [outfits, setOutfits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +37,7 @@ export default function AdminDashboard() {
         ]);
         if (!mounted) return;
         setUsers(Array.isArray(usersJson) ? usersJson : []);
-        setClothes(Array.isArray(clothesJson) ? clothesJson : []);
+  // setClothes(Array.isArray(clothesJson) ? clothesJson : []); // 不再需要
         setPosts(Array.isArray(postsJson) ? postsJson : []);
         setOutfits(Array.isArray(outfitsJson) ? outfitsJson : []);
       } catch (e) {
@@ -49,21 +52,10 @@ export default function AdminDashboard() {
 
   const kpis = useMemo(() => ([
     { title: "使用者總數", value: users.length.toLocaleString() },
-    // 衣物總數：優先使用每個 user 內的衣物計數（例如後端可能回傳 clothes_count 或 wardrobe_count），
-    // 若無則退回 fetch /clothes 的陣列長度
-    { title: "衣物總數", value: (() => {
-      if (Array.isArray(users) && users.length > 0) {
-        const hasPerUser = users.some(u => typeof u.clothes_count === 'number' || typeof u.wardrobe_count === 'number');
-        if (hasPerUser) {
-          const sum = users.reduce((s, u) => s + (Number(u.clothes_count ?? u.wardrobe_count ?? 0)), 0);
-          return sum.toLocaleString();
-        }
-      }
-      return (Array.isArray(clothes) ? clothes.length : 0).toLocaleString();
-    })() },
+    { title: "衣物總數", value: (allItems.length).toLocaleString() + " 件" },
     { title: "貼文總數", value: posts.length.toLocaleString() },
     { title: "穿搭總數", value: outfits.length.toLocaleString() },
-  ]), [users.length, clothes.length, posts.length, outfits.length]);
+  ]), [users.length, allItems.length, posts.length, outfits.length]);
 
   const recentUsers = useMemo(() => {
     const arr = Array.isArray(users) ? users.slice() : [];
@@ -120,13 +112,6 @@ export default function AdminDashboard() {
               )}
             </ul>
           </div>
-        </div>
-
-        {/* 快速動作（純 UI） */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="bg-indigo-600 text-white rounded-lg py-3">建立促銷活動</button>
-          <button className="bg-amber-500 text-white rounded-lg py-3">觸發模型重新訓練</button>
-          <button className="bg-gray-100 rounded-lg py-3">匯出使用者資料</button>
         </div>
       </div>
     </Layout>

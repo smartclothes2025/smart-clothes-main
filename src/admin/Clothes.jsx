@@ -1,6 +1,8 @@
 // src/admin/Clothes.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
+import StyledButton from "../components/ui/StyledButton";
+import Page from "../components/Page";
 import { Icon } from "@iconify/react";
 import "../assets/TableStyles.css";
 export default function AdminClothes() {
@@ -14,11 +16,11 @@ export default function AdminClothes() {
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
-  const [userFilter, setUserFilter] = useState(""); 
+  const [userFilter, setUserFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
-  
+
   useEffect(() => {
     (async () => {
       const map = await fetchUsers();
@@ -71,7 +73,8 @@ export default function AdminClothes() {
       let lastInfo = null;
       for (const url of candidates) {
         try {
-          const res = await fetch(url, { headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+          // 管理端不帶 token，才能取得所有用戶的衣服
+          const res = await fetch(url, { headers: { Accept: 'application/json' } });
           if (!res.ok) {
             const txt = await res.text().catch(() => '');
             lastInfo = { url, status: res.status, text: txt };
@@ -101,9 +104,22 @@ export default function AdminClothes() {
           }
         } catch (e) { updated_at = null; }
         // user info may be nested or as user_id/display_name
-  // 優先用 user_id 對應使用者表的 display name
-  const uid = r.user_id ?? r.owner ?? r.user ?? r.userId ?? r.owner_id ?? null;
-  const user_display = uid ? (usersMapLocal?.[String(uid)] ?? String(uid)) : (r.user_display_name ?? r.user_name ?? String(r.user_id ?? r.owner_id ?? "-"));
+        // 優先用 user_id 對應使用者表的 display name
+        const uid = r.user_id ?? r.owner ?? r.user ?? r.userId ?? r.owner_id ?? null;
+        let user_display = null;
+        if (uid && usersMapLocal?.[String(uid)]) {
+          user_display = usersMapLocal[String(uid)];
+        } else if (r.owner_display_name) {
+          user_display = r.owner_display_name;
+        } else if (r.user_display_name) {
+          user_display = r.user_display_name;
+        } else if (r.user_name) {
+          user_display = r.user_name;
+        } else if (uid) {
+          user_display = String(uid);
+        } else {
+          user_display = "-";
+        }
 
         // 推測圖片檔名或 URL
         const filename = r.filename ?? r.image ?? r.img ?? r.cover_image ?? r.cover_image_url ?? "";
@@ -119,7 +135,7 @@ export default function AdminClothes() {
           }
         }
 
-  return {
+        return {
           id,
           name,
           category,
@@ -199,27 +215,23 @@ export default function AdminClothes() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-2">
             <input
-              placeholder="搜尋標題"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="px-3 py-2 border rounded w-64"
-              onKeyDown={e => { if (e.key === "Enter") setPage(1); }}
-            />
-            <input
-              placeholder="使用者 ID"
+              placeholder="使用者名稱"
               value={userFilter}
               onChange={e => setUserFilter(e.target.value)}
-              className="px-3 py-2 border rounded w-56"
+              className="form-input w-56"
             />
-            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }} className="px-3 py-2 border rounded">
+            <select
+              value={categoryFilter}
+              onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+              className="form-select-custom w-56" 
+            >
               <option value="">所有分類</option>
-              <option value="top">上衣</option>
-              <option value="bottom">下身</option>
-              <option value="outer">外套</option>
-              <option value="shoes">鞋類</option>
-              <option value="accessory">配件</option>
+              {Array.from(new Set(allItems.map(it => it.category).filter(Boolean))).map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
-            <button onClick={() => loadFromApi()} className="px-4 py-2 rounded bg-blue-600 text-white">重新載入</button>
+
+            <StyledButton onClick={() => loadFromApi()}>重新載入</StyledButton>
           </div>
         </div>
 
@@ -262,7 +274,7 @@ export default function AdminClothes() {
                 return pageItems.map(item => (
                   <tr key={item.id} className="border-t odd:bg-white even:bg-gray-50">
                     <td className="p-3">
-                      <img src={item.image_url || '/images/placeholder-96.png'} alt={item.name} className="w-16 h-16 object-cover rounded" loading="lazy" onError={(e)=>{ e.currentTarget.src='/images/placeholder-96.png'; }} />
+                      <img src={item.image_url || '/images/placeholder-96.png'} alt={item.name} className="w-16 h-16 object-cover rounded" loading="lazy" onError={(e) => { e.currentTarget.src = '/images/placeholder-96.png'; }} />
                     </td>
                     <td className="p-3 truncate">{item.user_display}</td>
                     <td className="p-3 truncate">{item.name}</td>
@@ -270,7 +282,7 @@ export default function AdminClothes() {
                     <td className="p-3 text-sm text-gray-500">{item.updated_at ? (new Date(item.updated_at).toLocaleDateString()) : '-'}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <button onClick={()=>handleDeleteClothes(item.id)} className="px-2 py-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100">刪除</button>
+                        <button onClick={() => handleDeleteClothes(item.id)} className="px-2 py-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100">刪除</button>
                       </div>
                     </td>
                   </tr>
@@ -280,21 +292,14 @@ export default function AdminClothes() {
           </table>
         </div>
 
-        <div className="fixed bottom-0 left-[200px] right-0 z-10 bg-white/80 backdrop-blur-md border-t border-gray-200" style={{minWidth:'calc(100vw - 220px)'}}>
-          <div className="flex flex-wrap justify-center items-center gap-6 p-2 w-full">
-            <button onClick={()=>gotoPage(1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">第一頁</button>
-            <button onClick={()=>gotoPage(page-1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">上一頁</button>
-            <span className="px-2 text-sm text-gray-700">第 {page} / {totalPages} 頁</span>
-            <button onClick={()=>gotoPage(page+1)} disabled={page===totalPages} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">下一頁</button>
-            <div className="text-sm text-gray-600">顯示</div>
-            <select value={pageSize} onChange={e=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="px-2 py-1 border rounded-md">
-              <option value={12}>12筆</option>
-              <option value={24}>24筆</option>
-              <option value={50}>50筆</option>
-            </select>
-            <div className="text-sm text-gray-600">共 {filtered.length} 筆</div>
-          </div>
-        </div>
+        <Page
+          page={page}
+          totalPages={totalPages}
+          gotoPage={gotoPage}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+          total={filtered.length}
+        />
       </div>
     </div>
   );

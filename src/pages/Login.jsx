@@ -247,7 +247,7 @@ const LoginPage = ({ onLogin }) => {
                   type="text"
                   name="username"
                   id="username"
-                  className="w-full p-2 pl-4 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="form-input w-full"
                   placeholder="使用者名稱或電子郵件"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -260,7 +260,7 @@ const LoginPage = ({ onLogin }) => {
                   type="password"
                   id="password"
                   name="password"
-                  className="w-full p-2 pl-4 border border-gray-200 rounded-lg text-gray-800 placeholder:font-light placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-shadow"
+                  className="form-input w-full"
                   placeholder="請輸入您的密碼"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

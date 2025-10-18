@@ -1,6 +1,8 @@
 // src/admin/Users.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
+import StyledButton from "../components/ui/StyledButton";
+import Page from "../components/Page";
 import { Icon } from "@iconify/react";
 import "../assets/TableStyles.css";
 export default function AdminUsers() {
@@ -154,27 +156,18 @@ export default function AdminUsers() {
               placeholder="搜尋姓名或 Email"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="px-3 py-2 border rounded w-64"
+              className="form-input w-56"
               onKeyDown={(e)=>{ if(e.key==='Enter'){ setPage(1); fetchUsers(); }}}
             />
-            <select value={statusFilter} onChange={e=>{setStatusFilter(e.target.value); setPage(1);}} className="px-3 py-2 border rounded">
-              <option value="">所有狀態</option>
-              <option value="active">active</option>
-              <option value="banned">banned</option>
-            </select>
-            <button onClick={()=>{ setPage(1); fetchUsers(); }} className="px-4 py-2 rounded bg-blue-600 text-white">查詢</button>
+            <StyledButton onClick={()=>setShowCreateModal(true)} className="flex items-center gap-2">
+              <Icon icon="mdi:account-plus-outline" className="w-4 h-4" /> 新增帳號
+            </StyledButton>
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={()=>setShowCreateModal(true)} className="px-3 py-2 rounded bg-indigo-600 text-white flex items-center gap-2">
-              <Icon icon="mdi:account-plus-outline" className="w-4 h-4" /> 新增帳號
-            </button>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
-              <span className="px-3 py-2 rounded bg-gray-100">匯入 CSV</span>
-            </label>
-            <button onClick={exportCSV} className="px-3 py-2 rounded bg-gray-100">匯出 CSV</button>
+            <StyledButton onClick={exportCSV} className="flex items-center gap-2">
+              <Icon icon="mdi:file-export-outline" className="w-4 h-4" /> 匯出 CSV
+            </StyledButton>
           </div>
         </div>
 
@@ -218,23 +211,15 @@ export default function AdminUsers() {
           </table>
         </div>
         
-        <div className="fixed bottom-0 left-[200px] right-0 z-10 bg-white/80 backdrop-blur-md border-t border-gray-200" style={{minWidth:'calc(100vw - 220px)'}}>
-          <div className="flex flex-wrap justify-center items-center gap-6 p-2 w-full">
-            <button onClick={()=>gotoPage(1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">第一頁</button>
-            <button onClick={()=>gotoPage(page-1)} disabled={page===1} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">上一頁</button>
-            <span className="px-2 text-sm text-gray-700">第 {page} / {totalPages} 頁</span>
-            <button onClick={()=>gotoPage(page+1)} disabled={page===totalPages} className="px-3 py-1 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">下一頁</button>
-            <div className="text-sm text-gray-600">顯示</div>
-            <select value={pageSize} onChange={e=>{ setPageSize(Number(e.target.value)); setPage(1); }} className="px-2 py-1 border rounded-md">
-              <option value={12}>12筆</option>
-              <option value={24}>24筆</option>
-              <option value={50}>50筆</option>
-            </select>
-            <div className="text-sm text-gray-600">共 {filtered.length} 筆</div>
-          </div>
-        </div>
+        <Page
+          page={page}
+          totalPages={totalPages}
+          gotoPage={gotoPage}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+          total={filtered.length}
+        />
 
-        {/* Create Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <button

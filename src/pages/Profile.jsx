@@ -6,6 +6,7 @@ import { Cog6ToothIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import PostCard from "../components/PostCard";
 import StyledButton from "../components/ui/StyledButton";
 import EditProfileModal from "./EditProfileModal";
+import { useToast } from "../components/ToastProvider";
 
 // 小元件
 const StatItem = ({ count, label }) => (
@@ -30,9 +31,10 @@ const MeasurementItem = ({ label, value, unit }) => {
 };
 
 export default function Profile() {
+  const toast = useToast();
   const [tab, setTab] = useState("posts");
   const [user, setUser] = useState({
-    displayName: "載入中...", bio: "", height: null, weight: null, bust: null, waist: null,
+    displayName: "載入中...", bio: "", height: null, weight: null, bust: null, waist: null, hip: null, shoulder: null,
   });
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,8 +64,9 @@ export default function Profile() {
         if (r2.ok) metrics = await r2.json().catch(() => ({}));
 
   // 優先使用 app_users 的 display_name (authData.display_name)，其次才使用 body_metrics.display_name
+  // app_users 的自介欄位名稱為 interformation
   const displayName = (authData.display_name || metrics.display_name || authData.name || "用戶");
-  const bio = authData.bio || "";
+  const bio = authData.interformation || "";
 
         setUser({
           displayName,
@@ -72,6 +75,8 @@ export default function Profile() {
           weight: metrics.weight_kg ?? null,
           bust: metrics.chest_cm ?? null,
           waist: metrics.waist_cm ?? null,
+          hip: metrics.hip_cm ?? null,
+          shoulder: metrics.shoulder_cm ?? null,
         });
       } catch (err) {
         if (err.name !== "AbortError") console.warn("取得使用者資料失敗：", err);
@@ -98,6 +103,10 @@ export default function Profile() {
       weight_kg: updatedData.weight ? Number(updatedData.weight) : null,
       chest_cm: updatedData.bust ? Number(updatedData.bust) : null,
       waist_cm: updatedData.waist ? Number(updatedData.waist) : null,
+      hip_cm: updatedData.hip ? Number(updatedData.hip) : null,
+      shoulder_cm: updatedData.shoulder ? Number(updatedData.shoulder) : null,
+  // 將 modal 的自介寫入 app_users.interformation
+  interformation: updatedData.bio ?? null,
     };
 
     setLoading(true);
@@ -121,12 +130,14 @@ export default function Profile() {
       setUser(prev => ({
         ...prev,
         displayName: saved.display_name || updatedData.displayName,
-        // bio 不從 DB 回傳 note（已移除），用 modal 的值回寫
+
         bio: updatedData.bio ?? "",
         height: saved.height_cm ?? updatedData.height,
         weight: saved.weight_kg ?? updatedData.weight,
         bust: saved.chest_cm ?? updatedData.bust,
         waist: saved.waist_cm ?? updatedData.waist,
+        hip: saved.hip_cm ?? updatedData.hip,
+        shoulder: saved.shoulder_cm ?? updatedData.shoulder,
       }));
 
       localStorage.setItem("user", JSON.stringify({
@@ -136,9 +147,12 @@ export default function Profile() {
         weight: saved.weight_kg ?? updatedData.weight,
         chest: saved.chest_cm ?? updatedData.bust,
         waist: saved.waist_cm ?? updatedData.waist,
+        hip: saved.hip_cm ?? updatedData.hip,
+        shoulder: saved.shoulder_cm ?? updatedData.shoulder,
       }));
 
-      setIsModalOpen(false);
+  setIsModalOpen(false);
+  toast.addToast && toast.addToast({ type: 'success', title: '修改成功' });
     } catch (err) {
       console.error("儲存個人檔案失敗:", err);
       alert(`儲存失敗: ${err.message || err}`);
@@ -178,11 +192,13 @@ export default function Profile() {
 
             <div className="mt-6 border-t border-slate-200 pt-4">
               <h3 className="text-sm font-semibold text-slate-600 mb-3">穿搭資訊</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <MeasurementItem label="身高" value={user.height} unit="cm" />
                 <MeasurementItem label="體重" value={user.weight} unit="kg" />
                 <MeasurementItem label="胸圍" value={user.bust} unit="cm" />
                 <MeasurementItem label="腰圍" value={user.waist} unit="cm" />
+                <MeasurementItem label="臀圍" value={user.hip} unit="cm" />
+                <MeasurementItem label="肩寬" value={user.shoulder} unit="cm" />
               </div>
             </div>
           </div>

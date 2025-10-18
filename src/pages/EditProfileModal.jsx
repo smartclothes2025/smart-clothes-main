@@ -43,6 +43,8 @@ export default function EditProfileModal({ user, onClose, onSave }) {
     weight: user.weight ?? "",
     bust: user.bust ?? "",
     waist: user.waist ?? "",
+    hip: user.hip ?? "",
+    shoulder: user.shoulder ?? "",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -86,14 +88,15 @@ export default function EditProfileModal({ user, onClose, onSave }) {
                 </div>
               </div>
             </div>
-80
             <div>
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2 mb-4">穿搭數據 (選填)</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <FormField label="身高" name="height" type="number" value={formData.height} onChange={handleChange} unit="cm" />
                 <FormField label="體重" name="weight" type="number" value={formData.weight} onChange={handleChange} unit="kg" />
                 <FormField label="胸圍" name="bust" type="number" value={formData.bust} onChange={handleChange} unit="cm" />
                 <FormField label="腰圍" name="waist" type="number" value={formData.waist} onChange={handleChange} unit="cm" />
+                <FormField label="臀圍" name="hip" type="number" value={formData.hip} onChange={handleChange} unit="cm" />
+                <FormField label="肩寬" name="shoulder" type="number" value={formData.shoulder} onChange={handleChange} unit="cm" />
               </div>
             </div>
           </div>
