@@ -14,6 +14,8 @@ import Post from './pages/Post';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VirtualFitting from './pages/VirtualFitting';
+import Contact from './pages/Contact';
+import Notice from './pages/Notice';
 import './index.css';
 
 // 後臺頁面
@@ -90,6 +92,8 @@ export default function App() {
             <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
             <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
             <Route path="/virtual-fitting" element={<VirtualFitting theme={theme} setTheme={setTheme} />} />
+            <Route path="/contact" element={<Contact theme={theme} setTheme={setTheme} />} />
+            <Route path="/notice" element={<Notice theme={theme} setTheme={setTheme} />} />
 
             {/* 後臺介面 */}
             <Route

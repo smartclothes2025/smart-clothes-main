@@ -61,10 +61,8 @@ export default function Settings({ theme, setTheme, setIsLoggedIn, setUser, onLo
       <div className="page-wrapper">
         <div className="app-max px-2 mt-2 space-y-4">
           <div />
-          <Row onClick={() => {}}>
-            <div className="flex items-center gap-3">
-              <Bell className="w-5 h-5 text-gray-600" /> 通知
-            </div>
+          <Row onClick={() => nav('/notice')}>
+            通知
           </Row>
 
           <Row onClick={() => {}}>
@@ -79,7 +77,7 @@ export default function Settings({ theme, setTheme, setIsLoggedIn, setUser, onLo
             帳號設定
           </Row>
 
-          <Row onClick={() => {}}>
+          <Row onClick={() => nav('/contact')}>
             聯絡我們
           </Row>
 
