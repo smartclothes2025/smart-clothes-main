@@ -5,6 +5,7 @@ import StyledButton from "../components/ui/StyledButton";
 import Page from "../components/Page";
 import { Icon } from "@iconify/react";
 import "../assets/TableStyles.css";
+import AskModal from "../components/AskModal";
 export default function AdminClothes() {
   const [users, setUsers] = useState([]);
   const [usersMap, setUsersMap] = useState({});
@@ -20,6 +21,8 @@ export default function AdminClothes() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askTargetId, setAskTargetId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -178,7 +181,6 @@ export default function AdminClothes() {
   function gotoPage(n) { setPage(Math.max(1, Math.min(totalPages, n))); }
 
   async function handleDeleteClothes(id) {
-    if (!confirm('確定要刪除此衣物？此操作無法復原。')) return;
     setLoading(true);
     const token = localStorage.getItem('token');
     const candidates = [
@@ -206,6 +208,11 @@ export default function AdminClothes() {
     }
     setLoading(false);
     alert('刪除失敗：' + (lastErr?.toString?.() || '未知錯誤'));
+  }
+
+  function openAskModal(id) {
+    setAskTargetId(id);
+    setAskOpen(true);
   }
 
   return (
@@ -282,7 +289,7 @@ export default function AdminClothes() {
                     <td className="p-3 text-sm text-gray-500">{item.updated_at ? (new Date(item.updated_at).toLocaleDateString()) : '-'}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleDeleteClothes(item.id)} className="px-2 py-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100">刪除</button>
+                        <button onClick={() => openAskModal(item.id)} className="px-2 py-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100">刪除</button>
                       </div>
                     </td>
                   </tr>
@@ -299,6 +306,16 @@ export default function AdminClothes() {
           pageSize={pageSize}
           setPageSize={setPageSize}
           total={filtered.length}
+        />
+        <AskModal
+          open={askOpen}
+          title="刪除衣物"
+          message="確定要刪除此衣物？此操作無法復原。"
+          confirmText="刪除"
+          cancelText="取消"
+          destructive={true}
+          onCancel={() => { setAskOpen(false); setAskTargetId(null); }}
+          onConfirm={() => { if (askTargetId) handleDeleteClothes(askTargetId); }}
         />
       </div>
     </div>

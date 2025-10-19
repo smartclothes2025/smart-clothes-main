@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from 'react-router-dom';
 import PropTypes from "prop-types";
 import Layout from "../components/Layout";
 import { Link } from "react-router-dom";
@@ -38,6 +39,16 @@ export default function Profile() {
   });
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 如果 URL query 包含 edit=1 則自動打開 modal
+  const location = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const edit = params.get('edit');
+      if (edit === '1' || edit === 'true') setIsModalOpen(true);
+    } catch (e) { }
+  }, [location.search]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -88,6 +99,46 @@ export default function Profile() {
     load();
     return () => controller.abort();
   }, []);
+
+  // Listen for profile updates from other components (e.g. Analysis) and sync state
+  useEffect(() => {
+    const onProfileUpdated = (e) => {
+      const detail = e?.detail || {};
+      // detail may contain snake_case fields from backend
+      setUser(prev => ({
+        ...prev,
+        displayName: detail.display_name || prev.displayName,
+        bio: prev.bio || '',
+        height: detail.height_cm ?? prev.height,
+        weight: detail.weight_kg ?? prev.weight,
+        bust: detail.chest_cm ?? prev.bust,
+        waist: detail.waist_cm ?? prev.waist,
+        hip: detail.hip_cm ?? prev.hip,
+        shoulder: detail.shoulder_cm ?? prev.shoulder,
+      }));
+
+      try {
+        const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const merged = {
+          ...localUser,
+          display_name: detail.display_name || localUser.display_name || user.displayName,
+          bio: localUser.bio || user.bio || '',
+          height: detail.height_cm ?? localUser.height ?? user.height,
+          weight: detail.weight_kg ?? localUser.weight ?? user.weight,
+          chest: detail.chest_cm ?? localUser.chest ?? user.bust,
+          waist: detail.waist_cm ?? localUser.waist ?? user.waist,
+          hip: detail.hip_cm ?? localUser.hip ?? user.hip,
+          shoulder: detail.shoulder_cm ?? localUser.shoulder ?? user.shoulder,
+        };
+        localStorage.setItem('user', JSON.stringify(merged));
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    window.addEventListener('user-profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('user-profile-updated', onProfileUpdated);
+  }, [user.displayName, user.bio, user.height, user.weight, user.bust, user.waist, user.hip, user.shoulder]);
 
   const handleSaveProfile = async (updatedData) => {
     const token = localStorage.getItem("token");

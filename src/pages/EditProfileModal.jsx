@@ -1,21 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-
-// --- 在此檔案內定義專用的 UI 元件 ---
-const ModalButton = ({ children, onClick, variant = "primary", type = "button", disabled = false }) => {
-  const baseClasses = "px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed";
-  const styles = {
-    primary: "text-white bg-gradient-to-br from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transform focus:outline-none focus:ring-4 focus:ring-indigo-200",
-    secondary: "text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-200",
-  };
-  return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`${baseClasses} ${styles[variant]}`}>
-      {children}
-    </button>
-  );
-};
-
+import StyledButton from "../components/ui/StyledButton";
 const FormField = ({ label, name, type = "text", value, onChange, placeholder, unit }) => (
   <div>
     <label htmlFor={name} className="block text-sm font-medium text-slate-600 mb-1">{label}</label>
@@ -34,7 +20,6 @@ const FormField = ({ label, name, type = "text", value, onChange, placeholder, u
   </div>
 );
 
-// --- EditProfileModal 主要元件 ---
 export default function EditProfileModal({ user, onClose, onSave }) {
   const [formData, setFormData] = useState({
     displayName: user.displayName || "",
@@ -48,6 +33,19 @@ export default function EditProfileModal({ user, onClose, onSave }) {
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  // [!!] 新增一個 'show' 狀態來控制過渡
+  const [show, setShow] = useState(false);
+
+  // [!!] 使用 useEffect 來觸發「進入」動畫
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShow(true);
+    }, 10); // 10 毫秒延遲
+
+    // 元件卸載時清除計時器
+    return () => clearTimeout(timer);
+  }, []); // [] 空依賴陣列，確保只在掛載時執行一次
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -58,25 +56,50 @@ export default function EditProfileModal({ user, onClose, onSave }) {
     setIsSaving(true);
     try {
       await onSave(formData);
+      // [!!] 儲存成功後，呼叫 handleClose 觸發離開動畫
+      handleClose();
     } catch (err) {
       console.error("保存失敗", err);
       alert(err?.message || "儲存失敗");
-    } finally {
-      setIsSaving(false);
+      setIsSaving(false); // 失敗時要重設儲存狀態
     }
   };
 
+  // [!!] 建立一個新的 handleClose 函數
+  const handleClose = () => {
+    if (isSaving) return; // 正在儲存時，防止關閉
+
+    // 1. 將 show 設為 false，觸發「離開」過渡動畫
+    setShow(false);
+
+    // 2. 設定一個計時器，等待動畫播放完畢
+    //    (300ms 必須匹配 CSS 過渡時間 duration-300)
+    setTimeout(() => {
+      onClose(); // 3. 動畫播完後，才真正呼叫父元件的 onClose 函數
+    }, 300);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-2 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-[92vw] max-w-md max-h-[100vh] overflow-hidden flex flex-col animate-slide-up-fast">
+    <div
+      className={`fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-2 backdrop-blur-sm transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'
+        }`}
+      onClick={handleClose} // 點擊背景時呼叫 handleClose
+    >
+      <div
+        className={`bg-white rounded-2xl shadow-2xl w-[92vw] max-w-md max-h-[100vh] overflow-hidden flex flex-col transition-all duration-300 ease-out ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4' // 進入時上滑，離開時下滑
+          }`}
+        onClick={(e) => e.stopPropagation()} // 阻止事件冒泡
+      >
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center flex-shrink-0">
             <h2 className="text-lg font-bold text-slate-800">編輯個人檔案</h2>
-            <button type="button" onClick={onClose} className="p-1.5 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+            {/* [!!] 將 onClick 改為呼叫 handleClose */}
+            <button type="button" onClick={handleClose} className="p-1.5 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
 
+          {/* --- (表單內容完全不變) --- */}
           <div className="p-4 bg-slate-50/50 flex-grow overflow-y-auto space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2 mb-4">公開資訊</h3>
@@ -102,10 +125,10 @@ export default function EditProfileModal({ user, onClose, onSave }) {
           </div>
 
           <div className="p-3 bg-white border-t border-slate-200 flex justify-end gap-3 flex-shrink-0">
-            <ModalButton type="button" variant="secondary" onClick={onClose} disabled={isSaving}>取消</ModalButton>
-            <ModalButton type="submit" variant="primary" disabled={isSaving}>
+            <StyledButton type="button" variant="secondary" onClick={handleClose} disabled={isSaving}>取消</StyledButton>
+            <StyledButton type="submit" variant="primary" disabled={isSaving}>
               {isSaving ? '儲存中...' : '儲存變更'}
-            </ModalButton>
+            </StyledButton>
           </div>
         </form>
       </div>
@@ -113,6 +136,6 @@ export default function EditProfileModal({ user, onClose, onSave }) {
   );
 };
 
-ModalButton.propTypes = { children: PropTypes.node, onClick: PropTypes.func, variant: PropTypes.oneOf(["primary", "secondary"]), type: PropTypes.string, disabled: PropTypes.bool };
+// --- PropTypes (保持不變) ---
 FormField.propTypes = { label: PropTypes.string.isRequired, name: PropTypes.string.isRequired, type: PropTypes.string, value: PropTypes.any, onChange: PropTypes.func, placeholder: PropTypes.string, unit: PropTypes.string };
 EditProfileModal.propTypes = { user: PropTypes.object.isRequired, onClose: PropTypes.func.isRequired, onSave: PropTypes.func.isRequired };
