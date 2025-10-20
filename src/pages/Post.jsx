@@ -102,18 +102,21 @@ export default function CreatePost() {
     formData.append("title", title);
     formData.append("content", content);
     const tagsArray = tags.split(/[\s,]+/).filter(Boolean);
+    // backend expects tags or media as form fields; send tags as JSON string
     formData.append("tags", JSON.stringify(tagsArray));
-
+    // append files using 'files' (array) which FastAPI handler commonly expects
     files.forEach((file) => {
-      formData.append("images", file);
+      formData.append("files", file, file.name);
     });
+    // optional visibility (default public)
+    formData.append("visibility", "public");
 
     try {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
 
-      const response = await fetch(`${API_BASE}/posts/`, { 
+      const response = await fetch(`${API_BASE}/posts`, { 
         method: "POST",
         headers,
         body: formData,
@@ -124,13 +127,16 @@ export default function CreatePost() {
         throw new Error(errorData.detail || `錯誤碼: ${response.status}`);
       }
 
-      addToast({
-        type: "success",
-        title: "發佈成功！",
-        message: "您的貼文已成功分享。",
-        autoDismiss: 3000,
-      });
-      navigate("/");
+      let resJson = null;
+      try { resJson = await response.json(); } catch (e) { /* ignore */ }
+      addToast({ type: "success", title: "發佈成功！", message: "您的貼文已成功分享。", autoDismiss: 3000 });
+      clearDraft();
+      const newId = resJson && (resJson.id || resJson.post_id || resJson.item_id);
+      if (newId) {
+        navigate(`/post/${newId}`);
+      } else {
+        navigate("/");
+      }
 
     } catch (err) {
       console.error("Post creation error:", err);
