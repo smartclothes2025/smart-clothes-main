@@ -9,7 +9,6 @@ import StyledButton from "../components/ui/StyledButton";
 import EditProfileModal from "./EditProfileModal";
 import { useToast } from "../components/ToastProvider";
 
-// 小元件
 const StatItem = ({ count, label }) => (
   <div className="text-center"><div className="font-bold text-xl text-slate-700">{count}</div><div className="text-sm text-slate-500">{label}</div></div>
 );
@@ -100,11 +99,9 @@ export default function Profile() {
     return () => controller.abort();
   }, []);
 
-  // Listen for profile updates from other components (e.g. Analysis) and sync state
   useEffect(() => {
     const onProfileUpdated = (e) => {
       const detail = e?.detail || {};
-      // detail may contain snake_case fields from backend
       setUser(prev => ({
         ...prev,
         displayName: detail.display_name || prev.displayName,
@@ -132,7 +129,6 @@ export default function Profile() {
         };
         localStorage.setItem('user', JSON.stringify(merged));
       } catch (err) {
-        // ignore
       }
     };
 
@@ -243,7 +239,7 @@ export default function Profile() {
 
             <div className="mt-6 border-t border-slate-200 pt-4">
               <h3 className="text-sm font-semibold text-slate-600 mb-3">穿搭資訊</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <MeasurementItem label="身高" value={user.height} unit="cm" />
                 <MeasurementItem label="體重" value={user.weight} unit="kg" />
                 <MeasurementItem label="胸圍" value={user.bust} unit="cm" />

@@ -1,6 +1,6 @@
 // src/components/BottomNav.jsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import '../App.css';
 export default function BottomNav() {
@@ -13,23 +13,23 @@ export default function BottomNav() {
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)" }}
       >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">
-          <Link
+          <NavLink
             to="/home"
-            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
             aria-label="首頁"
+            className={({ isActive }) => `flex flex-col items-center text-sm px-2 py-1 ${isActive ? 'text-blue-600 bg-blue-50 rounded-md' : 'text-gray-700 hover:text-blue-600'}`}
           >
             <Icon icon="mdi:home-outline" className="w-6 h-6" />
             <span className="text-xs">首頁</span>
-          </Link>
+          </NavLink>
 
-          <Link
+          <NavLink
             to="/wardrobe"
-            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
             aria-label="智慧衣櫃"
+            className={({ isActive }) => `flex flex-col items-center text-sm px-2 py-1 ${isActive ? 'text-blue-600 bg-blue-50 rounded-md' : 'text-gray-700 hover:text-blue-600'}`}
           >
             <Icon icon="mdi:wardrobe-outline" className="w-6 h-6" />
             <span className="text-xs">智慧衣櫃</span>
-          </Link>
+          </NavLink>
 
           <button
             type="button"
@@ -42,32 +42,29 @@ export default function BottomNav() {
             </div>
           </button>
 
-          <Link
+          <NavLink
             to="/assistant"
-            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
             aria-label="小助手"
+            className={({ isActive }) => `flex flex-col items-center text-sm px-2 py-1 ${isActive ? 'text-blue-600 bg-blue-50 rounded-md' : 'text-gray-700 hover:text-blue-600'}`}
           >
             <Icon icon="mdi:robot-excited-outline" className="w-6 h-6" />
             <span className="text-xs">小助手</span>
-          </Link>
+          </NavLink>
 
-          <Link
+          <NavLink
             to="/profile"
-            className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-600"
             aria-label="我的"
+            className={({ isActive }) => `flex flex-col items-center text-sm px-2 py-1 ${isActive ? 'text-blue-600 bg-blue-50 rounded-md' : 'text-gray-700 hover:text-blue-600'}`}
           >
             <Icon icon="mdi:account-circle-outline" className="w-6 h-6" />
-            <span className="text-xs">我的</span>
-          </Link>
+            <span className="text-xs">個人</span>
+          </NavLink>
         </div>
       </nav>
 
-      {/* Action Sheet for + button (mobile) */}
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          {/* Sheet */}
           <div
             className="relative mx-3 mb-3 rounded-2xl bg-white shadow-2xl border border-gray-100 p-4"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
@@ -133,7 +130,7 @@ export default function BottomNav() {
             </Link>
             <Link to="/profile" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-100">
               <Icon icon="mdi:account-circle-outline" className="w-5 h-5" />
-              <span>我的</span>
+              <span>個人檔案</span>
             </Link>
           </nav>
         </div>

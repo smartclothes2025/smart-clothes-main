@@ -187,7 +187,7 @@ export default function WardrobeOverview() {
         <div className="ml-auto flex items-center gap-2">
           {!selecting ? (
             <button onClick={() => setSelecting(true)} className="px-3 py-1 text-sm rounded-md bg-indigo-600 text-white">
-              選取單品
+              選取衣服
             </button>
           ) : (
             <>
@@ -217,7 +217,7 @@ export default function WardrobeOverview() {
 
       {/* 空資料提示 */}
       {!loading && filteredItems.length === 0 ? (
-        <div className="text-gray-500">目前衣櫃沒有單品。請先上傳衣物或確認後端資料庫是否有資料。</div>
+        <div className="text-gray-500">目前衣櫃沒有衣服<br />請先確認是否有上傳衣服</div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {filteredItems.map((item) => (

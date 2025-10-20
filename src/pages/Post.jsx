@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import Layout from "../components/Layout"; 
+import Layout from "../components/Layout";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "../components/ToastProvider"; 
+import { useToast } from "../components/ToastProvider";
 import Icon from "@mdi/react";
-import { mdiImagePlus, mdiSend, mdiCancel } from "@mdi/js";
+import { mdiImagePlusOutline, mdiSend, mdiCancel } from "@mdi/js";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -13,15 +13,13 @@ export default function CreatePost() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const fileInputRef = useRef(null);
-
   const [files, setFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-
+  const [isDragging, setIsDragging] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [tags, setTags] = useState(""); 
-
+  const [tags, setTags] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,11 +55,24 @@ export default function CreatePost() {
       file.type.startsWith("image/")
     );
     if (!imageFiles.length) return;
-    
+
     setFiles((prevFiles) => {
       const newFiles = [...prevFiles, ...imageFiles];
       if (prevFiles.length === 0) setCurrentIndex(0);
       return newFiles;
+    });
+  };
+
+  const handleDragEnter = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+
+  const removeFileAt = (index) => {
+    setFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      // adjust currentIndex
+      if (next.length === 0) setCurrentIndex(0);
+      else if (index <= currentIndex && currentIndex > 0) setCurrentIndex((ci) => Math.max(0, ci - 1));
+      return next;
     });
   };
 
@@ -78,7 +89,7 @@ export default function CreatePost() {
       return;
     }
     if (!content.trim()) {
-       addToast({
+      addToast({
         type: "warning",
         title: "內容不得為空",
         message: "請分享一些文字內容吧！",
@@ -94,15 +105,15 @@ export default function CreatePost() {
     formData.append("tags", JSON.stringify(tagsArray));
 
     files.forEach((file) => {
-      formData.append("images", file); 
+      formData.append("images", file);
     });
 
     try {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
 
-      // ！！！注意：請將 API 端點換成您後端處理貼文的實際路徑！！！
-      const response = await fetch("http://localhost:8000/api/v1/posts/", {
+      const response = await fetch(`${API_BASE}/posts/`, { 
         method: "POST",
         headers,
         body: formData,
@@ -119,7 +130,7 @@ export default function CreatePost() {
         message: "您的貼文已成功分享。",
         autoDismiss: 3000,
       });
-      navigate("/"); 
+      navigate("/");
 
     } catch (err) {
       console.error("Post creation error:", err);
@@ -136,15 +147,14 @@ export default function CreatePost() {
 
   return (
     <Layout title="上傳貼文">
-      <div className="page-wrapper py-8">
-        <div className="max-w-5xl mx-auto px-4">
+      <div className="page-wrapper h-full overflow-y-auto py-8">
+        <div className="max-w-5xl mt-6 px-4">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-
-            <div className="md:col-span-7 space-y-4">
-              <div 
-                className="w-full aspect-square bg-gray-50 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden"
+            <div className="md:col-span-6 space-y-4">
+              <div
+                className="w-full aspect-[4/3] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 relative flex items-center justify-center overflow-hidden"
                 onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()} 
+                onDragOver={(e) => e.preventDefault()}
               >
                 <input
                   ref={fileInputRef}
@@ -155,30 +165,41 @@ export default function CreatePost() {
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                   aria-label="上傳照片"
                 />
+                {/* visible select button for keyboard users */}
+                <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()} className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 px-3 py-1 rounded-md text-sm text-indigo-600 shadow">選擇照片</button>
                 {previewUrls.length === 0 ? (
                   <div className="text-center p-6 pointer-events-none">
-                    <Icon path={mdiImagePlus} size={2} className="text-gray-400 mx-auto" />
-                    <p className="mt-2 font-semibold text-gray-700">點擊此處或拖曳圖片至此</p>
-                    <p className="text-sm text-gray-500">最多可上傳多張照片</p>
+                    <Icon path={mdiImagePlusOutline} size={2.5} className="text-indigo-500 mx-auto" />
+                    <p className="mt-2 font-semibold text-slate-700">點擊此處或拖曳圖片至此</p>
+                    <p className="text-sm text-slate-500">最多可上傳多張照片</p>
                   </div>
                 ) : (
                   <img src={previewUrls[currentIndex]} alt="預覽" className="object-contain w-full h-full block" />
                 )}
               </div>
-              
+
               {previewUrls.length > 0 && (
-                <div className="bg-white p-3 rounded-xl shadow-sm">
-                  <div className="text-sm text-gray-600 mb-2">共 {previewUrls.length} 張，當前預覽第 {currentIndex + 1} 張</div>
+                <div className="bg-white p-3 rounded-2xl shadow-md">
+                  <div className="text-sm text-slate-600 mb-2">共 {previewUrls.length} 張，當前預覽第 {currentIndex + 1} 張</div>
                   <div className="flex items-center gap-2 overflow-x-auto pb-1">
                     {previewUrls.map((url, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setCurrentIndex(i)}
-                        className={`flex-shrink-0 relative w-20 h-20 rounded-md overflow-hidden border-2 ${i === currentIndex ? "border-blue-500" : "border-transparent"}`}
-                      >
+                      <div key={i} className={`relative flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${i === currentIndex ? "border-indigo-600" : "border-transparent"}`}>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentIndex(i)}
+                          className="absolute inset-0"
+                          aria-label={`預覽第 ${i + 1} 張`}
+                        />
                         <img src={url} alt={`thumb-${i}`} className="object-cover w-full h-full" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeFileAt(i); }}
+                          className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                          aria-label={`移除第 ${i + 1} 張`}
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -186,49 +207,54 @@ export default function CreatePost() {
             </div>
 
             <div className="md:col-span-5">
-              <aside className="bg-white rounded-xl p-6 shadow-sm sticky top-6 space-y-5">
+              <aside className="bg-white rounded-2xl p-6 shadow-xl sticky top-6 space-y-5">
                 <div>
-                  <label htmlFor="post-title" className="block text-sm font-medium text-gray-700 mb-1">標題 (選填)</label>
+                  <label>標題 (選填)</label>
                   <input
                     id="post-title"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="為您的貼文下個標題吧"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-1">想要分享什麼？</label>
-                  <textarea
-                    id="post-content"
-                    rows="8"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="分享您的穿搭心得、單品故事..."
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="post-tags" className="block text-sm font-medium text-gray-700 mb-1"># 標籤</label>
+                  <label>想要分享什麼？</label>
+                  <textarea
+                    id="post-content"
+                    rows="7"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="分享您的穿搭心得、單品故事..."
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  {/* [!!] 樣式修改：label 樣式 */}
+                  <label># 標籤</label>
+                  {/* [!!] 樣式修改：input 樣式 */}
                   <input
                     id="post-tags"
                     type="text"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
                     placeholder="例如：OOTD 帽子 藍色穿搭"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition"
                   />
-                   <p className="text-xs text-gray-500 mt-1">用空格或逗號分隔不同標籤</p>
+                  {/* [!!] 樣式修改：text-slate-500 */}
+                  <p className="text-xs text-slate-500 mt-1.5">用空格或逗號分隔不同標籤</p>
                 </div>
-                
-                <div className="flex items-center gap-3 pt-4 border-t">
+
+                {/* [!!] 按鈕 (樣式修改) */}
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => navigate(-1)}
-                    className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-3 font-semibold transition hover:bg-gray-200"
+                    // [!!] 樣式修改：次要按鈕 (白底灰框)
+                    className="w-full flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-300 rounded-lg py-2.5 font-semibold transition hover:bg-slate-50"
                   >
                     <Icon path={mdiCancel} size={0.9} />
                     <span>取消</span>
@@ -236,7 +262,8 @@ export default function CreatePost() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3 font-semibold transition hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    // [!!] 樣式修改：主要按鈕 (indigo)
+                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2.5 font-semibold transition hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     <Icon path={mdiSend} size={0.9} />
                     <span>{isSubmitting ? "發佈中..." : "發佈"}</span>
