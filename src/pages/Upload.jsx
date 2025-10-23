@@ -112,8 +112,11 @@ export default function Upload({ theme, setTheme }) {
     const file = files[idx];
     const form = forms[idx] || {};
     const fd = new FormData();
-    fd.append("file", file, file.name);
-    fd.append("name", form.name || "");
+  fd.append("file", file, file.name);
+  // 如果使用者沒輸入 name，預設使用檔案名稱（不含副檔名）
+  const fileStem = (file && file.name) ? file.name.replace(/\.[^/.]+$/, "") : "file";
+  const nameVal = (form.name || "").toString().trim() || fileStem;
+  fd.append("name", nameVal);
     fd.append("category", form.category || "上衣");
     fd.append("color", form.color || "");
     // 驗證 style，避免送出後端 enum 無效值

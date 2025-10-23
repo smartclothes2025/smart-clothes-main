@@ -1,4 +1,11 @@
-export default function WardrobeItem({ item, selecting = false, active = false, onToggle = () => {}, inactiveThreshold = 90 }) {
+export default function WardrobeItem({
+  item,
+  selecting = false,
+  active = false,
+  onToggle = () => {},
+  inactiveThreshold = 90,
+  onDelete = () => {} // ✅ 新增刪除 callback
+}) {
   const name = item?.name ?? "未命名";
   const category = item?.category ?? "";
   const color = item?.color ?? "";
@@ -7,9 +14,26 @@ export default function WardrobeItem({ item, selecting = false, active = false, 
 
   return (
     <div
-      className={`relative border rounded-xl p-3 bg-white shadow-sm transition-transform hover:scale-[1.01] ${selecting && active ? 'ring-2 ring-indigo-500' : ''}`}
+      className={`relative border rounded-xl p-3 bg-white shadow-sm transition-transform hover:scale-[1.01] ${
+        selecting && active ? 'ring-2 ring-indigo-500' : ''
+      }`}
       onClick={() => selecting && onToggle()}
     >
+      {/* ✅ 刪除按鈕（非選取模式時顯示） */}
+      {!selecting && (
+        <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm(`確定要刪除「${name}」嗎？`)) onDelete(item.id);
+        }}
+        className="absolute top-2 left-2 w-5 h-5 flex items-center justify-center text-gray-800 bg-white border border-gray-300 rounded-full hover:bg-gray-100 hover:text-black shadow-sm text-xs"
+        title="刪除此衣物"
+      >
+        ✕
+      </button>
+
+      )}
+
       {/* 已 xx 天未穿 徽章 */}
       {daysInactive !== null && daysInactive >= inactiveThreshold && (
         <div className="absolute top-2 right-2 z-10">
@@ -37,9 +61,14 @@ export default function WardrobeItem({ item, selecting = false, active = false, 
           <div className="text-2xl">👚</div>
         )}
       </div>
+
       <div className="mt-2 text-sm">
         <div className="font-medium truncate">{name}</div>
-        <div className="text-gray-500 truncate">{category}{category && color ? ' • ' : ''}{color}</div>
+        <div className="text-gray-500 truncate">
+          {category}
+          {category && color ? ' • ' : ''}
+          {color}
+        </div>
       </div>
     </div>
   );
