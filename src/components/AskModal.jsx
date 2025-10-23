@@ -48,19 +48,19 @@ export default function AskModal({
         onClick={(e) => e.stopPropagation()}
         className={`relative bg-white rounded-2xl shadow-xl z-10 w-[min(420px,94%)] overflow-hidden transition-all duration-200 ease-out ${show ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
       >
-        <div className="p-6 flex gap-5">
+        <div className="p-6 flex">
           <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${iconBgClass}`}>
             <Icon icon={iconName} className={`w-6 h-6 ${iconColorClass}`} />
           </div>
-          <div className="flex-grow pt-1">
+          <div className="flex-grow"> 
             <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-            <p className="mt-1 text-sm text-slate-600">{message}</p>
+            <p className="mt-1 text-sm text-slate-600 text-center">{message}</p> 
           </div>
         </div>
 
         <div className="bg-slate-50 px-5 py-4 flex justify-end gap-3 rounded-b-xl">
-          <StyledButton variant="secondary" onClick={handleClose}>{cancelText}</StyledButton>
           <StyledButton variant={destructive ? 'destructive' : 'primary'} onClick={handleConfirm}>{confirmText}</StyledButton>
+          <StyledButton variant="secondary" onClick={handleClose}>{cancelText}</StyledButton>
         </div>
       </div>
     </div>

@@ -71,6 +71,7 @@ export default function Upload({ theme, setTheme }) {
         },
       ]);
     }
+    // 從前一頁（UploadEdit）傳來的狀態來設定 Checkbox
     if (typeof st?.removeBg === "boolean") setRemoveBg(st.removeBg);
     if (typeof st?.aiDetect === "boolean") setAiDetect(st.aiDetect);
   }, [location.state]);
@@ -112,30 +113,43 @@ export default function Upload({ theme, setTheme }) {
     const file = files[idx];
     const form = forms[idx] || {};
     const fd = new FormData();
-  fd.append("file", file, file.name);
-  // 如果使用者沒輸入 name，預設使用檔案名稱（不含副檔名）
-  const fileStem = (file && file.name) ? file.name.replace(/\.[^/.]+$/, "") : "file";
-  const nameVal = (form.name || "").toString().trim() || fileStem;
-  fd.append("name", nameVal);
+    fd.append("file", file, file.name);
+    
+    // 如果使用者沒輸入 name，預設使用檔案名稱（不含副檔名）
+    const fileStem = (file && file.name) ? file.name.replace(/\.[^/.]+$/, "") : "file";
+    const nameVal = (form.name || "").toString().trim() || fileStem;
+    fd.append("name", nameVal);
+    
     fd.append("category", form.category || "上衣");
     fd.append("color", form.color || "");
+    
     // 驗證 style，避免送出後端 enum 無效值
     let validatedStyle = (form.style || "").trim();
     if (!validatedStyle) validatedStyle = "休閒";
     if (!ALLOWED_STYLES.includes(validatedStyle)) {
-      // 若不在允許清單中，改為其他或預設值（避免 DB enum error）
       validatedStyle = "其他";
     }
+    
     const tagsArr = [];
     if (validatedStyle) tagsArr.push(validatedStyle);
     if (form.brand) tagsArr.push(form.brand);
+    
     // 將 validatedStyle 明確加入 form data，後端會直接使用此欄位
     fd.append("style", validatedStyle);
     fd.append("tags", JSON.stringify(tagsArr));
-    const attrs = { material: form.material || "", size: form.size || "", brand: form.brand || "" };
+    
+    // 將 material, size, brand 放入 attributes 欄位
+    const attrs = { 
+        material: form.material || "", 
+        size: form.size || "", 
+        brand: form.brand || "" 
+    };
     fd.append("attributes", JSON.stringify(attrs));
+    
+    // 傳遞給後端，控制是否執行 GCS 上傳前的去背邏輯
     fd.append("remove_bg", removeBg ? "1" : "0");
     fd.append("ai_detect", aiDetect ? "1" : "0");
+    
     const token = getToken();
     if (token) fd.append("token", token);
     return fd;
@@ -144,13 +158,16 @@ export default function Upload({ theme, setTheme }) {
   async function performSingleUpload(fd) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch("http://localhost:8000/api/v1/upload/", {
+    
+    // 🎯 修正後的正確路由：指向 clothes.py 中的 /wardrobe 路由
+    const res = await fetch("http://localhost:8000/api/v1/clothes/", { 
       method: "POST",
       headers,
       body: fd,
     });
     return res;
   }
+  
   async function handleSubmit(e) {
     e.preventDefault();
     if (uploading) return;
@@ -174,6 +191,9 @@ export default function Upload({ theme, setTheme }) {
           const errMsg = parsed?.detail || text || `${res.status} ${res.statusText}`;
           throw new Error(`第 ${i + 1} 件上傳失敗：${errMsg}`);
         }
+        
+        // 可選：如果需要，可以在這裡讀取回傳的 JSON，查看 GCS URI 等資訊
+        // const data = await res.json(); 
       }
 
       addToast({ type: "success", title: "上傳完成", message: `成功上傳 ${files.length} 件衣物！`, autoDismiss: 3000 });

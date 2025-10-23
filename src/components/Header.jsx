@@ -22,7 +22,7 @@ export default function Header({ title, user }) {
         <h1 className="text-xl font-extrabold tracking-tight text-gray-900">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
-        <Link to="/Wardrobe" className="ml-2">
+        <Link to="/wardrobe?tab=穿搭" className="ml-2">
           <Calendar className="w-5 h-5 text-gray-600" />
         </Link>
         <Link to="/notice" className="ml-2">

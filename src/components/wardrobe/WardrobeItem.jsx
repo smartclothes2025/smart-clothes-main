@@ -4,7 +4,8 @@ export default function WardrobeItem({
   active = false,
   onToggle = () => {},
   inactiveThreshold = 90,
-  onDelete = () => {} // ✅ 新增刪除 callback
+  onDelete = () => {}, // ✅ 新增刪除 callback
+  ownerId = null,
 }) {
   const name = item?.name ?? "未命名";
   const category = item?.category ?? "";
@@ -22,10 +23,7 @@ export default function WardrobeItem({
       {/* ✅ 刪除按鈕（非選取模式時顯示） */}
       {!selecting && (
         <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (confirm(`確定要刪除「${name}」嗎？`)) onDelete(item.id);
-        }}
+        onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
         className="absolute top-2 left-2 w-5 h-5 flex items-center justify-center text-gray-800 bg-white border border-gray-300 rounded-full hover:bg-gray-100 hover:text-black shadow-sm text-xs"
         title="刪除此衣物"
       >
@@ -69,6 +67,9 @@ export default function WardrobeItem({
           {category && color ? ' • ' : ''}
           {color}
         </div>
+        {ownerId != null && (
+          <div className="text-xs text-gray-400 truncate mt-1">擁有者: {ownerId}</div>
+        )}
       </div>
     </div>
   );

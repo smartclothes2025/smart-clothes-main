@@ -1,5 +1,6 @@
 // src/pages/Wardrobe.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import WardrobeOverview from "../components/wardrobe/WardrobeOverview";
 import Outfits from "../components/wardrobe/Outfits";
 import Analysis from "../components/wardrobe/Analysis";
@@ -9,6 +10,16 @@ const mainTabs = ["衣物總覽", "穿搭", "分析"];
 
 export default function Wardrobe({ theme, setTheme }) {
   const [activeTab, setActiveTab] = useState(mainTabs[0]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const tab = params.get("tab");
+      if (tab && mainTabs.includes(tab)) setActiveTab(tab);
+    } catch (e) {}
+  }, [location.search]);
 
   return (
     <Layout title="智慧衣櫃">
