@@ -6,13 +6,13 @@ import inactiveMock from '../mock/inactiveMock';
 
 export default function RecommendInactive({ days = 90, showTitle = true }) {
   const { data, error, isLoading, mutate } = useSWR(
-    `/api/recommendations/inactive?days=${days}`,
+    `/api/v1/recommendations/inactive?days=${days}`,
     fetchJSON,
     { revalidateOnFocus: false }
   );
 
   const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-  const list = useMock ? inactiveMock : (Array.isArray(data) && data.length ? data : inactiveMock);
+  const list = useMock ? inactiveMock : (Array.isArray(data) ? data : []);
 
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const visibleList = list.filter(entry => !hiddenIds.has(entry.item.id));

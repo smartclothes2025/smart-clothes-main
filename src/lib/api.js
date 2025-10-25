@@ -3,6 +3,11 @@ export async function fetchJSON(url, opts = {}) {
   // 若你想要把 mock 關掉，只把 .env 裡 VITE_USE_MOCK 設 false 或拿掉
   const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 
+  console.log('🔍 fetchJSON Debug:');
+  console.log('  URL:', url);
+  console.log('  VITE_USE_MOCK:', import.meta.env.VITE_USE_MOCK);
+  console.log('  useMock:', useMock);
+
   // ---- MOCK 資料 (可按需改) ----
   const mockData = [
     {
@@ -38,20 +43,27 @@ export async function fetchJSON(url, opts = {}) {
   // --------------------------------
 
   if (useMock) {
+    console.log('  ⚠️ Using MOCK data');
     // 模擬網路延遲（可選）
     await new Promise((r) => setTimeout(r, 200));
     return mockData;
   }
 
+  console.log('  ✅ Using REAL API via proxy');
   // 真實 fetch（會被 proxy 轉發）
   const res = await fetch(url, opts);
+  console.log('  Response status:', res.status);
+  
   if (!res.ok) {
     // 把錯誤丟回上層（SWR 會接到 error）
     const text = await res.text().catch(() => '');
+    console.log('  ❌ Error response:', text);
     const err = new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
     err.status = res.status;
     throw err;
   }
-  return await res.json();
+  const data = await res.json();
+  console.log('  ✅ Success, data length:', Array.isArray(data) ? data.length : 'N/A');
+  return data;
 }
 export default fetchJSON;
