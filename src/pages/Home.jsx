@@ -13,7 +13,7 @@ export default function Home({ theme, setTheme }) {
             <Search />
             <WeatherCard />
             <section className="mt-6 max-h-[60vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold mb-3">推薦</h2>
+              <h2 className="text-lg font-semibold mb-3">今日推薦</h2>
               <RecommendInactive days={90} showTitle={false} />
             </section>
             <section>
