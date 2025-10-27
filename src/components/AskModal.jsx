@@ -12,16 +12,21 @@ export default function AskModal({
   onConfirm = () => {},
   onCancel = () => {},
 }) {
-  // 若沒有 open 直接不 render
-  if (!open) return null;
-
+  // hooks 必須在函式頂端呼叫，不能在條件之後
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // 進場動畫
+    // 當 open 為 true 時做進場動畫；當 open 為 false 時確保隱藏
+    if (!open) {
+      setShow(false);
+      return;
+    }
     const t = setTimeout(() => setShow(true), 10);
     return () => clearTimeout(t);
-  }, []);
+  }, [open]);
+
+  // 若沒有 open 直接不 render
+  if (!open) return null;
 
   const handleClose = () => {
     setShow(false);

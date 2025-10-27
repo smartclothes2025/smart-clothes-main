@@ -33,7 +33,7 @@ const addOutfit = ({ clothesIds = [], note = "", img = "" }) => {
 };
 
 const filters = ["全部", "上衣", "褲子", "裙子", "洋裝", "外套", "鞋子", "帽子", "包包", "配件", "襪子"];
-const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : "http://127.0.0.1:8000";
+const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : ""; // use relative paths by default to enable Vite proxy
 
 // 輔助函式：取得 JWT Token
 function getToken() {
