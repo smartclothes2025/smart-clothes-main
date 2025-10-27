@@ -116,7 +116,7 @@ export default function CreatePost() {
   async function performSingleUpload(fd) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch("http://localhost:8000/api/v1/posts/", {
+    const res = await fetch("http://localhost:8000/api/v1/posts", {
       method: "POST",
       headers,
       body: fd,

@@ -87,17 +87,15 @@ export default function Assistant({ theme, setTheme }) {
     return () => cancelAnimationFrame(raf);
   }, [messages, isTyping]);
 
-  function addMessage(role, text) {
+  function addMessage(role, text) { // 這裡應該是 addMessage，如果您的原始程式碼不是，請修正
     setMessages((m) => [...m, { id: nextIdRef.current++, role, text }]);
   }
 
-  // 模擬後端回覆（暫時替代 fetch）
+  // 模擬後端回覆（暫時替代 fetch） - 這個函數不再用於實際後端互動
   function simulateBackendReply(userText) {
     setIsTyping(true);
-    // 簡單模擬：根據 userText 回一個範例回覆，延遲 700~1000ms
     const delay = 700 + Math.floor(Math.random() * 300);
     setTimeout(() => {
-      // 你可以在這裡把回覆改成更複雜的邏輯或範例集合
       const reply = `模擬回覆：我收到你的問題「${userText}」，這是示範回覆。`;
       addMessage("assistant", reply);
       setIsTyping(false);
@@ -121,36 +119,53 @@ export default function Assistant({ theme, setTheme }) {
         body: JSON.stringify({ user_input: txt }),
       });
 
+      // 檢查 HTTP 響應狀態
+      if (!res.ok) {
+        const errorText = await res.text(); // 嘗試讀取錯誤訊息
+        throw new Error(`伺服器回應錯誤: ${res.status} ${res.statusText} - ${errorText}`);
+      }
+
       const data = await res.json();
+      console.log("前端收到的數據:", data); // 在這裡加入日誌，確認收到的數據
 
-      if (data.reply || data.outfit_image) {
-        if (data.reply) addMessage("assistant", data.reply);
-
-        if (data.outfit_image) {
+      // --- 這裡開始是主要的修改部分 ---
+      if (data.type === "image") {
+        if (data.text) { // 如果有附帶文字，先顯示文字
+          addMessage("assistant", data.text);
+        }
+        if (data.url) { // 顯示圖片
           addMessage("assistant", (
             <img
-              src={data.outfit_image}
+              src={data.url} // 使用 data.url
               alt="穿搭建議"
-              className="mt-2 max-w-[70ch] rounded-xl"
+              className="mt-2 w-full max-w-2xl rounded-xl shadow-md" // 放大圖片：從 max-w-lg 改為 max-w-2xl，加上 w-full 和 shadow-md
             />
           ));
+        } else {
+           addMessage("assistant", "⚠️ 圖片回覆缺少圖片 URL。");
         }
-      } else if (data.error) {
+      } else if (data.type === "text") { // 純文字回覆
+        if (data.text) {
+          addMessage("assistant", data.text);
+        } else {
+          addMessage("assistant", "⚠️ 文字回覆缺少內容。");
+        }
+      } else if (data.error) { // 處理錯誤
         addMessage("assistant", `⚠️ 錯誤：${data.error}`);
-      } else {
-        addMessage("assistant", "⚠️ 後端沒有回覆內容。");
+      } else { // 未知回應格式
+        addMessage("assistant", "⚠️ 後端沒有回覆內容（未知格式）。");
       }
+      // --- 修改部分結束 ---
+
     } catch (err) {
-      addMessage("assistant", `🚨 伺服器連線失敗：${err.message}`);
+      // 這裡的 err 會包含 `throw new Error(...)` 中的訊息
+      addMessage("assistant", `🚨 伺服器連線或資料處理失敗：${err.message}`);
     } finally {
       setIsTyping(false);
       setSending(false);
     }
   }
 
-
-  // 若你曾在其他地方直接呼叫 sendToBackend()，可改成呼叫 simulateBackendReply()
-  // 原本的 sendToBackend() (fetch) 已被移除以暫時停用後端。
 
   const quickPrompts = ["推薦今日穿搭", "正式場合穿搭建議"];
 
@@ -185,7 +200,7 @@ export default function Assistant({ theme, setTheme }) {
 
                   <div>
                     <div
-                      className={`px-4 py-2 max-w-[70ch] break-words ${
+                      className={`px-4 py-2 max-w-[70ch] break-words ${ // 這個 max-w-[70ch] 是針對文字訊息的，所以保持不變
                         m.role === "assistant"
                           ? "bg-gray-100 text-gray-800 rounded-xl rounded-tl-none"
                           : "bg-indigo-600 text-white rounded-xl rounded-tr-none"
@@ -237,7 +252,9 @@ export default function Assistant({ theme, setTheme }) {
                     key={q}
                     onClick={() => {
                       addMessage("user", q);
-                      simulateBackendReply(q);
+                      // 這裡要改成呼叫 handleSend，但要確保 e 是 null 或 undefined
+                      // 因為是從 quickPrompts 觸發，沒有 DOM event
+                      handleSend(null); 
                     }}
                     className="px-3 py-1 rounded-full border text-sm"
                   >
