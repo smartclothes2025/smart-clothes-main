@@ -1,3 +1,4 @@
+// src/pages/Upload.jsx
 import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -160,7 +161,7 @@ export default function Upload({ theme, setTheme }) {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     
     // 🎯 修正後的正確路由：指向 clothes.py 中的 /wardrobe 路由
-    const res = await fetch("http://localhost:8000/api/v1/clothes/", { 
+    const res = await fetch("http://localhost:8000/api/v1/upload/clothes", { 
       method: "POST",
       headers,
       body: fd,
