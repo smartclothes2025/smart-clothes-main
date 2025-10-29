@@ -17,7 +17,7 @@ export default function Home({ theme, setTheme }) {
               <RecommendInactive days={90} showTitle={false} />
             </section>
             <section>
-              <h2 className="text-lg font-semibold mb-3">穿搭動態</h2>
+              <h2 className="text-lg font-semibold mb-3">貼文</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white rounded-xl p-3 shadow-sm flex flex-col">
                   <div className="h-40 bg-gray-50 rounded-md flex items-center justify-center">
