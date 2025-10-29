@@ -160,8 +160,9 @@ export default function Upload({ theme, setTheme }) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     
-    // 🎯 修正後的正確路由：指向 clothes.py 中的 /wardrobe 路由
-    const res = await fetch("http://localhost:8000/api/v1/upload/clothes", { 
+    // 🎯 修正後的正確路由：使用相對路徑讓 Vite proxy 處理
+    const API_BASE = import.meta.env.VITE_API_BASE || "/api/v1";
+    const res = await fetch(`${API_BASE}/upload/clothes`, { 
       method: "POST",
       headers,
       body: fd,

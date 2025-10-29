@@ -111,20 +111,36 @@ export default function WardrobeOverview() {
 
         // GCS 圖片處理：後端已返回 HTTPS 網址，前端只需簡單處理 URL
         const mapped = arr.map((it) => {
-            let img = it.img || "";
-            // 由於後端 resolve_image_url 已經返回完整的 HTTPS 網址，前端只需確保非空
-            return {
-                id: Number.isInteger(+it.id) ? +it.id : it.id,
-                name: it.name || "",
-                category: it.category || "",
-                wearCount: it.wearCount || 0,
-                img: img || '/default-placeholder.png', 
-                daysInactive: typeof it.daysInactive === "number" ? it.daysInactive : null,
-                color: it.color || "",
-            };
-        });
+    // 優先使用 item.cover_url (如果後端有提供)
+    let rawUrl = it.cover_url || it.img || ""; 
+    let finalImgUrl = rawUrl;
 
-        setItems(mapped);
+    // 🎯 修正：處理被錯誤拼接的 GCS URL
+    // 檢查是否有常見的錯誤拼接前綴
+    const localErrorPrefix = 'http://localhost:5173/';
+    
+    if (finalImgUrl && finalImgUrl.startsWith(localErrorPrefix)) {
+        // 如果是 GCS URL 被錯誤拼接了本地 host，移除本地 host
+        if (finalImgUrl.includes('https://storage.googleapis.com/')) {
+             finalImgUrl = finalImgUrl.substring(localErrorPrefix.length);
+             console.warn(`[ParentComponent] ⚠️ 修正 GCS URL 重複拼接: ${finalImgUrl}`);
+        }
+    }
+    
+    // 由於後端 resolve_image_url 已經返回完整的 HTTPS 網址，這裡只需確保非空
+    return {
+        id: Number.isInteger(+it.id) ? +it.id : it.id,
+        name: it.name || "",
+        category: it.category || "",
+        wearCount: it.wearCount || 0,
+        // 確保 img 欄位使用修正後的 URL
+        img: finalImgUrl || '/default-placeholder.png', 
+        daysInactive: typeof it.daysInactive === "number" ? it.daysInactive : null,
+        color: it.color || "",
+    };
+});
+
+setItems(mapped);
 
     } catch (err) {
         if (err && err.name === "AbortError") return;

@@ -206,9 +206,11 @@ const LoginPage = ({ onLogin }) => {
     setSubmitting(true);
     try {
       await new Promise((r) => setTimeout(r, 200));
+      // 使用真實的測試使用者 ID
+      const testUserId = '9c33c7e9-ce22-4c4d-b385-15504ef368da';
       const fake = {
-        token: 'guest-token-000',
-        user: { id: 99, name: '訪客', email: 'guest@local', role: 'user' },
+        token: `user-${testUserId}-token`,
+        user: { id: testUserId, name: '測試使用者', email: 'test@local', role: 'user' },
       };
       if (onLogin) onLogin({ token: fake.token, user: fake.user });
       try {

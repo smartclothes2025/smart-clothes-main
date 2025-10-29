@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import fetchJSON from '../lib/api';
 import { Icon } from '@iconify/react';
 import inactiveMock from '../mock/inactiveMock';
+import { resolveGcsUrl, getImageUrl } from '../lib/imageUtils'; // 引入共用的圖片處理函數
 
 export default function RecommendInactive({ days = 90, showTitle = true }) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -105,7 +106,7 @@ export default function RecommendInactive({ days = 90, showTitle = true }) {
                   <div className="w-full flex justify-center">
                     <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
                       <img
-                        src={item.imageUrl || 'https://via.placeholder.com/96?text=image'}
+                        src={getImageUrl(item) || 'https://via.placeholder.com/96?text=image'}
                         alt={item.name}
                         className="w-full h-full object-cover"
                         width="96"
@@ -154,7 +155,7 @@ export default function RecommendInactive({ days = 90, showTitle = true }) {
                         >
                           <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
                             <img
-                              src={s.imageUrl || 'https://via.placeholder.com/96'}
+                              src={getImageUrl(s) || 'https://via.placeholder.com/96'}
                               alt={s.name}
                               width="96"
                               height="96"

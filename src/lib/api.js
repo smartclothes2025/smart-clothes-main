@@ -50,8 +50,24 @@ export async function fetchJSON(url, opts = {}) {
   }
 
   console.log('  ✅ Using REAL API via proxy');
+  
+  // 自動從 localStorage 讀取 token 並加入 Authorization header
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...opts.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    console.log('  🔑 Added Authorization header with token');
+  }
+  
   // 真實 fetch（會被 proxy 轉發）
-  const res = await fetch(url, opts);
+  const res = await fetch(url, {
+    ...opts,
+    headers,
+  });
   console.log('  Response status:', res.status);
   
   if (!res.ok) {

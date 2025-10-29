@@ -40,7 +40,7 @@ export default function VirtualFitting({ theme, setTheme }) {
     const items = JSON.parse(localStorage.getItem('virtual_fitting_items') || '[]');
     if (items.length === 0) {
       alert('請先選擇衣物單品');
-      navigate('/wardrobe');
+      navigate('');
       return;
     }
     setSelectedItems(items);

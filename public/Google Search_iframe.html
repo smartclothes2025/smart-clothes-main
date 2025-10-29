@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Search</title>
+    <!-- 確保頁面是響應式的 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* 移除 Google 預設的邊界，讓結果完全填滿 iframe */
+        body { margin: 0; padding: 0; overflow-x: hidden; font-family: sans-serif; background-color: white; } 
+        /* 將搜尋結果容器設定為填滿寬度 */
+        #gsc { width: 100% !important; }
+
+        /* [關鍵優化] 隱藏 Google Custom Search 預設的搜尋框、標誌及控制項 */
+        .gsc-control-cse .gsc-search-box,
+        .gsc-control-cse .gsc-search-button,
+        .gsc-control-cse .gsc-branding,
+        .gsc-control-cse .gsc-tabsArea,
+        .gsc-control-cse .gsc-input {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        /* 確保結果區域正常顯示 */
+        .gsc-control-cse {
+            padding: 0 !important;
+        }
+        /* 修正 Custom Search Result 的高度，避免 iframe 內出現多餘滾動條 */
+        .gsc-control-cse {
+            box-sizing: border-box;
+            min-height: 100%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 這是 Google Custom Search Element 的載入程式碼 -->
+    <!-- [已替換] CSE ID: 90fad66e1199a4b22 -->
+    <script async src="https://cse.google.com/cse.js?cx=90fad66e1199a4b22"></script>
+
+    <script>
+        // 獲取 URL 參數中的搜尋關鍵字 'q'
+        const urlParams = new URLSearchParams(window.location.search);
+        const query = urlParams.get('q') || '';
+
+        function loadSearch() {
+            // 設定搜尋元素配置
+            const searchOptions = {
+                // [最終修正] 替換為更穩定的單欄佈局 (1column)，它通常與圖片搜尋更匹配
+                'layout': '1column', 
+                // 限制為圖片搜尋
+                'tbm': 'isch',
+                // 限制語言與地區
+                'hl': 'zh-TW',
+                'gl': 'tw',
+                // 讓 Google 預先填入關鍵字
+                'query': query
+            };
+
+            // 執行搜尋
+            window.google.search.cse.element.render(
+                {
+                    gname: 'search_results_in_modal', 
+                    searchtype: 'image', 
+                    options: searchOptions
+                },
+                'gsc', // 放置搜尋元素的 div ID
+                null
+            );
+        }
+
+        // 確保 Google 搜尋載入完成後再執行
+        window.__gcse = {
+            callback: loadSearch
+        };
+        
+        // 如果已經載入，手動呼叫
+        if (window.google && window.google.search && window.google.search.cse) {
+            loadSearch();
+        }
+
+    </script>
+
+    <!-- 這是 Google 搜尋結果將會顯示的地方 -->
+    <!-- 加上 gsc-result-only 類別，幫助 Google 元素知道它只應顯示結果 -->
+    <div id="gsc" class="gsc-result-only" style="width: 100%;">
+        <!-- 搜尋結果將會在此處呈現 -->
+    </div>
+
+</body>
+</html>
