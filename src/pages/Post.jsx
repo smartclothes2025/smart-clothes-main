@@ -127,8 +127,16 @@ export default function CreatePost() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (uploading) return;
+    
+    // ✅ 檢查是否有照片
     if (!files.length) {
       addToast({ type: "warning", title: "尚未選擇照片", message: "請先上傳照片再完成操作。" });
+      return;
+    }
+    
+    // ✅ 檢查標題是否為空
+    if (!title.trim()) {
+      addToast({ type: "error", title: "標題為必填", message: "請輸入貼文標題。" });
       return;
     }
 
@@ -152,8 +160,15 @@ export default function CreatePost() {
         message: `已成功發佈（共 ${files.length} 張）。`,
         autoDismiss: 3000,
       });
-      // ✅ 不跳轉：維持在本頁
-      // 你也可以選擇清空圖片：setFiles([]); setCurrentIndex(0);
+      
+      // ✅ 發布完成後自動清除所有欄位和照片
+      setFiles([]);
+      setPreviews([]);
+      setCurrentIndex(0);
+      setTitle("");
+      setContent("");
+      setVisibility("public");
+      setTag("");
     } catch (err) {
       console.error("upload error:", err);
       addToast({
@@ -276,13 +291,16 @@ export default function CreatePost() {
             <div className="md:col-span-5">
               <aside className="bg-white rounded-2xl p-6 shadow-xl sticky top-6 space-y-5">
                 <div>
-                  <label htmlFor="post-title" className="block text-sm font-medium text-slate-700">標題（選填）</label>
+                  <label htmlFor="post-title" className="block text-sm font-medium text-slate-700">
+                    標題 <span className="text-red-500">*</span>
+                  </label>
                   <input
                     id="post-title"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="為您的貼文下個標題吧"
+                    placeholder="為您的貼文下個標題吧（必填）"
+                    required
                     className="mt-1 w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition"
                   />
                 </div>
@@ -301,14 +319,13 @@ export default function CreatePost() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700">可見度</label>
+                    <label className="block text-sm font-medium text-slate-700">狀態</label>
                     <select
                       value={visibility}
                       onChange={(e) => setVisibility(e.target.value)}
                       className="mt-1 w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition bg-white"
                     >
                       <option value="public">公開</option>
-                      <option value="friends">好友</option>
                       <option value="private">私人</option>
                     </select>
                   </div>

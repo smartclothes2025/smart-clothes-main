@@ -90,22 +90,19 @@ export default function AdminClothes() {
         const id = r.id ?? r.clothes_id ?? idx + 1;
         const name = r.name ?? r.title ?? r.filename ?? r.image ?? "未命名";
         const category = r.category ?? r.type ?? r.category_name ?? "未分類";
-        let updated_at =
-          r.updated_at ??
-          r.updatedAt ??
-          r.modified_at ??
-          r.modified ??
-          r.updated ??
-          r.created_at ??
+        let last_worn_at =
+          r.last_worn_at ??
+          r.lastWornAt ??
+          r.last_worn ??
           null;
 
         try {
-          if (updated_at) {
-            const d = new Date(updated_at);
-            updated_at = isNaN(d.getTime()) ? null : d.toISOString();
+          if (last_worn_at) {
+            const d = new Date(last_worn_at);
+            last_worn_at = isNaN(d.getTime()) ? null : d.toISOString();
           }
         } catch {
-          updated_at = null;
+          last_worn_at = null;
         }
 
         const uid =
@@ -147,7 +144,7 @@ export default function AdminClothes() {
           id,
           name,
           category,
-          updated_at,
+          last_worn_at,
           user_display,
           image_url,
           raw: r,
@@ -271,7 +268,7 @@ export default function AdminClothes() {
                 <th className="p-3 text-left w-[20%]">使用者</th>
                 <th className="p-3 text-left w-[20%]">衣物名稱</th>
                 <th className="p-3 text-left w-[15%]">分類</th>
-                <th className="p-3 text-left w-[20%]">更新時間</th>
+                <th className="p-3 text-left w-[20%]">最後穿著時間</th>
                 <th className="p-3 text-left w-[10%]">操作</th>
               </tr>
             </thead>
@@ -324,8 +321,8 @@ export default function AdminClothes() {
                     <td className="p-3 truncate">{item.name}</td>
                     <td className="p-3">{item.category}</td>
                     <td className="p-3 text-sm text-gray-500">
-                      {item.updated_at
-                        ? new Date(item.updated_at).toLocaleString("zh-TW", {
+                      {item.last_worn_at
+                        ? new Date(item.last_worn_at).toLocaleString("zh-TW", {
                             year: "numeric",
                             month: "2-digit",
                             day: "2-digit",
@@ -333,7 +330,7 @@ export default function AdminClothes() {
                             minute: "2-digit",
                             second: "2-digit",
                           })
-                        : "-"}
+                        : "從未穿著"}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
