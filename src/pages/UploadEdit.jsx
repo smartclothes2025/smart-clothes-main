@@ -181,7 +181,7 @@ export default function UploadEdit({ theme, setTheme }) {
     const file = new File([blob], `${baseName}${ext}`, { type: "image/jpeg" });
       editedFiles.push(file);
     }
-    navigate("/upload", { state: { files: editedFiles, primaryIndex, removeBg, aiDetect } });
+    navigate("/upload", { state: { files: editedFiles, originalFiles: srcFiles, primaryIndex, removeBg, aiDetect } });
   }
 
   return (
@@ -202,20 +202,18 @@ export default function UploadEdit({ theme, setTheme }) {
                       crop={cropArr[currentIndex] || { x: 0, y: 0 }}
                       zoom={zoomArr[currentIndex] || 1}
                       aspect={1}
-                      cropSize={undefined}
+                      cropSize={{ width: viewportSide, height: viewportSide }}
                       onCropChange={(v) => setCropArr((prev) => { const arr = [...prev]; arr[currentIndex] = v; return arr; })}
                       onZoomChange={(v) => setZoomArr((prev) => { const arr = [...prev]; arr[currentIndex] = v; return arr; })}
                       onCropComplete={(_, areaPixels) => setCroppedAreaPixelsArr((prev) => { const arr = [...prev]; arr[currentIndex] = areaPixels; return arr; })}
                       rotation={rotateArr[currentIndex] || 0}
-                      objectFit={(fitArr[currentIndex] || "free") === "cover" ? "cover" : "contain"}
-                      minZoom={minZoomArr[currentIndex] || 0.2}
+                      objectFit="contain"
+                      minZoom={0.1}
                       maxZoom={8}
-                      restrictPosition={(fitArr[currentIndex] || "free") === "cover"}
+                      restrictPosition={false}
                       showGrid={showGrid}
                       onMediaLoaded={({ width, height }) => {
                         setMediaSizeArr((prev) => { const arr = [...prev]; arr[currentIndex] = { width, height }; return arr; });
-                        const mode = fitArr[currentIndex] || "free";
-                        requestAnimationFrame(() => mode === "cover" ? applyCoverZoom({ width, height }, currentIndex) : applyContainZoom({ width, height }, currentIndex));
                       }}
                     />
                     ) : (

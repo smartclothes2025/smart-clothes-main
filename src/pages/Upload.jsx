@@ -18,6 +18,7 @@ export default function Upload({ theme, setTheme }) {
 
   const [forms, setForms] = useState([]);
   const [files, setFiles] = useState([]);
+  const [originalFiles, setOriginalFiles] = useState([]); // 保存原始檔案
   const [previewList, setPreviewList] = useState([]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -41,6 +42,12 @@ export default function Upload({ theme, setTheme }) {
     const st = location.state;
     if (st?.files && Array.isArray(st.files) && st.files.length) {
       setFiles(st.files);
+      // 保存原始檔案（如果有的話）
+      if (st?.originalFiles && Array.isArray(st.originalFiles)) {
+        setOriginalFiles(st.originalFiles);
+      } else {
+        setOriginalFiles(st.files); // 如果沒有原始檔案，使用當前檔案
+      }
       setPrimaryIndex(st.primaryIndex ?? 0);
       const p = Number.isInteger(st.primaryIndex)
         ? Math.min(Math.max(0, st.primaryIndex), st.files.length - 1)
@@ -370,7 +377,7 @@ export default function Upload({ theme, setTheme }) {
                 <div className="p-2 rounded-lg bg-white/5 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => navigate("/upload/edit", { state: { files: files, primaryIndex, removeBg, aiDetect } })}
+                    onClick={() => navigate("/upload/edit", { state: { files: originalFiles.length > 0 ? originalFiles : files, primaryIndex, removeBg, aiDetect } })}
                     className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
                     <Icon path={mdiChevronLeft} size={0.9} />
