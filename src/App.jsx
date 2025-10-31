@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ToastProvider';
+import { NotificationProvider } from './contexts/NotificationContext';
 // 使用者頁面
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
@@ -73,10 +74,11 @@ export default function App() {
   };
 
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <div>
-          <Routes>
+    <NotificationProvider>
+      <ToastProvider>
+        <BrowserRouter>
+          <div>
+            <Routes>
             {/* 登入頁：把 handleLogin 傳入，Login 負責依照 role 導向 */}
             <Route path="/" element={<Login onLogin={handleLogin} />} />
             <Route path="/register" element={<Register />} />
@@ -148,5 +150,6 @@ export default function App() {
         </div>
       </BrowserRouter>
     </ToastProvider>
+    </NotificationProvider>
   );
 }

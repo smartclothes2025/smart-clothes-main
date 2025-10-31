@@ -10,6 +10,7 @@ import {
   mdiSend,
 } from "@mdi/js";
 import { useToast } from "../components/ToastProvider";
+import { useNotifications } from "../contexts/NotificationContext";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -20,6 +21,7 @@ const ALLOWED_VISIBILITY = ["public", "friends", "private"]; // 依後端需求�
 export default function CreatePost() {
   const location = useLocation();
   const { addToast } = useToast();
+  const { addNotification } = useNotifications();
 
   // 圖片與預覽
   const [files, setFiles] = useState([]);
@@ -154,11 +156,23 @@ export default function CreatePost() {
         }
       }
 
+      // Toast 訊息
+      const toastTitle = "發佈完成";
+      const toastMessage = `已成功發佈（共 ${files.length} 張）。`;
+      
+      // 顯示 Toast
       addToast({
         type: "success",
-        title: "發佈完成",
-        message: `已成功發佈（共 ${files.length} 張）。`,
+        title: toastTitle,
+        message: toastMessage,
         autoDismiss: 3000,
+      });
+      
+      // 使用相同內容建立通知（儲存到通知中心）
+      addNotification({
+        type: 'new_item',
+        message: toastTitle,
+        details: toastMessage,
       });
       
       // ✅ 發布完成後自動清除所有欄位和照片

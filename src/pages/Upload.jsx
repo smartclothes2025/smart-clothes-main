@@ -6,6 +6,7 @@ import { Camera } from "lucide-react";
 import Icon from "@mdi/react";
 import { mdiUpload, mdiCloudUploadOutline, mdiChevronLeft, mdiChevronRight, mdiImageMultiple } from "@mdi/js";
 import { useToast } from "../components/ToastProvider";
+import { useNotifications } from "../contexts/NotificationContext";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -15,6 +16,7 @@ export default function Upload({ theme, setTheme }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const { addNotification } = useNotifications();
 
   const [forms, setForms] = useState([]);
   const [files, setFiles] = useState([]);
@@ -186,6 +188,7 @@ export default function Upload({ theme, setTheme }) {
     }
 
     setUploading(true);
+    const uploadedItems = []; // 儲存上傳成功的衣物名稱
     try {
       for (let i = 0; i < files.length; i++) {
         const fd = buildFormDataForIndex(i);
@@ -201,11 +204,28 @@ export default function Upload({ theme, setTheme }) {
           throw new Error(`第 ${i + 1} 件上傳失敗：${errMsg}`);
         }
         
-        // 可選：如果需要，可以在這裡讀取回傳的 JSON，查看 GCS URI 等資訊
-        // const data = await res.json(); 
+        // 記錄上傳成功的衣物名稱
+        const form = forms[i] || {};
+        const file = files[i];
+        const fileStem = (file && file.name) ? file.name.replace(/\.[^/.]+$/, "") : "file";
+        const nameVal = (form.name || "").toString().trim() || fileStem;
+        uploadedItems.push(nameVal);
       }
 
-      addToast({ type: "success", title: "上傳完成", message: `成功上傳 ${files.length} 件衣物！`, autoDismiss: 3000 });
+      // Toast 訊息
+      const toastTitle = "上傳完成";
+      const toastMessage = `成功上傳 ${files.length} 件衣物！`;
+      
+      // 顯示 Toast
+      addToast({ type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 });
+      
+      // 使用相同內容建立通知（儲存到通知中心）
+      addNotification({
+        type: 'new_item',
+        message: toastTitle,
+        details: toastMessage,
+      });
+
       navigate("/upload/select");
     } catch (err) {
       console.error("upload error:", err);

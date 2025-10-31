@@ -5,44 +5,10 @@ import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
     BellSlashIcon,
-    SparklesIcon
+    SparklesIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline';
-
-// --- 模擬的通知資料 ---
-const mockNotifications = [
-    {
-        id: 1,
-        type: 'new_item', // 新增衣物
-        message: '「藍色牛仔褲」已成功新增',
-        details: '現在您可以在「我的衣櫃」中查看它。',
-        timestamp: '5 分鐘前',
-        unread: true,
-    },
-    {
-        id: 2,
-        type: 'suggestion', // 穿搭建議
-        message: '您有新的穿搭建議',
-        details: '根據今天的天氣，我們為您產生了 3 套新穿搭。',
-        timestamp: '15 分鐘前',
-        unread: true,
-    },
-    {
-        id: 3,
-        type: 'system', // 系統通知
-        message: '歡迎使用智慧穿衣！',
-        details: '別忘了到「設定」頁面完善您的個人資料。',
-        timestamp: '1 小時前',
-        unread: false,
-    },
-    {
-        id: 4,
-        type: 'alert',
-        message: '天氣預報：即將降溫',
-        details: '建議您明天多加一件外套。',
-        timestamp: '3 小時前',
-        unread: false,
-    },
-];
+import { useNotifications } from '../contexts/NotificationContext';
 
 function NotificationIcon({ type }) {
     let icon, bgColor, iconColor;
@@ -78,8 +44,24 @@ function NotificationIcon({ type }) {
     );
 }
 
+// 輔助函式：計算時間距離現在的相對時間
+function getRelativeTime(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now - time;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return '剛剛';
+    if (diffMins < 60) return `${diffMins} 分鐘前`;
+    if (diffHours < 24) return `${diffHours} 小時前`;
+    if (diffDays < 30) return `${diffDays} 天前`;
+    return time.toLocaleDateString('zh-TW');
+}
+
 export default function Notice() {
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const { notifications, markAsRead, markAllAsRead, clearNotification, unreadCount, loading } = useNotifications();
     const [filter, setFilter] = useState('all'); // 'all' 或 'unread'
 
     // 過濾通知
@@ -90,23 +72,18 @@ export default function Notice() {
         return notifications;
     }, [notifications, filter]);
 
-    // 全部標記為已讀
-    const markAllAsRead = () => {
-        setNotifications(
-            notifications.map(n => ({ ...n, unread: false }))
-        );
-    };
-
     // 點擊單一通知 (標記為已讀)
     const handleItemClick = (id) => {
-        setNotifications(
-            notifications.map(n =>
-                n.id === id ? { ...n, unread: false } : n
-            )
-        );
+        markAsRead(id);
     };
 
-    const hasUnread = notifications.some(n => n.unread);
+    // 刪除單一通知
+    const handleDeleteNotification = (e, id) => {
+        e.stopPropagation();
+        clearNotification(id);
+    };
+
+    const hasUnread = unreadCount > 0;
 
     return (
         <Layout title="通知中心">
@@ -166,8 +143,17 @@ export default function Notice() {
                                     {item.details && (
                                         <p className="text-sm text-slate-500 mt-0.5">{item.details}</p>
                                     )}
-                                    <p className="text-xs text-slate-400 mt-1">{item.timestamp}</p>
+                                    <p className="text-xs text-slate-400 mt-1">{getRelativeTime(item.timestamp)}</p>
                                 </div>
+
+                                {/* 刪除按鈕 */}
+                                <button
+                                    onClick={(e) => handleDeleteNotification(e, item.id)}
+                                    className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    title="刪除通知"
+                                >
+                                    <XMarkIcon className="w-5 h-5" />
+                                </button>
                             </div>
                         ))
                     ) : (
