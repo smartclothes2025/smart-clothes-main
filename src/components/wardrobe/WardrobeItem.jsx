@@ -13,48 +13,49 @@ export default function WardrobeItem({
   item,
   selecting = false,
   active = false,
-  onToggle = () => {},
+  onToggle = () => { },
   inactiveThreshold = 90,
-  onDelete = () => {}, 
+  onDelete = () => { },
+  onImageClick = null,
 }) {
   const name = item?.name ?? "未命名";
   const category = item?.category ?? "";
   const color = item?.color ?? "";
-  
+
   // 獲取原始 URL (API 返回的 cover_url 或 img 欄位)
-  const rawImgUrl = item?.cover_url ?? item?.img ?? ""; 
+  const rawImgUrl = item?.cover_url ?? item?.img ?? "";
 
   let img = rawImgUrl;
-  
+
   // 🎯 核心修正邏輯：處理 URL 重複協議問題 (https://https/...)
   if (img && img.includes('storage.googleapis.com')) {
-      const prefix = 'https://';
-      
-      // 步驟 1: 清理所有錯誤的本地 host 拼接 (以防萬一)
-      const localHostPrefix = 'http://localhost:5173/';
-      if (img.startsWith(localHostPrefix)) {
-          img = img.substring(localHostPrefix.length);
-          console.warn(`[WardrobeItem] ⚠️ 清除本地 Host 前綴`);
-      }
+    const prefix = 'https://';
 
-      // 步驟 2: 檢查並修復最新的錯誤格式: https/storage.googleapis.com
-      const protocolError = 'https/storage.googleapis.com';
-      if (img.startsWith(protocolError)) {
-          // 這是您報告的最終錯誤格式。移除 'https/' 並補回 'https://'
-          img = prefix + img.substring('https/'.length);
-          console.warn(`[WardrobeItem] ⚠️ 修正了 https/ 協議缺失: ${img}`);
-      }
-      
-      // 步驟 3: 確保最終是以 https:// 開頭 (處理其他可能的錯誤，如 http:/)
-      if (!img.startsWith(prefix) && img.startsWith('storage.googleapis.com')) {
-           img = prefix + img;
-           console.warn(`[WardrobeItem] ⚠️ 補回完整協定頭`);
-      }
+    // 步驟 1: 清理所有錯誤的本地 host 拼接 (以防萬一)
+    const localHostPrefix = 'http://localhost:5173/';
+    if (img.startsWith(localHostPrefix)) {
+      img = img.substring(localHostPrefix.length);
+      console.warn(`[WardrobeItem] ⚠️ 清除本地 Host 前綴`);
+    }
+
+    // 步驟 2: 檢查並修復最新的錯誤格式: https/storage.googleapis.com
+    const protocolError = 'https/storage.googleapis.com';
+    if (img.startsWith(protocolError)) {
+      // 這是您報告的最終錯誤格式。移除 'https/' 並補回 'https://'
+      img = prefix + img.substring('https/'.length);
+      console.warn(`[WardrobeItem] ⚠️ 修正了 https/ 協議缺失: ${img}`);
+    }
+
+    // 步驟 3: 確保最終是以 https:// 開頭 (處理其他可能的錯誤，如 http:/)
+    if (!img.startsWith(prefix) && img.startsWith('storage.googleapis.com')) {
+      img = prefix + img;
+      console.warn(`[WardrobeItem] ⚠️ 補回完整協定頭`);
+    }
   }
 
 
   const daysInactive = typeof item?.daysInactive === 'number' ? item.daysInactive : null;
-  const ownerId = item?.ownerId ?? null; 
+  const ownerId = item?.ownerId ?? null;
 
   // ✅ 處理卡片點擊（僅在選取模式下）
   const handleCardClick = () => {
@@ -70,12 +71,11 @@ export default function WardrobeItem({
   };
 
   console.log(`Item Name: ${name}, Image Source (img): ${img}`);
-  
+
   return (
     <div
-      className={`relative border rounded-xl p-3 bg-white shadow-sm transition-transform hover:scale-[1.01] ${
-        selecting && active ? 'ring-2 ring-indigo-500' : ''
-      } ${selecting ? 'cursor-pointer' : ''}`}
+      className={`relative border rounded-xl p-3 bg-white shadow-sm transition-transform hover:scale-[1.01] ${selecting && active ? 'ring-2 ring-indigo-500' : ''
+        } ${selecting ? 'cursor-pointer' : ''}`}
       onClick={handleCardClick}
     >
       {/* ✅ 刪除按鈕（僅在非選取模式時顯示） */}
@@ -113,11 +113,12 @@ export default function WardrobeItem({
       {/* ✅ 衣物圖片區域 */}
       <div className="aspect-square w-full overflow-hidden rounded-lg flex items-center justify-center bg-gray-50">
         {img ? (
-          <img 
-            src={img} 
-            alt={name} 
+          <img
+            src={img}
+            alt={name}
             className="max-w-full max-h-full object-contain"
             loading="lazy"
+            onClick={(e) => { if (onImageClick && !selecting) { e.stopPropagation(); onImageClick(item); } }}
             onError={(e) => {
               // ✅ 圖片載入失敗時顯示預設圖示
               e.target.style.display = 'none';

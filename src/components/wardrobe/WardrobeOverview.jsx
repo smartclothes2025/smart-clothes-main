@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import WardrobeItem from "./WardrobeItem";
+import EditClothModal from "./EditClothModal";
 import AskModal from "../AskModal";
 import { useToast } from "../ToastProvider"; // 引入 Toast
 
@@ -59,6 +60,8 @@ export default function WardrobeOverview() {
 
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState(null);
   const navigate = useNavigate();
 
   // --- 數據載入邏輯 ---
@@ -313,10 +316,22 @@ setItems(mapped);
               // 使用 onDelete 由父元件觸發 AskModal
               onDelete={() => openAskModal(item.id)}
               inactiveThreshold={INACTIVE_THRESHOLD}
+                      onImageClick={(clicked) => { setEditItem(clicked); setEditOpen(true); }}
             />
           ))}
         </div>
       )}
+              {/* 編輯衣物 Modal */}
+              <EditClothModal
+                open={editOpen}
+                item={editItem}
+                onClose={() => { setEditOpen(false); setEditItem(null); }}
+                apiBase={API_BASE}
+                onSaved={(updated) => {
+                  setItems(prev => prev.map(it => it.id === updated.id ? { ...it, ...updated } : it));
+                  addToast({ type: 'success', title: '已更新衣物' });
+                }}
+              />
       <AskModal
         open={askOpen}
         title="刪除衣物"
