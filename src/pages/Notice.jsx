@@ -141,7 +141,9 @@ export default function Notice() {
                                 <div className="flex-grow">
                                     <p className="text-sm font-semibold text-slate-800">{item.message}</p>
                                     {item.details && (
-                                        <p className="text-sm text-slate-500 mt-0.5">{item.details}</p>
+                                        <p className="text-sm text-slate-500 mt-0.5">
+                                            {typeof item.details === 'string' ? item.details : JSON.stringify(item.details)}
+                                        </p>
                                     )}
                                     <p className="text-xs text-slate-400 mt-1">{getRelativeTime(item.timestamp)}</p>
                                 </div>

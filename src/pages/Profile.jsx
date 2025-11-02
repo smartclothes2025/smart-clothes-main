@@ -76,6 +76,14 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [metricsOpen, setMetricsOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem('profile_metrics_open');
+      if (v === '0') return false;
+      if (v === '1') return true;
+    } catch {}
+    return true;
+  });
   const fileInputRef = useRef(null);
 
   // 讀取 ?edit=1 直接開啟編輯
@@ -376,14 +384,46 @@ export default function Profile() {
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-4">
-              <h3 className="text-sm font-semibold text-slate-600 mb-3">穿搭資訊</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <MeasurementItem label="身高" value={user.height} unit="cm" />
-                <MeasurementItem label="體重" value={user.weight} unit="kg" />
-                <MeasurementItem label="胸圍" value={user.bust} unit="cm" />
-                <MeasurementItem label="腰圍" value={user.waist} unit="cm" />
-                <MeasurementItem label="臀圍" value={user.hip} unit="cm" />
-                <MeasurementItem label="肩寬" value={user.shoulder} unit="cm" />
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-600 mb-3">穿搭資訊</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMetricsOpen((s) => {
+                      const next = !s;
+                      try { localStorage.setItem('profile_metrics_open', next ? '1' : '0'); } catch {}
+                      return next;
+                    });
+                  }}
+                  aria-expanded={metricsOpen}
+                  aria-controls="body-metrics"
+                  className="text-sm text-slate-500 hover:text-slate-700 px-2 py-1 rounded-md"
+                >
+                  {metricsOpen ? (
+                    <span className="flex items-center gap-2">收合
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">展開
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 9.06 6.29 12.77a.75.75 0 11-1.06-1.06l4.24-4.24a.75.75 0 011.06 0l4.24 4.24a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div id="body-metrics" className={`${metricsOpen ? 'block' : 'hidden'}`}>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <MeasurementItem label="身高" value={user.height} unit="cm" />
+                  <MeasurementItem label="體重" value={user.weight} unit="kg" />
+                  <MeasurementItem label="胸圍" value={user.bust} unit="cm" />
+                  <MeasurementItem label="腰圍" value={user.waist} unit="cm" />
+                  <MeasurementItem label="臀圍" value={user.hip} unit="cm" />
+                  <MeasurementItem label="肩寬" value={user.shoulder} unit="cm" />
+                </div>
               </div>
             </div>
           </div>

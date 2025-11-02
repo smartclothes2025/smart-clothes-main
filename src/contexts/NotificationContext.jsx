@@ -3,313 +3,486 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 const NotificationContext = createContext();
 
 export function useNotifications() {
-    const context = useContext(NotificationContext);
-    if (!context) {
-        throw new Error('useNotifications must be used within NotificationProvider');
-    }
-    return context;
+  const context = useContext(NotificationContext);
+  if (!context) throw new Error('useNotifications must be used within NotificationProvider');
+  return context;
 }
 
-// API 設定 - 以環境變數為主；預設走 Vite 代理的 /api/v1
+// === API 與 ID 型別設定 ===
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
-// 後端 user_id 型別控制：int | uuid | string（預設 int）
-const USER_ID_TYPE = import.meta.env.VITE_NOTIF_USER_ID_TYPE || 'int';
+const USER_ID_TYPE = import.meta.env.VITE_NOTIF_USER_ID_TYPE || 'auto';
 
-// 從 localStorage 取得 token（僅用於授權標頭，不再從 localStorage 讀 user_id）
 function getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    return headers;
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
-// 依後端預期正規化 user_id，不符合則回傳 null
+// 依不同模式正規化 user_id；auto: 數字/UUID/字串 全放行
 function normalizeBackendUserId(rawId) {
-    if (rawId == null) return null;
-    const asStr = String(rawId).trim();
-    if (!asStr) return null;
+  if (rawId == null) return null;
+  const asStr = String(rawId).trim();
+  if (!asStr) return null;
 
-    if (USER_ID_TYPE === 'int') {
-        // 僅接受純數字
-        return /^\d+$/.test(asStr) ? asStr : null;
-    }
-    if (USER_ID_TYPE === 'uuid') {
-        // 簡易 UUID v4 格式檢查
-        const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
-        return uuidRe.test(asStr) ? asStr : null;
-    }
-    // 'string' 模式：任何非空字串可用
-    return asStr;
+  const uuidRe =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+  if (USER_ID_TYPE === 'auto') {
+    if (/^\d+$/.test(asStr)) return asStr;
+    if (uuidRe.test(asStr)) return asStr;
+    return asStr; // 其餘字串交給後端解析
+  }
+  if (USER_ID_TYPE === 'int') return /^\d+$/.test(asStr) ? asStr : null;
+  if (USER_ID_TYPE === 'uuid') return uuidRe.test(asStr) ? asStr : null;
+  return asStr; // 'string'
 }
 
 export function NotificationProvider({ children }) {
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [currentUser, setCurrentUser] = useState(null); // { id, displayName }
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [currentUser, setCurrentUser] = useState(null); // { id, displayName }
 
-    // 取得已驗證使用者（不從 localStorage 抓 user_id）
-    const fetchCurrentUser = useCallback(async () => {
+  // ========== Current User ==========
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        let txt = '';
+        try { txt = await res.text(); } catch {}
+        console.warn('Failed to load current user:', res.status, res.statusText, txt);
+        setCurrentUser(null);
+        return null;
+      }
+      const data = await res.json();
+      const id =
+        data?.id ??
+        data?.user_id ??
+        data?.userId ??
+        data?.uid ??
+        data?.uuid ??
+        data?.user?.id ??
+        data?.user?.user_id ??
+        data?.user?.userId ??
+        data?.user?.uid ??
+        data?.user?.uuid ??
+        null;
+      const name =
+        data?.display_name || data?.name || data?.user?.display_name || data?.user?.name || '用戶';
+      const u = { id, displayName: name };
+      setCurrentUser(u);
+      return u;
+    } catch (e) {
+      console.error('Error fetching current user:', e);
+      setCurrentUser(null);
+      return null;
+    }
+  }, []);
+
+  // ---------- localStorage helpers ----------
+  const LOCAL_KEY = 'local_notifications';
+
+  function loadLocalNotifications() {
+    try {
+      const raw = localStorage.getItem(LOCAL_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      console.warn('Failed to load local notifications', e);
+      return [];
+    }
+  }
+
+  function saveLocalNotifications(arr) {
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(arr));
+    } catch (e) {
+      console.warn('Failed to save local notifications', e);
+    }
+  }
+
+  function addLocalNotification(item) {
+    const list = loadLocalNotifications();
+    list.unshift(item);
+    saveLocalNotifications(list);
+    setNotifications(prev => [item, ...prev]);
+    setUnreadCount(prev => prev + (item.is_read ? 0 : 1));
+  }
+
+  function removeLocalById(localId) {
+    try {
+      const list = loadLocalNotifications();
+      const next = list.filter(x => x && String(x.id) !== String(localId));
+      saveLocalNotifications(next);
+      setNotifications(prev => prev.filter(n => String(n.id) !== String(localId)));
+    } catch (e) {
+      console.warn('Failed to remove local notification:', e);
+    }
+  }
+
+  function mergeLocalWithBackend(local, backend) {
+    const seen = new Set(backend.map(b => String(b.id)));
+    const toastIds = new Set();
+    backend.forEach(b => {
+      try {
+        const d = b.details;
+        if (d && d.toast_id) toastIds.add(String(d.toast_id));
+      } catch {}
+    });
+
+    const filteredLocal = (local || [])
+      .filter(l => {
+        if (!l) return false;
+        if (seen.has(String(l.id))) return false;
         try {
-            const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
-            if (!res.ok) {
-                let txt = '';
-                try { txt = await res.text(); } catch {}
-                console.warn('Failed to load current user:', res.status, res.statusText, txt);
-                setCurrentUser(null);
-                return null;
-            }
-            const data = await res.json();
-            // 更穩健地提取使用者 ID 與名稱
-            const id =
-                data?.id ?? data?.user_id ?? data?.userId ?? data?.uid ?? data?.uuid ??
-                data?.user?.id ?? data?.user?.user_id ?? data?.user?.userId ?? data?.user?.uid ?? data?.user?.uuid ?? null;
-            const name = data?.display_name || data?.name || data?.user?.display_name || data?.user?.name || '用戶';
-            const u = { id, displayName: name };
-            setCurrentUser(u);
-            return u;
-        } catch (e) {
-            console.error('Error fetching current user:', e);
-            setCurrentUser(null);
-            return null;
-        }
-    }, []);
+          const d = l.details;
+          if (d && d.toast_id && toastIds.has(String(d.toast_id))) return false;
+        } catch {}
+        return true;
+      })
+      .map(l => ({ ...l, _isLocal: true }));
 
-    // 從後端載入通知
-    const fetchNotifications = useCallback(async (unreadOnly = false) => {
-        const normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            console.warn(`Skip fetching notifications: invalid user_id for backend (USER_ID_TYPE=${USER_ID_TYPE}).`);
-            return;
-        }
+    return [...filteredLocal, ...backend];
+  }
 
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({
-                user_id: normId,
-                skip: '0',
-                limit: '50',
-            });
-            
-            if (unreadOnly) {
-                params.append('unread_only', 'true');
-            }
+  // ========== 從後端載入 ==========
+  const fetchNotifications = useCallback(
+    async (unreadOnly = false) => {
+      const normId = normalizeBackendUserId(currentUser?.id);
+      if (!normId) {
+        console.warn(
+          `Skip fetching notifications: invalid user_id for backend (USER_ID_TYPE=${USER_ID_TYPE}).`
+        );
+        const local = loadLocalNotifications();
+        setNotifications(local);
+        setUnreadCount(local.filter(n => !n.is_read).length);
+        return;
+      }
 
-            const response = await fetch(`${API_BASE}/notifications/?${params}`, {
-                headers: getAuthHeaders(),
-            });
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ user_id: normId, skip: '0', limit: '50' });
+        if (unreadOnly) params.append('unread_only', 'true');
+
+        const response = await fetch(`${API_BASE}/notifications/?${params}`, {
+          headers: getAuthHeaders()
+        });
 
         if (response.ok) {
-                const data = await response.json();
-                // 轉換後端格式為前端格式，並將訊息中的 user_id 替換為 display_name
-                setNotifications(data.notifications.map(n => {
-                    let message = n.message;
-                    // 將訊息中的 user_id 替換為 display_name
+          const data = await response.json();
+          let backendList = (data.notifications || []).map(n => {
+            let message = n.message;
             if (message && currentUser?.id) {
-                        message = message.replace(
-                new RegExp(`\\b${currentUser.id}\\b`, 'g'),
+              message = message.replace(
+                new RegExp(`\\b${String(currentUser.id)}\\b`, 'g'),
                 currentUser.displayName || '用戶'
-                        );
-                    }
-                    return {
-                        ...n,
-                        message: message,
-                        unread: !n.is_read,
-                        timestamp: n.created_at,
-                    };
-                }));
-                setUnreadCount(data.unread_count);
-            } else {
-                let errText = '';
-                try { errText = await response.text(); } catch {}
-                console.error('Failed to fetch notifications:', response.status, response.statusText, errText);
+              );
             }
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-        } finally {
-            setLoading(false);
+            return { ...n, message, unread: !n.is_read, timestamp: n.created_at };
+          });
+
+          const local = loadLocalNotifications();
+          const merged = mergeLocalWithBackend(local, backendList);
+          setNotifications(merged);
+          setUnreadCount(
+            (data.unread_count || 0) + merged.filter(n => n._isLocal && !n.is_read).length
+          );
+        } else {
+          let errText = '';
+          try { errText = await response.text(); } catch {}
+          console.error('Failed to fetch notifications:', response.status, response.statusText, errText);
         }
-    }, [currentUser]);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentUser]
+  );
 
-    // 初始載入：先取得目前使用者，再載入通知
-    useEffect(() => {
-        fetchCurrentUser();
-    }, [fetchCurrentUser]);
+  // ========== 把本機暫存回填到後端 ==========
+  const flushLocalToBackend = useCallback(async () => {
+    const normId = normalizeBackendUserId(currentUser?.id);
+    if (!normId) return;
 
-    useEffect(() => {
-        if (currentUser) {
-            fetchNotifications();
-        }
-    }, [currentUser, fetchNotifications]);
+    const locals = loadLocalNotifications();
+    if (!locals.length) return;
 
-    // 建立通知（發送到後端）
-    const addNotification = async (notification) => {
-        let normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            // 嘗試重新抓取一次目前使用者，並立即使用回傳值避免 state 更新延遲
-            const u = await fetchCurrentUser();
-            normId = normalizeBackendUserId(u?.id);
-        }
-        if (!normId) {
-            console.warn('No user_id found, cannot create notification');
-            return;
-        }
+    for (const ln of locals) {
+      try {
+        const body = {
+          user_id: String(normId),
+          type: ln.type || 'new_item',
+          message: ln.message || '',
+          details: ln.details || null,
+          payload: ln.payload || null
+        };
+        const res = await fetch(`${API_BASE}/notifications/`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body)
+        });
+        if (res.ok) removeLocalById(ln.id);
+      } catch (e) {
+        console.warn('flushLocalToBackend failed for one item:', e);
+      }
+    }
+  }, [currentUser]);
 
-        try {
-            // 僅發送後端可能允許的欄位，並確保 user_id 是字串（後端要求 string）
-            const body = {
-        user_id: String(normId),
-                type: notification.type || 'new_item',
-                message: notification.message,
-            };
-            if (notification.details) body.details = notification.details;
-            // 若後端未定義 payload，避免送出以免 400
+  // 初次載入
+  useEffect(() => { fetchCurrentUser(); }, [fetchCurrentUser]);
 
-            const response = await fetch(`${API_BASE}/notifications/`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(body),
-            });
+  useEffect(() => {
+    if (currentUser) {
+      fetchNotifications().then(() => flushLocalToBackend());
+    }
+  }, [currentUser, fetchNotifications, flushLocalToBackend]);
 
-            if (response.ok) {
-                // 重新載入通知列表
-                await fetchNotifications();
-            } else {
-                let errText = '';
-                try { errText = await response.text(); } catch {}
-                console.error('Failed to create notification:', response.status, response.statusText, errText);
-            }
-        } catch (error) {
-            console.error('Error creating notification:', error);
-        }
+  // ========== Toast 事件轉通知 ==========
+  useEffect(() => {
+    const handler = async e => {
+      const payload = e?.detail;
+      if (!payload) return;
+
+      const notif = {
+        type: payload.type === 'error' ? 'error' : 'info',
+        message: payload.title ? `${payload.title}: ${payload.message}` : payload.message,
+        details: { source: 'client-toast', toast_id: payload.id }
+      };
+      try {
+        await addNotification(notif, { optimistic: true });
+      } catch (err) {
+        console.error('Failed to persist toast as notification:', err);
+      }
     };
 
-    // 標記單一通知為已讀
-    const markAsRead = async (id) => {
-        let normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            const u = await fetchCurrentUser();
-            normId = normalizeBackendUserId(u?.id);
+    window.addEventListener('toast-fired', handler);
+    return () => window.removeEventListener('toast-fired', handler);
+  }, [currentUser]);
+
+  // ========== 建立 / 更新 / 刪除 ==========
+  const pendingToastIdsRef = React.useRef(new Set());
+
+  const addNotification = useCallback(
+    async (notification, opts = { optimistic: true }) => {
+      const toastId = notification?.details?.toast_id ?? null;
+
+      if (toastId) {
+        const exists = notifications.some(n => n.details && n.details.toast_id === toastId);
+        if (exists || pendingToastIdsRef.current.has(String(toastId))) return;
+      }
+
+      let normId = normalizeBackendUserId(currentUser?.id);
+      if (!normId) {
+        const u = await fetchCurrentUser();
+        normId = normalizeBackendUserId(u?.id);
+      }
+
+      const makeLocalItem = baseId => ({
+        id: baseId || `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        user_id: normId ?? null,
+        type: notification.type || 'new_item',
+        message: notification.message,
+        details: notification.details || null,
+        payload: notification.payload || null,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        _isLocal: true
+      });
+
+      if (!normId) {
+        console.warn('No valid user_id for backend; saving notification locally.');
+        return addLocalNotification(makeLocalItem());
+      }
+
+      let tempId = null;
+      try {
+        const body = {
+          user_id: String(normId),
+          type: notification.type || 'new_item',
+          message: notification.message
+        };
+        if (notification.details) body.details = notification.details;
+        if (notification.payload) body.payload = notification.payload;
+
+        if (opts.optimistic) {
+          tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          const tempNotif = {
+            id: tempId,
+            user_id: normId,
+            type: body.type,
+            message: body.message,
+            details: body.details || null,
+            payload: body.payload || null,
+            is_read: false,
+            created_at: new Date().toISOString(),
+            pending: true
+          };
+          setNotifications(prev => [tempNotif, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          if (toastId) pendingToastIdsRef.current.add(String(toastId));
         }
-        if (!normId) return;
 
-        try {
-            const response = await fetch(`${API_BASE}/notifications/${id}?user_id=${normId}`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ is_read: true }),
-            });
+        const response = await fetch(`${API_BASE}/notifications/`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body)
+        });
 
-            if (response.ok) {
-                setNotifications(prev =>
-                    prev.map(n => (n.id === id ? { ...n, unread: false, is_read: true } : n))
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
-            }
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
+        if (response.ok) {
+          const data = (await response.json().catch(() => null)) || {};
+          const item = {
+            id: data.id || String(data.id) || (tempId || `n-${Date.now()}`),
+            user_id: data.user_id ?? normId,
+            type: data.type ?? body.type,
+            message: data.message ?? body.message,
+            details: data.details ?? body.details ?? null,
+            payload: data.payload ?? body.payload ?? null,
+            is_read: data.is_read ?? false,
+            created_at: data.created_at ?? new Date().toISOString()
+          };
+
+          if (tempId) {
+            setNotifications(prev => prev.map(n => (n.id === tempId ? item : n)));
+          } else {
+            setNotifications(prev => [item, ...prev]);
+            setUnreadCount(prev => prev + 1);
+          }
+        } else {
+          const txt = await response.text().catch(() => '');
+          console.warn(
+            'Failed to create notification on server; saving locally. Server response:',
+            response.status,
+            response.statusText,
+            txt
+          );
+          if (tempId) {
+            setNotifications(prev => prev.filter(n => n.id !== tempId));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          }
+          addLocalNotification(makeLocalItem());
         }
-    };
-
-    // 標記全部為已讀
-    const markAllAsRead = async () => {
-        let normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            const u = await fetchCurrentUser();
-            normId = normalizeBackendUserId(u?.id);
+      } catch (error) {
+        console.warn('Error creating notification (network/exception); saving locally:', error);
+        if (tempId) {
+          setNotifications(prev => prev.filter(n => n.id !== tempId));
+          setUnreadCount(prev => Math.max(0, prev - 1));
         }
-        if (!normId) return;
+        addLocalNotification(makeLocalItem());
+      } finally {
+        if (toastId) pendingToastIdsRef.current.delete(String(toastId));
+      }
+    },
+    [currentUser, fetchCurrentUser, notifications]
+  );
 
-        try {
-            const response = await fetch(`${API_BASE}/notifications/mark-all-read?user_id=${normId}`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-            });
+  const markAsRead = async id => {
+    let normId = normalizeBackendUserId(currentUser?.id);
+    if (!normId) {
+      const u = await fetchCurrentUser();
+      normId = normalizeBackendUserId(u?.id);
+    }
+    if (!normId) return;
 
-            if (response.ok) {
-                setNotifications(prev =>
-                    prev.map(n => ({ ...n, unread: false, is_read: true }))
-                );
-                setUnreadCount(0);
-            }
-        } catch (error) {
-            console.error('Error marking all as read:', error);
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${id}?user_id=${normId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ is_read: true })
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => (n.id === id ? { ...n, unread: false, is_read: true } : n)));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    let normId = normalizeBackendUserId(currentUser?.id);
+    if (!normId) {
+      const u = await fetchCurrentUser();
+      normId = normalizeBackendUserId(u?.id);
+    }
+    if (!normId) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/notifications/mark-all-read?user_id=${normId}`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, unread: false, is_read: true })));
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const clearNotification = async id => {
+    let normId = normalizeBackendUserId(currentUser?.id);
+    if (!normId) {
+      const u = await fetchCurrentUser();
+      normId = normalizeBackendUserId(u?.id);
+    }
+    if (!normId) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${id}?user_id=${normId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (response.ok || response.status === 204) {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        const notification = notifications.find(n => n.id === id);
+        if (notification && (notification.unread || !notification.is_read)) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
         }
-    };
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
 
-    // 刪除單一通知
-    const clearNotification = async (id) => {
-        let normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            const u = await fetchCurrentUser();
-            normId = normalizeBackendUserId(u?.id);
-        }
-        if (!normId) return;
+  const clearAllNotifications = async () => {
+    let normId = normalizeBackendUserId(currentUser?.id);
+    if (!normId) {
+      const u = await fetchCurrentUser();
+      normId = normalizeBackendUserId(u?.id);
+    }
+    if (!normId) return;
 
-        try {
-            const response = await fetch(`${API_BASE}/notifications/${id}?user_id=${normId}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
+    try {
+      const response = await fetch(`${API_BASE}/notifications/?user_id=${normId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (response.ok) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+    }
+  };
 
-            if (response.ok || response.status === 204) {
-                setNotifications(prev => prev.filter(n => n.id !== id));
-                // 如果刪除的是未讀通知，減少未讀計數
-                const notification = notifications.find(n => n.id === id);
-                if (notification && notification.unread) {
-                    setUnreadCount(prev => Math.max(0, prev - 1));
-                }
-            }
-        } catch (error) {
-            console.error('Error deleting notification:', error);
-        }
-    };
-
-    // 刪除所有通知
-    const clearAllNotifications = async () => {
-        let normId = normalizeBackendUserId(currentUser?.id);
-        if (!normId) {
-            const u = await fetchCurrentUser();
-            normId = normalizeBackendUserId(u?.id);
-        }
-        if (!normId) return;
-
-        try {
-            const response = await fetch(`${API_BASE}/notifications/?user_id=${normId}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
-
-            if (response.ok) {
-                setNotifications([]);
-                setUnreadCount(0);
-            }
-        } catch (error) {
-            console.error('Error deleting all notifications:', error);
-        }
-    };
-
-    const value = {
-        notifications,
-        unreadCount,
-        loading,
+  const value = {
+    notifications,
+    unreadCount,
+    loading,
     currentUser,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        clearNotification,
-        clearAllNotifications,
-        refreshNotifications: fetchNotifications,
-    };
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    clearNotification,
+    clearAllNotifications,
+    refreshNotifications: fetchNotifications
+  };
 
-    return (
-        <NotificationContext.Provider value={value}>
-            {children}
-        </NotificationContext.Provider>
-    );
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }

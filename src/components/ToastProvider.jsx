@@ -36,6 +36,12 @@ export function ToastProvider({ children }) {
       remainingRef.current[id] = autoDismiss;
       timersRef.current[id] = setTimeout(() => removeToast(id), autoDismiss);
     }
+    // 廣播事件，讓 NotificationProvider 可以將此 toast 同步寫入後端通知
+    try {
+      window.dispatchEvent(new CustomEvent('toast-fired', { detail: { id, type, title, message, autoDismiss } }));
+    } catch (e) {
+      // ignore
+    }
     return id;
   };
 
