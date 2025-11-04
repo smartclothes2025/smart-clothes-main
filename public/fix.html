@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛠️ 緊急修復工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .status.info { background: #e3f2fd; color: #1976d2; }
+        .status.success { background: #e8f5e9; color: #388e3c; }
+        .status.error { background: #ffebee; color: #d32f2f; }
+        .status.warning { background: #fff3e0; color: #f57c00; }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        .log {
+            background: #1e293b;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .progress {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ 緊急修復工具</h1>
+        <p class="subtitle">自動修復前端連線問題</p>
+        
+        <div class="status info" id="status">
+            <strong>準備就緒</strong><br>
+            點擊下方按鈕開始自動修復
+        </div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <button class="btn-primary" onclick="autoFix()">🚀 一鍵自動修復</button>
+        <button class="btn-success" onclick="testConnection()">🔍 測試連線</button>
+        <button class="btn-danger" onclick="manualClear()">⚠️ 手動清除所有資料</button>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+
+        function setStatus(msg, type = 'info') {
+            status.className = `status ${type}`;
+            status.innerHTML = msg;
+        }
+
+        function addLog(msg, color = '#10b981') {
+            log.style.display = 'block';
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `<span style="color:${color}">[${time}] ${msg}</span>\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setProgress(percent) {
+            progress.style.display = 'block';
+            progressBar.style.width = percent + '%';
+        }
+
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function autoFix() {
+            log.innerHTML = '';
+            setStatus('<strong>🔧 開始自動修復...</strong>', 'info');
+            setProgress(0);
+
+            try {
+                // 步驟 1: 清除 localStorage
+                addLog('📦 步驟 1/5: 清除 localStorage...', '#60a5fa');
+                const keys = Object.keys(localStorage);
+                addLog(`   發現 ${keys.length} 個項目`, '#9ca3af');
+                localStorage.clear();
+                addLog('   ✓ 已清除', '#10b981');
+                setProgress(20);
+                await sleep(500);
+
+                // 步驟 2: 測試後端連線
+                addLog('🔌 步驟 2/5: 測試後端連線...', '#60a5fa');
+                const pingRes = await fetch(`${API_BASE}/ping-db`);
+                if (pingRes.ok) {
+                    addLog('   ✓ 後端連線正常', '#10b981');
+                } else {
+                    throw new Error('後端無回應');
+                }
+                setProgress(40);
+                await sleep(500);
+
+                // 步驟 3: 清除瀏覽器快取
+                addLog('🧹 步驟 3/5: 清除 sessionStorage...', '#60a5fa');
+                sessionStorage.clear();
+                addLog('   ✓ 已清除', '#10b981');
+                setProgress(60);
+                await sleep(500);
+
+                // 步驟 4: 重置 cookies
+                addLog('🍪 步驟 4/5: 清除 cookies...', '#60a5fa');
+                document.cookie.split(";").forEach(c => {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                });
+                addLog('   ✓ 已清除', '#10b981');
+                setProgress(80);
+                await sleep(500);
+
+                // 步驟 5: 完成
+                addLog('✅ 步驟 5/5: 修復完成', '#10b981');
+                setProgress(100);
+                
+                setStatus('<strong>✅ 修復成功！</strong><br>3 秒後自動跳轉到登入頁...', 'success');
+                
+                await sleep(3000);
+                window.location.href = '/';
+
+            } catch (error) {
+                addLog(`❌ 錯誤: ${error.message}`, '#ef4444');
+                setStatus(`<strong>❌ 修復失敗</strong><br>${error.message}<br><br>請確認後端是否運行在 localhost:8000`, 'error');
+                setProgress(0);
+                progress.style.display = 'none';
+            }
+        }
+
+        async function testConnection() {
+            log.innerHTML = '';
+            setStatus('<strong>🔍 測試連線中...</strong>', 'info');
+            
+            addLog('=== 連線診斷 ===', '#60a5fa');
+            
+            // 測試後端
+            addLog('測試後端 (localhost:8000)...', '#9ca3af');
+            try {
+                const res = await fetch(`${API_BASE}/ping-db`);
+                if (res.ok) {
+                    const data = await res.json();
+                    addLog(`✓ 後端正常運行`, '#10b981');
+                    addLog(`  回應: ${JSON.stringify(data)}`, '#9ca3af');
+                } else {
+                    addLog(`✗ 後端回應異常 (Status: ${res.status})`, '#ef4444');
+                }
+            } catch (e) {
+                addLog(`✗ 無法連接後端: ${e.message}`, '#ef4444');
+                addLog(`  請確認後端是否在運行`, '#f59e0b');
+            }
+
+            // 檢查 localStorage
+            addLog('\n檢查 localStorage...', '#9ca3af');
+            const token = localStorage.getItem('token');
+            addLog(token ? `✓ Token 存在` : `✗ Token 不存在 (需要登入)`, token ? '#10b981' : '#f59e0b');
+
+            setStatus('<strong>✅ 診斷完成</strong><br>查看下方日誌了解詳情', 'success');
+        }
+
+        function manualClear() {
+            if (!confirm('⚠️ 確定要清除所有瀏覽器資料？\n\n這將清除：\n- localStorage\n- sessionStorage\n- Cookies\n\n你需要重新登入。')) {
+                return;
+            }
+
+            log.innerHTML = '';
+            addLog('🗑️ 開始清除所有資料...', '#ef4444');
+            
+            localStorage.clear();
+            addLog('✓ localStorage 已清除', '#10b981');
+            
+            sessionStorage.clear();
+            addLog('✓ sessionStorage 已清除', '#10b981');
+            
+            document.cookie.split(";").forEach(c => {
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+            addLog('✓ Cookies 已清除', '#10b981');
+            
+            setStatus('<strong>✅ 清除完成</strong><br>3 秒後跳轉到首頁...', 'success');
+            
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

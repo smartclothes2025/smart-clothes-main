@@ -1,5 +1,6 @@
 // src/hooks/useAllClothes.js
 import { useEffect, useRef, useState } from "react";
+import { MockClothesApi } from "../mock/clothesMockData";
 
 // 全域快取，避免多頁重複 fetch
 let globalClothesCache = null;
@@ -11,6 +12,9 @@ export default function useAllClothes(API_BASE) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Check if mock mode is enabled
+    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+
     if (globalClothesCache) {
       setAllItems(globalClothesCache);
       setLoading(false);
@@ -22,20 +26,23 @@ export default function useAllClothes(API_BASE) {
     }
     setLoading(true);
     setError("");
+    
     globalClothesPromise = (async () => {
+      // If mock mode is enabled, return mock data
+      if (useMock) {
+        console.log('🎭 Using mock clothes data');
+        const mockData = await MockClothesApi.getAllClothes();
+        globalClothesCache = mockData;
+        return globalClothesCache;
+      }
+
+      // Otherwise, try to fetch from API with corrected endpoints
+      // Note: API_BASE already includes /api/v1
       const candidates = [
-        `${API_BASE}/admin/clothes?limit=1000`,
-        `${API_BASE}/admin/wardrobe/clothes?limit=1000`,
-        `${API_BASE}/api/v1/clothes?limit=1000`,
-        `${API_BASE}/api/v1/wardrobe/clothes?limit=1000`,
         `${API_BASE}/clothes?limit=1000`,
-        `${API_BASE}/wardrobe/clothes?limit=1000`,
-        `/admin/clothes?limit=1000`,
-        `/admin/wardrobe/clothes?limit=1000`,
         `/api/v1/clothes?limit=1000`,
-        `/api/v1/wardrobe/clothes?limit=1000`,
-        `/clothes?limit=1000`,
-        `/wardrobe/clothes?limit=1000`,
+        `${API_BASE}/admin/clothes?limit=1000`,
+        `/api/v1/admin/clothes?limit=1000`,
       ];
       let data = null;
       let lastInfo = null;
@@ -48,6 +55,7 @@ export default function useAllClothes(API_BASE) {
             continue;
           }
           data = await res.json();
+          console.log(`✅ Successfully fetched from: ${url}`);
           break;
         } catch (err) {
           lastInfo = err;

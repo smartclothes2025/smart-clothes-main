@@ -8,7 +8,29 @@ import {
     SparklesIcon,
     XMarkIcon
 } from '@heroicons/react/24/outline';
-import { useNotifications } from '../contexts/NotificationContext';
+// Not using NotificationContext anymore; read local notifications from localStorage
+const LOCAL_KEY = 'local_notifications';
+
+function loadLocalNotifications() {
+    try {
+        const raw = localStorage.getItem(LOCAL_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return [];
+        return arr;
+    } catch (e) {
+        console.warn('Failed to load local notifications', e);
+        return [];
+    }
+}
+
+function saveLocalNotifications(arr) {
+    try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(arr));
+    } catch (e) {
+        console.warn('Failed to save local notifications', e);
+    }
+}
 
 function NotificationIcon({ type }) {
     let icon, bgColor, iconColor;
@@ -61,26 +83,45 @@ function getRelativeTime(timestamp) {
 }
 
 export default function Notice() {
-    const { notifications, markAsRead, markAllAsRead, clearNotification, unreadCount, loading } = useNotifications();
+    const [notifications, setNotifications] = useState(() => loadLocalNotifications());
     const [filter, setFilter] = useState('all'); // 'all' 或 'unread'
+    const [loading, setLoading] = useState(false);
+
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     // 過濾通知
     const filteredNotifications = useMemo(() => {
         if (filter === 'unread') {
-            return notifications.filter(n => n.unread);
+            return notifications.filter(n => !n.is_read && (n.unread ?? true));
         }
         return notifications;
     }, [notifications, filter]);
 
     // 點擊單一通知 (標記為已讀)
     const handleItemClick = (id) => {
-        markAsRead(id);
+        setNotifications(prev => {
+            const next = prev.map(n => n.id === id ? { ...n, is_read: true, unread: false } : n);
+            saveLocalNotifications(next);
+            return next;
+        });
     };
 
     // 刪除單一通知
     const handleDeleteNotification = (e, id) => {
         e.stopPropagation();
-        clearNotification(id);
+        setNotifications(prev => {
+            const next = prev.filter(n => n.id !== id);
+            saveLocalNotifications(next);
+            return next;
+        });
+    };
+
+    const markAllAsRead = () => {
+        setNotifications(prev => {
+            const next = prev.map(n => ({ ...n, is_read: true, unread: false }));
+            saveLocalNotifications(next);
+            return next;
+        });
     };
 
     const hasUnread = unreadCount > 0;

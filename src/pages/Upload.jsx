@@ -6,7 +6,6 @@ import { Camera } from "lucide-react";
 import Icon from "@mdi/react";
 import { mdiUpload, mdiCloudUploadOutline, mdiChevronLeft, mdiChevronRight, mdiImageMultiple } from "@mdi/js";
 import { useToast } from "../components/ToastProvider";
-import { useNotifications } from "../contexts/NotificationContext";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -16,7 +15,6 @@ export default function Upload({ theme, setTheme }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
-  const { addNotification } = useNotifications();
 
   const [forms, setForms] = useState([]);
   const [files, setFiles] = useState([]);
@@ -169,9 +167,9 @@ export default function Upload({ theme, setTheme }) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     
-    // 🎯 修正後的正確路由：使用相對路徑讓 Vite proxy 處理
+    // 🎯 使用支援本地儲存的端點
     const API_BASE = import.meta.env.VITE_API_BASE || "/api/v1";
-    const res = await fetch(`${API_BASE}/upload/clothes`, { 
+    const res = await fetch(`${API_BASE}/clothes`, { 
       method: "POST",
       headers,
       body: fd,
@@ -219,12 +217,8 @@ export default function Upload({ theme, setTheme }) {
       // 顯示 Toast
       addToast({ type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 });
       
-      // 使用相同內容建立通知（儲存到通知中心）
-      addNotification({
-        type: 'new_item',
-        message: toastTitle,
-        details: toastMessage,
-      });
+  // 使用相同內容建立通知（儲存到通知中心 via toast-fired event）
+  window.dispatchEvent(new CustomEvent('toast-fired', { detail: { id: `ui-${Date.now()}`, type: 'success', title: toastTitle, message: toastMessage, autoDismiss: 3000 } }));
 
       navigate("/upload/select");
     } catch (err) {

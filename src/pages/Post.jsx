@@ -1,6 +1,7 @@
+// src/pages/Post.jsx
 import React, { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Icon from "@mdi/react";
 import {
   mdiImagePlusOutline,
@@ -10,7 +11,9 @@ import {
   mdiSend,
 } from "@mdi/js";
 import { useToast } from "../components/ToastProvider";
-import { useNotifications } from "../contexts/NotificationContext";
+
+// 後端 API 基底網址（.env 沒設就 fallback 本機）
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
 
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -20,8 +23,8 @@ const ALLOWED_VISIBILITY = ["public", "friends", "private"]; // 依後端需求�
 
 export default function CreatePost() {
   const location = useLocation();
+  const navigate = useNavigate(); // 👈 一定要在元件內
   const { addToast } = useToast();
-  const { addNotification } = useNotifications();
 
   // 圖片與預覽
   const [files, setFiles] = useState([]);
@@ -118,7 +121,7 @@ export default function CreatePost() {
   async function performSingleUpload(fd) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch("http://localhost:8000/api/v1/posts", {
+    const res = await fetch(`${API_BASE}/posts/`, {
       method: "POST",
       headers,
       body: fd,
@@ -129,13 +132,12 @@ export default function CreatePost() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (uploading) return;
-    
+
     // ✅ 檢查是否有照片
     if (!files.length) {
       addToast({ type: "warning", title: "尚未選擇照片", message: "請先上傳照片再完成操作。" });
       return;
     }
-    
     // ✅ 檢查標題是否為空
     if (!title.trim()) {
       addToast({ type: "error", title: "標題為必填", message: "請輸入貼文標題。" });
@@ -156,26 +158,19 @@ export default function CreatePost() {
         }
       }
 
-      // Toast 訊息
+      // 成功提示
       const toastTitle = "發佈完成";
       const toastMessage = `已成功發佈（共 ${files.length} 張）。`;
-      
-      // 顯示 Toast
-      addToast({
-        type: "success",
-        title: toastTitle,
-        message: toastMessage,
-        autoDismiss: 3000,
-      });
-      
-      // 使用相同內容建立通知（儲存到通知中心）
-      addNotification({
-        type: 'new_item',
-        message: toastTitle,
-        details: toastMessage,
-      });
-      
-      // ✅ 發布完成後自動清除所有欄位和照片
+      addToast({ type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 });
+      // 同步到通知中心（若有用到）
+      window.dispatchEvent(new CustomEvent("toast-fired", {
+        detail: { id: `ui-${Date.now()}`, type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 }
+      }));
+
+      // 讓 Profile 重新抓清單
+      window.dispatchEvent(new CustomEvent("post-created", { detail: { count: files.length } }));
+
+      // 清空表單
       setFiles([]);
       setPreviews([]);
       setCurrentIndex(0);
@@ -183,14 +178,12 @@ export default function CreatePost() {
       setContent("");
       setVisibility("public");
       setTag("");
+
+      // 導回個人檔案頁
+      navigate("/profile");
     } catch (err) {
       console.error("upload error:", err);
-      addToast({
-        type: "error",
-        title: "上傳失敗",
-        message: err.message || String(err),
-        autoDismiss: 6000,
-      });
+      addToast({ type: "error", title: "上傳失敗", message: err.message || String(err), autoDismiss: 6000 });
     } finally {
       setUploading(false);
     }
@@ -233,11 +226,7 @@ export default function CreatePost() {
                   </div>
                 ) : (
                   <>
-                    <img
-                      src={previews[currentIndex]}
-                      alt="預覽"
-                      className="object-contain w-full h-full block"
-                    />
+                    <img src={previews[currentIndex]} alt="預覽" className="object-contain w-full h-full block" />
                     {previews.length > 1 && (
                       <>
                         <button
@@ -276,12 +265,7 @@ export default function CreatePost() {
                           i === currentIndex ? "border-indigo-600" : "border-transparent"
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setCurrentIndex(i)}
-                          className="absolute inset-0"
-                          aria-label={`預覽第 ${i + 1} 張`}
-                        />
+                        <button type="button" onClick={() => setCurrentIndex(i)} className="absolute inset-0" />
                         <img src={url} alt={`thumb-${i}`} className="object-cover w-full h-full" />
                         <button
                           type="button"
@@ -362,7 +346,6 @@ export default function CreatePost() {
                   <button
                     type="button"
                     onClick={() => {
-                      // 清空全部
                       setFiles([]);
                       setPreviews([]);
                       setCurrentIndex(0);

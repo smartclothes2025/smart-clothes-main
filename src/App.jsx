@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ToastProvider';
-import { NotificationProvider } from './contexts/NotificationContext';
 // 使用者頁面
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
@@ -74,7 +73,6 @@ export default function App() {
   };
 
   return (
-    <NotificationProvider>
       <ToastProvider>
         <BrowserRouter>
           <div>
@@ -150,6 +148,5 @@ export default function App() {
         </div>
       </BrowserRouter>
     </ToastProvider>
-    </NotificationProvider>
   );
 }

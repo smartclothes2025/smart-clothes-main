@@ -6,10 +6,13 @@ import { Link } from "react-router-dom";
 import { Cog6ToothIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import PostCard from "../components/PostCard";
 import StyledButton from "../components/ui/StyledButton";
-import EditProfileModal from "./EditProfileModal"; // 依你的實際路徑調整
+import EditProfileModal from "./EditProfileModal";
 import { useToast } from "../components/ToastProvider";
 
-/** 將 gs:// 轉為可用的「已通過驗證」網址（或保留已是 https 的） */
+// ✅ 後端 API 基底網址（從 .env 讀，沒讀到就用本機）
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+
+/** 將 gs:// 轉為可瀏覽的網址（若已是 http/https 直接回傳） */
 function resolveGcsUrl(gsOrHttp) {
   if (!gsOrHttp) return null;
   if (gsOrHttp.startsWith("http://") || gsOrHttp.startsWith("https://")) return gsOrHttp;
@@ -19,10 +22,74 @@ function resolveGcsUrl(gsOrHttp) {
     if (slash > 0) {
       const bucket = without.slice(0, slash);
       const object = encodeURI(without.slice(slash + 1));
-      return `https://storage.cloud.google.com/${bucket}/${object}`;
+      // ✅ 改成公開可讀的連結（注意是 storage.googleapis.com，不是 cloud.google.com）
+      return `https://storage.googleapis.com/${bucket}/${object}`;
     }
   }
   return gsOrHttp;
+}
+
+/** 從 media 陣列找封面圖（優先 is_cover；支援多種欄位名稱） */
+function pickCoverUrl(media) {
+  if (!Array.isArray(media) || media.length === 0) return null;
+  const cover = media.find((m) => m?.is_cover) || media[0];
+
+  const raw =
+    cover?._view ||          // ← 先吃我們補好的 _view
+    cover?.authenticated_url ||   // 後端若直接給簽名網址
+    cover?.url ||                 // 一些後端會叫 url
+    cover?.image_url ||           // 有些叫 image_url
+    cover?.image ||               // 你截圖裡可見的 image
+    cover?.gcs_uri ||             // 你截圖也看到 gcs_uri
+    cover?.gcsUrl || null;
+
+  return resolveGcsUrl(raw);
+}
+
+async function resolveMediaArray(mediaArr, token) {
+  // 把每一個 media 物件補一個 _view 欄位：可直接給 <img> 用的 URL
+  const trySign = async (gcsUri) => {
+    // 這個路徑視你的後端而定：如果後端提供不同名稱，改掉即可
+    const url = `${API_BASE}/media/signed-url?gcs_uri=${encodeURIComponent(gcsUri)}`;
+    try {
+      const r = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (r.ok) {
+        const j = await r.json().catch(() => ({}));
+        return j.authenticated_url || j.url || null;
+      }
+    } catch {}
+    return null;
+  };
+
+  const out = [];
+  for (const m of mediaArr || []) {
+    const direct =
+      m?.authenticated_url ||
+      m?.url ||
+      m?.image_url;
+
+    if (direct) {
+      out.push({ ...m, _view: direct });
+      continue;
+    }
+
+    const gcs = m?.gcs_uri || m?.image || null;
+    if (!gcs) {
+      out.push(m);
+      continue;
+    }
+
+    // 先嘗試向後端換簽名網址
+    let signed = await trySign(gcs);
+    if (!signed) {
+      // 沒有簽名網址就退回 cloud console（只有公開桶才會顯示）
+      signed = resolveGcsUrl(gcs);
+    }
+    out.push({ ...m, _view: signed });
+  }
+  return out;
 }
 
 const StatItem = ({ count, label }) => (
@@ -60,6 +127,7 @@ const MeasurementItem = ({ label, value, unit }) => {
 
 export default function Profile() {
   const toast = useToast();
+
   const [tab, setTab] = useState("posts");
   const [user, setUser] = useState({
     displayName: "載入中...",
@@ -73,17 +141,24 @@ export default function Profile() {
     picture: null,
     sex: null,
   });
+
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // ✅ 我的貼文列表（hooks 一律放在元件裡）
+  const [posts, setPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+
   const [metricsOpen, setMetricsOpen] = useState(() => {
     try {
-      const v = localStorage.getItem('profile_metrics_open');
-      if (v === '0') return false;
-      if (v === '1') return true;
+      const v = localStorage.getItem("profile_metrics_open");
+      if (v === "0") return false;
+      if (v === "1") return true;
     } catch {}
     return true;
   });
+
   const fileInputRef = useRef(null);
 
   // 讀取 ?edit=1 直接開啟編輯
@@ -105,12 +180,11 @@ export default function Profile() {
       setLoading(true);
       try {
         const [r1, r2] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/v1/auth/me", {
+          fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
             signal: controller.signal,
           }),
-          // 你的後端若沒有此路由，這支會 404，但我們有 try/catch 處理
-          fetch("http://127.0.0.1:8000/api/v1/me/body_metrics", {
+          fetch(`${API_BASE}/me/body_metrics`, {
             headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
             signal: controller.signal,
           }),
@@ -124,7 +198,6 @@ export default function Profile() {
         const displayName = authData.display_name || metrics.display_name || authData.name || "用戶";
         const bio = authData.interformation || "";
 
-        // 同時支援後端回 picture=gs:// 或 https:// 兩種
         const pictureRaw =
           authData.picture ||
           metrics.picture ||
@@ -136,7 +209,6 @@ export default function Profile() {
             }
           })();
 
-        // 轉為可用的網址
         const picture = resolveGcsUrl(pictureRaw);
 
         setUser({
@@ -162,49 +234,66 @@ export default function Profile() {
     return () => controller.abort();
   }, []);
 
-  // 接收全域事件，更新本地 user + localStorage
-  useEffect(() => {
-    const onProfileUpdated = (e) => {
-      const detail = e?.detail || {};
-      setUser((prev) => ({
-        ...prev,
-        displayName: detail.display_name || prev.displayName,
-        bio: detail.interformation ?? prev.bio,
-        height: detail.height_cm ?? prev.height,
-        weight: detail.weight_kg ?? prev.weight,
-        bust: detail.chest_cm ?? prev.bust,
-        waist: detail.waist_cm ?? prev.waist,
-        hip: detail.hip_cm ?? prev.hip,
-        shoulder: detail.shoulder_cm ?? prev.shoulder,
-        picture: resolveGcsUrl(detail.picture) || prev.picture,
-        sex: detail.sex ?? prev.sex,
-      }));
+// 讀自己的貼文清單
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  const controller = new AbortController();
 
-      try {
-        const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-        const merged = {
-          ...localUser,
-          display_name: detail.display_name || localUser.display_name || user.displayName,
-          bio: detail.interformation ?? localUser.bio ?? user.bio,
-          height: detail.height_cm ?? localUser.height ?? user.height,
-          weight: detail.weight_kg ?? localUser.weight ?? user.weight,
-          chest: detail.chest_cm ?? localUser.chest ?? user.bust,
-          waist: detail.waist_cm ?? localUser.waist ?? user.waist,
-          hip: detail.hip_cm ?? localUser.hip ?? user.hip,
-          shoulder: detail.shoulder_cm ?? localUser.shoulder ?? user.shoulder,
-          picture: resolveGcsUrl(detail.picture) || localUser.picture || user.picture,
-          sex: detail.sex ?? localUser.sex ?? user.sex,
-        };
-        localStorage.setItem("user", JSON.stringify(merged));
-      } catch {}
-    };
+  const fetchPosts = async () => {
+    setLoadingPosts(true);
+    try {
+      // 尾斜線避免 307
+      const res = await fetch(`${API_BASE}/posts/?scope=mine&limit=30`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        signal: controller.signal,
+      });
+      if (res.status === 401) {
+        console.warn("未授權，請先登入或 token 失效");
+        setPosts([]);
+        return;
+      }
+      if (!res.ok) throw new Error(`讀取貼文失敗 (${res.status})`);
 
-    window.addEventListener("user-profile-updated", onProfileUpdated);
-    return () => window.removeEventListener("user-profile-updated", onProfileUpdated);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.displayName, user.bio, user.height, user.weight, user.bust, user.waist, user.hip, user.shoulder, user.picture, user.sex]);
+      const data = await res.json();
 
-  // 儲存個資（身體數據 + 顯示名稱）
+      // 先把 media 變成陣列
+      const prelim = (data || []).map((it) => {
+        let mediaArr = [];
+        try {
+          mediaArr = Array.isArray(it.media) ? it.media : JSON.parse(it.media || "[]");
+        } catch {
+          mediaArr = [];
+        }
+        return { ...it, _mediaArr: mediaArr };
+      });
+
+      // 逐篇把 gs:// 解析成可看的 _view
+      const hydrated = [];
+      for (const it of prelim) {
+        const resolved = await resolveMediaArray(it._mediaArr, token);
+        hydrated.push({ ...it, _mediaArr: resolved });
+      }
+
+      setPosts(hydrated);
+    } catch (e) {
+      // React 18 開發模式 StrictMode 會二次執行 effect，第一次 cleanup 會 abort
+      if (e?.name !== "AbortError") console.warn(e);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  fetchPosts();
+  const h = () => fetchPosts();
+  window.addEventListener("post-created", h);
+  return () => {
+    controller.abort();
+    window.removeEventListener("post-created", h);
+  };
+}, []);
+
+  // 儲存個資
   const handleSaveProfile = async (updatedData) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -226,7 +315,7 @@ export default function Profile() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/me/body_metrics", {
+      const res = await fetch(`${API_BASE}/me/body_metrics`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -272,8 +361,6 @@ export default function Profile() {
 
       setIsModalOpen(false);
       toast.addToast && toast.addToast({ type: "success", title: "修改成功" });
-
-      // 通知其他元件
       window.dispatchEvent(new CustomEvent("user-profile-updated", { detail: saved }));
     } catch (err) {
       console.error("儲存個人檔案失敗:", err);
@@ -321,7 +408,7 @@ export default function Profile() {
                     try {
                       const fd = new FormData();
                       fd.append("file", f);
-                      const resp = await fetch("http://127.0.0.1:8000/api/v1/me/picture", {
+                      const resp = await fetch(`${API_BASE}/me/picture`, {
                         method: "POST",
                         headers: { Authorization: `Bearer ${token}` },
                         body: fd,
@@ -331,10 +418,8 @@ export default function Profile() {
                         throw new Error(err?.detail || `上傳失敗 (status ${resp.status})`);
                       }
                       const uploaded = await resp.json();
-                      // ✅ 優先使用後端回傳的 authenticated_url，其次再解析 gs://
                       const rawUrl = uploaded.authenticated_url || uploaded.image_url || uploaded.gcs_uri || null;
                       const imageUrl = resolveGcsUrl(rawUrl);
-                      // cache-busting 避免舊圖快取
                       const bustUrl = imageUrl
                         ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${Date.now()}`
                         : null;
@@ -391,7 +476,9 @@ export default function Profile() {
                   onClick={() => {
                     setMetricsOpen((s) => {
                       const next = !s;
-                      try { localStorage.setItem('profile_metrics_open', next ? '1' : '0'); } catch {}
+                      try {
+                        localStorage.setItem("profile_metrics_open", next ? "1" : "0");
+                      } catch {}
                       return next;
                     });
                   }}
@@ -400,22 +487,32 @@ export default function Profile() {
                   className="text-sm text-slate-500 hover:text-slate-700 px-2 py-1 rounded-md"
                 >
                   {metricsOpen ? (
-                    <span className="flex items-center gap-2">收合
+                    <span className="flex items-center gap-2">
+                      收合
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-2">展開
+                    <span className="flex items-center gap-2">
+                      展開
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 9.06 6.29 12.77a.75.75 0 11-1.06-1.06l4.24-4.24a.75.75 0 011.06 0l4.24 4.24a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M14.77 12.79a.75.75 0 01-1.06-.02L10 9.06 6.29 12.77a.75.75 0 11-1.06-1.06l4.24-4.24a.75.75 0 011.06 0l4.24 4.24a.75.75 0 01-.02 1.06z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </span>
                   )}
                 </button>
               </div>
 
-              <div id="body-metrics" className={`${metricsOpen ? 'block' : 'hidden'}`}>
+              <div id="body-metrics" className={`${metricsOpen ? "block" : "hidden"}`}>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   <MeasurementItem label="身高" value={user.height} unit="cm" />
                   <MeasurementItem label="體重" value={user.weight} unit="kg" />
@@ -436,12 +533,20 @@ export default function Profile() {
             </div>
             <div className="py-6">
               {tab === "posts" && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {/* 範例卡片：實作時替換為實際資料迴圈 */}
-                  <PostCard imageUrl="/default-outfit.png" alt="示意貼文" likes={12} />
-                  <PostCard imageUrl="/default-outfit.png" alt="示意貼文" likes={34} />
-                  <PostCard imageUrl="/default-outfit.png" alt="示意貼文" likes={5} />
-                </div>
+                <>
+                  {loadingPosts ? (
+                    <div className="text-center text-slate-500">載入貼文中...</div>
+                  ) : posts.length === 0 ? (
+                    <div className="text-center text-slate-500">尚未發佈任何貼文</div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {posts.map((p) => {
+                        const url = pickCoverUrl(p._mediaArr) || "/default-outfit.png";
+                        return <PostCard key={p.id} imageUrl={url} alt={p.title || "貼文"} likes={p.like_count ?? 0} />;
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
