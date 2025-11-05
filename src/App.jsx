@@ -11,6 +11,8 @@ import Assistant from './pages/Assistant';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Post from './pages/Post';
+import PostDetail from './pages/PostDetail';
+
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VirtualFitting from './pages/VirtualFitting';
@@ -88,6 +90,8 @@ export default function App() {
             <Route path="/upload/select" element={<UploadSelect theme={theme} setTheme={setTheme} />} />
             <Route path="/upload/edit" element={<UploadEdit theme={theme} setTheme={setTheme} />} />
             <Route path="/post" element={<Post theme={theme} setTheme={setTheme} />} />
+            <Route path="/posts/:id" element={<PostDetail />} />   {/* ← 新增：貼文詳情頁 */}
+ 
             <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
             <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
             <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
