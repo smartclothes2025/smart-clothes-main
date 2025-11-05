@@ -542,8 +542,17 @@ useEffect(() => {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {posts.map((p) => {
                         const url = pickCoverUrl(p._mediaArr) || "/default-outfit.png";
-                        return <PostCard key={p.id} imageUrl={url} alt={p.title || "貼文"} likes={p.like_count ?? 0} />;
+                        return (
+                          <PostCard
+                            key={p.id}
+                            imageUrl={url}
+                            alt={p.title || "貼文"}
+                            likes={p.like_count ?? 0}
+                            to={`/posts/${p.id}`}        // ← 新增：點卡片可進詳情
+                          />
+                        );
                       })}
+
                     </div>
                   )}
                 </>
