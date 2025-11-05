@@ -3,6 +3,7 @@ import RecommendInactive from "../components/RecommendInactive";
 import DesktopRightPanel from "../components/DesktopRightPanel";
 import Search from "../components/Search";
 import Layout from "../components/Layout";
+import HomePost from "../components/HomePost";
 
 export default function Home({ theme, setTheme }) {
   return (
@@ -17,23 +18,8 @@ export default function Home({ theme, setTheme }) {
               <RecommendInactive days={90} showTitle={false} />
             </section>
             <section>
-              <h2 className="text-lg font-semibold mb-3">貼文</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-xl p-3 shadow-sm flex flex-col">
-                  <div className="h-40 bg-gray-50 rounded-md flex items-center justify-center">
-                    🧥
-                  </div>
-                  <div className="mt-3 font-medium">輕薄外套</div>
-                  <div className="text-sm text-gray-500">NT$ 1200</div>
-                </div>
-                <div className="bg-white rounded-xl p-3 shadow-sm flex flex-col">
-                  <div className="h-40 bg-gray-50 rounded-md flex items-center justify-center">
-                    👟
-                  </div>
-                  <div className="mt-3 font-medium">運動鞋</div>
-                  <div className="text-sm text-gray-500">NT$ 2200</div>
-                </div>
-              </div>
+              <h2 className="text-lg font-semibold mb-3">公開貼文</h2>
+              <HomePost />
             </section>
           </main>
         </div>

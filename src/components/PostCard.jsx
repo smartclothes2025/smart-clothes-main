@@ -4,11 +4,9 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import { HeartIcon } from "@heroicons/react/24/outline";
 
-const PLACEHOLDER = "/images/placeholder-400.png"; // ← 改成你專案的實際路徑
-
 export default function PostCard({ imageUrl, alt = "Post", likes = 0, to }) {
   const navigate = useNavigate();
-  const src = imageUrl || PLACEHOLDER;
+  const src = imageUrl;
 
   function handleClick() {
     if (to) navigate(to);
@@ -21,16 +19,18 @@ export default function PostCard({ imageUrl, alt = "Post", likes = 0, to }) {
       className="group relative block w-full aspect-square rounded-xl overflow-hidden bg-slate-200 ring-1 ring-slate-200 hover:ring-indigo-300 transition"
       aria-label={alt}
     >
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-cover"
-        loading="lazy"
-        onError={(e) => {
-          e.currentTarget.onerror = null;
-          e.currentTarget.src = PLACEHOLDER;
-        }}
-      />
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-slate-200">
+          <span className="text-slate-400 text-sm">無圖片</span>
+        </div>
+      )}
 
       {/* hover 資訊層，不阻擋點擊 */}
       <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
