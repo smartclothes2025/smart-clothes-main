@@ -8,8 +8,6 @@ const API_BASE = import.meta.env?.VITE_API_BASE || "http://127.0.0.1:8000";
 export default function VirtualFitting({ theme, setTheme }) {
   const navigate = useNavigate();
   const [selectedItems, setSelectedItems] = useState([]);
-  const [bodyMetrics, setBodyMetrics] = useState(null);
-  const [showBodyMetricsInput, setShowBodyMetricsInput] = useState(false);
   const [loading, setLoading] = useState(true);
   
   // 表單數據
@@ -18,13 +16,9 @@ export default function VirtualFitting({ theme, setTheme }) {
   const [tags, setTags] = useState("");
   const [syncToPost, setSyncToPost] = useState(false);
   
-  // 身體數據表單
-  const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
-  const [chestCm, setChestCm] = useState("");
-  const [waistCm, setWaistCm] = useState("");
-  const [hipCm, setHipCm] = useState("");
-  const [shoulderCm, setShoulderCm] = useState("");
+  // 用戶照片上傳
+  const [userPhoto, setUserPhoto] = useState(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState(null);
   
   // 衣物位置映射（簡化版，實際可以更複雜）
   const [clothingPositions, setClothingPositions] = useState({
@@ -36,8 +30,11 @@ export default function VirtualFitting({ theme, setTheme }) {
   });
   
 
-  const [generatedImageUrl, setGeneratedImageUrl] = useState(null); // 👈 新增狀態來儲存生成的圖片 URL
-  const [generating, setGenerating] = useState(false); // 👈 新增狀態來顯示載入中
+  const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [usedPrompt, setUsedPrompt] = useState("");
   
   useEffect(() => {
     // 從 localStorage 載入選中的單品
@@ -61,148 +58,93 @@ export default function VirtualFitting({ theme, setTheme }) {
     });
     setClothingPositions(positions);
     
-    // 載入用戶身體數據
-    fetchBodyMetrics();
+    setLoading(false);
+    
+    // 自動調用 AI 生成穿搭圖
+    autoGenerateImage(items);
   }, [navigate]);
 
-  const fetchBodyMetrics = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/v1/me/body_metrics`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Object.keys(data).length > 0) {
-          setBodyMetrics(data);
-          setHeightCm(data.height_cm || '');
-          setWeightKg(data.weight_kg || '');
-          setChestCm(data.chest_cm || '');
-          setWaistCm(data.waist_cm || '');
-          setHipCm(data.hip_cm || '');
-          setShoulderCm(data.shoulder_cm || '');
-        } else {
-          setShowBodyMetricsInput(true);
-        }
-      } else {
-        setShowBodyMetricsInput(true);
-      }
-    } catch (err) {
-      console.error('載入身體數據失敗:', err);
-      setShowBodyMetricsInput(true);
-    } finally {
-      setLoading(false);
+
+
+
+  // 處理用戶照片上傳
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUserPhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserPhotoPreview(reader.result);
+        // 上傳照片後自動重新生成
+        autoGenerateImage(selectedItems, reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const saveBodyMetrics = async () => {
-    // 驗證數據
-    if (!heightCm && !weightKg && !chestCm && !waistCm && !hipCm && !shoulderCm) {
-      alert('請至少填寫一項身體數據');
+  // 自動生成 AI 穿搭圖（頁面載入時調用）
+  const autoGenerateImage = async (items, photoBase64 = null) => {
+    if (!items || items.length === 0) {
       return;
     }
-    
+
+    setGenerating(true);
+    setGeneratedImageUrl(null);
+    setGenerationError(null);
+
     try {
       const token = localStorage.getItem('token');
-      console.log('Token:', token);
-      console.log('API Base:', API_BASE);
       
+      // 構建請求 payload
       const payload = {
-        height_cm: heightCm ? parseFloat(heightCm) : null,
-        weight_kg: weightKg ? parseFloat(weightKg) : null,
-        chest_cm: chestCm ? parseFloat(chestCm) : null,
-        waist_cm: waistCm ? parseFloat(waistCm) : null,
-        hip_cm: hipCm ? parseFloat(hipCm) : null,
-        shoulder_cm: shoulderCm ? parseFloat(shoulderCm) : null,
+        user_input: photoBase64 
+          ? "根據我的照片和選中的衣物，生成一套適合我的時尚穿搭"
+          : "專業時尚模特兒展示，高質感穿搭攝影，自然光線，簡約背景",
+        selected_items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          category: item.category
+        }))
       };
       
-      console.log('Saving body metrics:', payload);
-      
-      const res = await fetch(`${API_BASE}/api/v1/me/body_metrics`, {
-        method: 'PUT',
+      // 如果有用戶照片，添加到 payload
+      if (photoBase64) {
+        payload.user_photo = photoBase64;
+      }
+
+      const res = await fetch(`${API_BASE}/fitting/generate`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
-      
-      console.log('Response status:', res.status);
-      
+
       if (res.ok) {
-        const data = await res.json();
-        console.log('Saved data:', data);
-        setBodyMetrics(data);
-        setShowBodyMetricsInput(false);
-        alert('✅ 身體數據已保存！');
+        const result = await res.json();
+        if (result.type === 'image' && result.url) {
+          setGeneratedImageUrl(result.url);
+          setUsedPrompt(result.prompt_used || '');
+        } else {
+          setGenerationError(result.text || '請配置 AI 圖片生成服務');
+        }
       } else {
         const errorText = await res.text();
-        console.error('Save failed:', errorText);
-        alert(`❌ 保存失敗: ${res.status} - ${errorText}`);
+        setGenerationError(`生成失敗: ${errorText}`);
       }
     } catch (err) {
-      console.error('保存身體數據失敗:', err);
-      alert(`❌ 保存失敗: ${err.message}`);
+      console.error('生成圖片失敗:', err);
+      setGenerationError(`錯誤: ${err.message}`);
+    } finally {
+      setGenerating(false);
     }
   };
 
-
-
-// 👇 新增：發送 AI 圖片生成請求
-const handleGenerateImage = async () => {
-    if (selectedItems.length === 0) {
-        alert('請先選擇衣物！');
-        return;
-    }
-
-    setGenerating(true);
-    setGeneratedImageUrl(null);
-
-    try {
-        const token = localStorage.getItem('token');
-        const payload = {
-            user_input: title.trim() || "根據選中的衣物生成一套適合日常穿著的時尚穿搭。", // 使用標題或預設文字作為 AI Prompt
-            selected_items: selectedItems.map(item => ({ // 傳遞給後端精確的清單
-                id: item.id,
-                name: item.name,
-                category: item.category
-            }))
-        };
-
-        const res = await fetch(`${API_BASE}/api/v1/fitting/generate`, { // 呼叫新的 API 端點
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-            const result = await res.json();
-            if (result.type === 'image' && result.url) {
-                setGeneratedImageUrl(result.url);
-                alert('✅ AI 逼真穿搭圖已生成！');
-            } else {
-                alert(`⚠️ 圖檔生成失敗，這是文字建議: ${result.text || '無文字建議'}`);
-            }
-        } else {
-            const errorText = await res.text();
-            alert(`❌ API 呼叫失敗: ${res.status} - ${errorText}`);
-        }
-    } catch (err) {
-        console.error('生成圖片失敗:', err);
-        alert('❌ 系統錯誤：無法連接 AI 服務');
-    } finally {
-        setGenerating(false);
-    }
-};
-// 👆 新增：發送 AI 圖片生成請求
+  // 手動重新生成
+  const handleRegenerate = () => {
+    autoGenerateImage(selectedItems, userPhotoPreview);
+  };
 
 
   const handleSaveOutfit = async () => {
@@ -216,7 +158,7 @@ const handleGenerateImage = async () => {
       
       // 如果選擇同步到貼文
       if (syncToPost) {
-        const postRes = await fetch(`${API_BASE}/api/v1/posts`, {
+        const postRes = await fetch(`${API_BASE}/posts`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -259,250 +201,108 @@ const handleGenerateImage = async () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 左側：人體模型區域 */}
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-xl font-bold mb-4">虛擬試衣模型</h2>
-                { <font color="red">👇 新增：AI 圖片生成按鈕</font>  }**
-                <button
-                  onClick={handleGenerateImage}
-                  disabled={generating || selectedItems.length === 0}
-                  className="mb-4 w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {generating ? '🤖 AI 正在生成圖片...' : '📸 點擊生成 AI 逼真穿搭圖'}
-                </button>
-                { <font color="red">👆 新增：AI 圖片生成按鈕</font>  }**
-
-                {/* 身體數據顯示/輸入 */}
-                {showBodyMetricsInput ? (
-                  <div className="mb-4 p-4 bg-yellow-50 rounded-lg">
-                    <h3 className="font-semibold mb-2">請輸入您的身體數據</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="number"
-                        placeholder="身高 (cm)"
-                        value={heightCm}
-                        onChange={(e) => setHeightCm(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder="體重 (kg)"
-                        value={weightKg}
-                        onChange={(e) => setWeightKg(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder="胸圍 (cm)"
-                        value={chestCm}
-                        onChange={(e) => setChestCm(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder="腰圍 (cm)"
-                        value={waistCm}
-                        onChange={(e) => setWaistCm(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder="臀圍 (cm)"
-                        value={hipCm}
-                        onChange={(e) => setHipCm(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="number"
-                        placeholder="肩寬 (cm)"
-                        value={shoulderCm}
-                        onChange={(e) => setShoulderCm(e.target.value)}
-                        className="border rounded-md px-3 py-2 text-sm"
-                      />
-                    </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">AI 虛擬試衣</h2>
+                  {generatedImageUrl && (
                     <button
-                      onClick={saveBodyMetrics}
-                      className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700"
+                      onClick={handleRegenerate}
+                      className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-md hover:bg-indigo-200 transition-colors"
                     >
-                      保存身體數據
+                      🔄 重新生成
                     </button>
-                  </div>
-                ) : bodyMetrics && (
-                  <div className="mb-4 p-4 bg-green-50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-semibold">身體數據</h3>
-                      <button
-                        onClick={() => setShowBodyMetricsInput(true)}
-                        className="text-sm text-indigo-600 hover:underline"
-                      >
-                        編輯
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                      {bodyMetrics.height_cm && <div>身高: {bodyMetrics.height_cm} cm</div>}
-                      {bodyMetrics.weight_kg && <div>體重: {bodyMetrics.weight_kg} kg</div>}
-                      {bodyMetrics.chest_cm && <div>胸圍: {bodyMetrics.chest_cm} cm</div>}
-                      {bodyMetrics.waist_cm && <div>腰圍: {bodyMetrics.waist_cm} cm</div>}
-                      {bodyMetrics.hip_cm && <div>臀圍: {bodyMetrics.hip_cm} cm</div>}
-                      {bodyMetrics.shoulder_cm && <div>肩寬: {bodyMetrics.shoulder_cm} cm</div>}
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* 用戶照片上傳 */}
+                <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📸 上傳您的照片</h3>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    id="photo-upload"
+                  />
+                  <label
+                    htmlFor="photo-upload"
+                    className="block w-full text-center bg-white border-2 border-dashed border-pink-300 rounded-lg px-4 py-3 cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-colors"
+                  >
+                    {userPhotoPreview ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <img src={userPhotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
+                        <span className="text-sm text-gray-600">點擊更換照片</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-2xl mb-1">📷</div>
+                        <div className="text-sm text-gray-600">點擊上傳您的照片</div>
+                        <div className="text-xs text-gray-400 mt-1">AI 會根據您的外貌生成更真實的試穿效果</div>
+                      </div>
+                    )}
+                  </label>
+                </div>
                 
                 {/* 人體模型展示區 */}
                 <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-8 min-h-[600px] flex items-center justify-center overflow-hidden">
-                  { <font color="red">👇 修改：優先顯示 AI 生成圖，其次是載入中，最後是 SVG 模型</font> }
+                  {/* 優先顯示 AI 生成圖，其次是載入中，最後是 SVG 模型 */}
                   {generating ? (
-                  <div className="relative" style={{ width: '280px', height: '550px' }}>
-                    {/* 動態調整的人體模型 SVG */}
-                    {(() => {
-                      // 根據身體數據計算比例
-                      const baseHeight = 170; // 基準身高 (cm)
-                      const currentHeight = parseFloat(heightCm) || baseHeight;
-                      const heightScale = currentHeight / baseHeight;
-                      
-                      const baseChest = 90; // 基準胸圍 (cm)
-                      const currentChest = parseFloat(chestCm) || baseChest;
-                      const chestScale = currentChest / baseChest;
-                      
-                      const baseWaist = 70; // 基準腰圍 (cm)
-                      const currentWaist = parseFloat(waistCm) || baseWaist;
-                      const waistScale = currentWaist / baseWaist;
-                      
-                      const baseShoulder = 40; // 基準肩寬 (cm)
-                      const currentShoulder = parseFloat(shoulderCm) || baseShoulder;
-                      const shoulderScale = currentShoulder / baseShoulder;
-                      
-                      // 計算身體各部位尺寸
-                      const headRadius = 22;
-                      const bodyWidth = 45 * chestScale;
-                      const bodyHeight = 75 * heightScale;
-                      const waistWidth = 35 * waistScale;
-                      const shoulderWidth = 55 * shoulderScale;
-                      const legHeight = 130 * heightScale;
-                      
-                      return (
-                        <svg viewBox="0 0 200 400" className="w-full h-auto">
-                          {/* 頭部 */}
-                          <circle cx="100" cy="30" r={headRadius} fill="#f9fafb" stroke="#6b7280" strokeWidth="2" />
-                          
-                          {/* 肩臂 */}
-                          <line 
-                            x1={100 - shoulderWidth/2} y1="60" 
-                            x2="45" y2="110" 
-                            stroke="#9ca3af" strokeWidth="7" strokeLinecap="round" 
-                          />
-                          <line 
-                            x1={100 + shoulderWidth/2} y1="60" 
-                            x2="155" y2="110" 
-                            stroke="#9ca3af" strokeWidth="7" strokeLinecap="round" 
-                          />
-                          
-                          {/* 上身（胸部） */}
-                          <rect 
-                            x={100 - bodyWidth/2} y="55" 
-                            width={bodyWidth} height={bodyHeight * 0.5} 
-                            rx="8" fill="#f9fafb" stroke="#6b7280" strokeWidth="2" 
-                          />
-                          
-                          {/* 下身（腰臀） */}
-                          <rect 
-                            x={100 - waistWidth/2} y={55 + bodyHeight * 0.5} 
-                            width={waistWidth} height={bodyHeight * 0.5} 
-                            rx="8" fill="#f9fafb" stroke="#6b7280" strokeWidth="2" 
-                          />
-                          
-                          {/* 腿部 */}
-                          <line 
-                            x1="90" y1={55 + bodyHeight} 
-                            x2="85" y2={55 + bodyHeight + legHeight} 
-                            stroke="#9ca3af" strokeWidth="9" strokeLinecap="round" 
-                          />
-                          <line 
-                            x1="110" y1={55 + bodyHeight} 
-                            x2="115" y2={55 + bodyHeight + legHeight} 
-                            stroke="#9ca3af" strokeWidth="9" strokeLinecap="round" 
-                          />
-                          
-                          {/* 衣物圖片疊加 */}
-                          {clothingPositions.hat && (
-                            <>
-                              <image 
-                                href={clothingPositions.hat.img} 
-                                x="70" y="5" width="60" height="60" 
-                                preserveAspectRatio="xMidYMid meet"
-                                opacity="0.95"
-                              />
-                            </>
-                          )}
-                          {clothingPositions.top && (
-                            <>
-                              <image 
-                                href={clothingPositions.top.img} 
-                                x={100 - bodyWidth/2 - 5} y="60" 
-                                width={bodyWidth + 10} height={bodyHeight * 0.8} 
-                                preserveAspectRatio="xMidYMid meet"
-                                opacity="0.9"
-                              />
-                            </>
-                          )}
-                          {clothingPositions.bottom && (
-                            <>
-                              <image 
-                                href={clothingPositions.bottom.img} 
-                                x={100 - waistWidth/2 - 3} y={55 + bodyHeight * 0.6} 
-                                width={waistWidth + 6} height={legHeight * 0.7} 
-                                preserveAspectRatio="xMidYMid meet"
-                                opacity="0.9"
-                              />
-                            </>
-                          )}
-                          {clothingPositions.shoes && (
-                            <>
-                              <image 
-                                href={clothingPositions.shoes.img} 
-                                x="60" y={55 + bodyHeight + legHeight - 30} 
-                                width="80" height="40" 
-                                preserveAspectRatio="xMidYMid meet"
-                                opacity="0.95"
-                              />
-                            </>
-                          )}
-                        </svg>
-                      );
-                    })()}
-                    
-                    {/* 衣物名稱標籤 */}
-                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                      {clothingPositions.hat && (
-                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full">
-                          🧢 {clothingPositions.hat.name}
-                        </div>
-                      )}
-                      {clothingPositions.top && (
-                        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full">
-                          👕 {clothingPositions.top.name}
-                        </div>
-                      )}
-                      {clothingPositions.bottom && (
-                        <div className="absolute top-2/3 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full">
-                          👖 {clothingPositions.bottom.name}
-                        </div>
-                      )}
-                      {clothingPositions.shoes && (
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full">
-                          👟 {clothingPositions.shoes.name}
-                        </div>
-                      )}
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                      <p className="text-gray-600 font-medium">🤖 AI 正在生成逼真穿搭圖...</p>
+                      <p className="text-xs text-gray-500 mt-2">這可能需要 10-30 秒</p>
                     </div>
-                  </div>
+                  ) : generationError ? (
+                    <div className="text-center max-w-md">
+                      <div className="text-4xl mb-4">⚠️</div>
+                      <p className="text-gray-700 font-medium mb-2">AI 生成服務未配置</p>
+                      <div className="text-xs text-left bg-white p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
+                        {generationError}
+                      </div>
+                      <button
+                        onClick={handleRegenerate}
+                        className="mt-4 text-sm bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                      >
+                        重試
+                      </button>
+                    </div>
+                  ) : generatedImageUrl ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center">
+                      <img 
+                        src={generatedImageUrl} 
+                        alt="AI 生成的穿搭圖" 
+                        className="max-w-full max-h-[500px] object-contain rounded-lg shadow-lg"
+                      />
+                      <div className="mt-4 text-center">
+                        <p className="text-sm text-gray-600 font-medium">✨ AI 生成的專業時尚穿搭圖</p>
+                        {usedPrompt && (
+                          <button
+                            onClick={() => setShowPrompt(!showPrompt)}
+                            className="text-xs text-indigo-600 hover:underline mt-1"
+                          >
+                            {showPrompt ? '隱藏' : '查看'} 生成提示詞
+                          </button>
+                        )}
+                        {showPrompt && usedPrompt && (
+                          <div className="mt-2 text-xs text-left bg-white p-3 rounded border border-gray-200 max-w-md max-h-32 overflow-y-auto">
+                            {usedPrompt}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">📸</div>
+                      <p className="text-gray-600 font-medium">請上傳您的照片</p>
+                      <p className="text-sm text-gray-500 mt-2">AI 將根據您的照片生成專業試穿效果</p>
+                    </div>
+                  )}
                 </div>
-                ) }
-                { <font color="red">👆 修改：人體模型展示區邏輯結束</font> }
+                
+                {/* 已選擇的衣物列表 */}
                 <div className="mt-4">
-                  {/* 已選擇的衣物列表 */}
-                  <div className="mt-4">
-                    <h3 className="font-semibold mb-2">已選擇的衣物</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {selectedItems.map(item => (
+                  <h3 className="font-semibold mb-2">已選擇的衣物</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedItems.map(item => (
                       <div key={item.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
                         <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded" />
                         <span className="text-sm">{item.name}</span>
