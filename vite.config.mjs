@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  // 直接硬編碼，確保使用正確的端口
   const API_TARGET = 'http://localhost:8000'
 
   console.log('🔧 Vite Proxy Config:')
@@ -17,6 +16,9 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
+      allowedHosts: [
+        'cometical-kyphotic-deborah.ngrok-free.dev' // ✅ 加這行
+      ],
       proxy: {
         '/api': {
           target: API_TARGET,
@@ -28,7 +30,6 @@ export default defineConfig(({ mode }) => {
             return path
           },
         },
-        // 讓圖片資源如 /uploads/... 能透過代理到後端 8000
         '/uploads': {
           target: API_TARGET,
           changeOrigin: true,

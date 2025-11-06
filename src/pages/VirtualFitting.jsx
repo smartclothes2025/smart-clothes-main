@@ -34,7 +34,11 @@ export default function VirtualFitting({ theme, setTheme }) {
     shoes: null,
     accessory: null,
   });
+  
 
+  const [generatedImageUrl, setGeneratedImageUrl] = useState(null); // 👈 新增狀態來儲存生成的圖片 URL
+  const [generating, setGenerating] = useState(false); // 👈 新增狀態來顯示載入中
+  
   useEffect(() => {
     // 從 localStorage 載入選中的單品
     const items = JSON.parse(localStorage.getItem('virtual_fitting_items') || '[]');
@@ -147,6 +151,60 @@ export default function VirtualFitting({ theme, setTheme }) {
     }
   };
 
+
+
+// 👇 新增：發送 AI 圖片生成請求
+const handleGenerateImage = async () => {
+    if (selectedItems.length === 0) {
+        alert('請先選擇衣物！');
+        return;
+    }
+
+    setGenerating(true);
+    setGeneratedImageUrl(null);
+
+    try {
+        const token = localStorage.getItem('token');
+        const payload = {
+            user_input: title.trim() || "根據選中的衣物生成一套適合日常穿著的時尚穿搭。", // 使用標題或預設文字作為 AI Prompt
+            selected_items: selectedItems.map(item => ({ // 傳遞給後端精確的清單
+                id: item.id,
+                name: item.name,
+                category: item.category
+            }))
+        };
+
+        const res = await fetch(`${API_BASE}/api/v1/fitting/generate`, { // 呼叫新的 API 端點
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+            const result = await res.json();
+            if (result.type === 'image' && result.url) {
+                setGeneratedImageUrl(result.url);
+                alert('✅ AI 逼真穿搭圖已生成！');
+            } else {
+                alert(`⚠️ 圖檔生成失敗，這是文字建議: ${result.text || '無文字建議'}`);
+            }
+        } else {
+            const errorText = await res.text();
+            alert(`❌ API 呼叫失敗: ${res.status} - ${errorText}`);
+        }
+    } catch (err) {
+        console.error('生成圖片失敗:', err);
+        alert('❌ 系統錯誤：無法連接 AI 服務');
+    } finally {
+        setGenerating(false);
+    }
+};
+// 👆 新增：發送 AI 圖片生成請求
+
+
   const handleSaveOutfit = async () => {
     if (!title.trim()) {
       alert('請填寫標題');
@@ -169,6 +227,7 @@ export default function VirtualFitting({ theme, setTheme }) {
             content: description.trim(),
             tags: tags.split(/[,\s]+/).filter(t => t).join(','),
             clothing_ids: selectedItems.map(item => item.id),
+            image_url: generatedImageUrl,
           }),
         });
         
@@ -201,7 +260,16 @@ export default function VirtualFitting({ theme, setTheme }) {
               {/* 左側：人體模型區域 */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-xl font-bold mb-4">虛擬試衣模型</h2>
-                
+                { <font color="red">👇 新增：AI 圖片生成按鈕</font>  }**
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={generating || selectedItems.length === 0}
+                  className="mb-4 w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {generating ? '🤖 AI 正在生成圖片...' : '📸 點擊生成 AI 逼真穿搭圖'}
+                </button>
+                { <font color="red">👆 新增：AI 圖片生成按鈕</font>  }**
+
                 {/* 身體數據顯示/輸入 */}
                 {showBodyMetricsInput ? (
                   <div className="mb-4 p-4 bg-yellow-50 rounded-lg">
@@ -281,6 +349,8 @@ export default function VirtualFitting({ theme, setTheme }) {
                 
                 {/* 人體模型展示區 */}
                 <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-8 min-h-[600px] flex items-center justify-center overflow-hidden">
+                  { <font color="red">👇 修改：優先顯示 AI 生成圖，其次是載入中，最後是 SVG 模型</font> }
+                  {generating ? (
                   <div className="relative" style={{ width: '280px', height: '550px' }}>
                     {/* 動態調整的人體模型 SVG */}
                     {(() => {
@@ -425,12 +495,14 @@ export default function VirtualFitting({ theme, setTheme }) {
                     </div>
                   </div>
                 </div>
-                
-                {/* 已選擇的衣物列表 */}
+                ) }
+                { <font color="red">👆 修改：人體模型展示區邏輯結束</font> }
                 <div className="mt-4">
-                  <h3 className="font-semibold mb-2">已選擇的衣物</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItems.map(item => (
+                  {/* 已選擇的衣物列表 */}
+                  <div className="mt-4">
+                    <h3 className="font-semibold mb-2">已選擇的衣物</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {selectedItems.map(item => (
                       <div key={item.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
                         <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded" />
                         <span className="text-sm">{item.name}</span>

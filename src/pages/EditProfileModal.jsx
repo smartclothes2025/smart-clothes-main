@@ -31,10 +31,31 @@ export default function EditProfileModal({ user, onClose, onSave }) {
     waist: user.waist ?? "",
     hip: user.hip ?? "",
     shoulder: user.shoulder ?? "",
-    sex: user.sex ?? "", // 新增 sex
+    sex: user.sex || "", // 從 user 讀取 sex
   });
   const [isSaving, setIsSaving] = useState(false);
   const [show, setShow] = useState(false);
+
+  // 除錯：查看 user 物件中的 sex 值
+  useEffect(() => {
+    console.log('EditProfileModal 收到的 user 資料:', user);
+    console.log('user.sex:', user.sex);
+  }, [user]);
+
+  // 當 user prop 變更時，更新 formData
+  useEffect(() => {
+    setFormData({
+      displayName: user.displayName || "",
+      bio: user.bio || "",
+      height: user.height ?? "",
+      weight: user.weight ?? "",
+      bust: user.bust ?? "",
+      waist: user.waist ?? "",
+      hip: user.hip ?? "",
+      shoulder: user.shoulder ?? "",
+      sex: user.sex || "",
+    });
+  }, [user]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShow(true), 10);
@@ -110,14 +131,15 @@ export default function EditProfileModal({ user, onClose, onSave }) {
                 <FormField label="肩寬" name="shoulder" type="number" value={formData.shoulder} onChange={handleChange} unit="cm" />
               </div>
                 <div className="mt-5">
+                <label htmlFor="sex" className="block text-sm font-medium text-slate-600 mb-1">性別</label>
                 <select
                   id="sex"
                   name="sex"
                   value={formData.sex}
                   onChange={handleChange}
-                  placeholder="選擇性別"
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none transition appearance-none bg-white pr-8 bg-no-repeat bg-right bg-[url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e')]"
                 >
+                  <option value="">選擇性別</option>
                   <option value="男">男</option>
                   <option value="女">女</option>
                   <option value="其他">其他</option>

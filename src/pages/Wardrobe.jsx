@@ -4,9 +4,10 @@ import { useLocation } from "react-router-dom";
 import WardrobeOverview from "../components/wardrobe/WardrobeOverview";
 import Outfits from "../components/wardrobe/Outfits";
 import Analysis from "../components/wardrobe/Analysis";
+import Brand from "../components/wardrobe/Brand";
 import Layout from "../components/Layout";
 
-const mainTabs = ["衣物總覽", "穿搭", "分析"];
+const mainTabs = ["衣物總覽", "合作品牌", "穿搭", "分析"];
 
 export default function Wardrobe({ theme, setTheme }) {
   const [activeTab, setActiveTab] = useState(mainTabs[0]);
@@ -43,6 +44,7 @@ export default function Wardrobe({ theme, setTheme }) {
           </div>
           <div>
             {activeTab === "衣物總覽" && <WardrobeOverview />}
+            {activeTab === "合作品牌" && <Brand />}
             {activeTab === "穿搭" && <Outfits />}
             {activeTab === "分析" && <Analysis />}
           </div>
