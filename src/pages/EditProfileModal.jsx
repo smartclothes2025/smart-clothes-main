@@ -79,10 +79,10 @@ export default function EditProfileModal({ user, onClose, onSave }) {
     setIsSaving(true);
 
     try {
-      // 1) 呼叫父層 onSave 傳表單資料（包含 sex）
+      // 呼叫父層 onSave 傳表單資料（包含 sex）
       await onSave(formData);
 
-      // 3) 關閉 modal（含離開動畫）
+      // 關閉 modal（含離開動畫）
       handleClose();
 
     } catch (err) {
@@ -122,15 +122,9 @@ export default function EditProfileModal({ user, onClose, onSave }) {
 
             <div>
               <h3 className="text-sm font-semibold text-slate-500 border-b pb-2 mb-4">穿搭數據</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="身高" name="height" type="number" value={formData.height} onChange={handleChange} unit="cm" />
-                <FormField label="體重" name="weight" type="number" value={formData.weight} onChange={handleChange} unit="kg" />
-                <FormField label="胸圍" name="bust" type="number" value={formData.bust} onChange={handleChange} unit="cm" />
-                <FormField label="腰圍" name="waist" type="number" value={formData.waist} onChange={handleChange} unit="cm" />
-                <FormField label="臀圍" name="hip" type="number" value={formData.hip} onChange={handleChange} unit="cm" />
-                <FormField label="肩寬" name="shoulder" type="number" value={formData.shoulder} onChange={handleChange} unit="cm" />
-              </div>
-                <div className="mt-5">
+              
+              {/* 性別選擇 - 移到最上方更顯眼 */}
+              <div className="mb-4">
                 <label htmlFor="sex" className="block text-sm font-medium text-slate-600 mb-1">性別</label>
                 <select
                   id="sex"
@@ -144,6 +138,16 @@ export default function EditProfileModal({ user, onClose, onSave }) {
                   <option value="女">女</option>
                   <option value="其他">其他</option>
                 </select>
+              </div>
+
+              {/* 身體數據 */}
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="身高" name="height" type="number" value={formData.height} onChange={handleChange} unit="cm" />
+                <FormField label="體重" name="weight" type="number" value={formData.weight} onChange={handleChange} unit="kg" />
+                <FormField label="胸圍" name="bust" type="number" value={formData.bust} onChange={handleChange} unit="cm" />
+                <FormField label="腰圍" name="waist" type="number" value={formData.waist} onChange={handleChange} unit="cm" />
+                <FormField label="臀圍" name="hip" type="number" value={formData.hip} onChange={handleChange} unit="cm" />
+                <FormField label="肩寬" name="shoulder" type="number" value={formData.shoulder} onChange={handleChange} unit="cm" />
               </div>
             </div>
           </div>

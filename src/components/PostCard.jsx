@@ -16,18 +16,20 @@ export default function PostCard({ imageUrl, alt = "Post", likes = 0, to }) {
     <button
       type="button"
       onClick={handleClick}
-      className="group relative block w-full aspect-square rounded-xl overflow-hidden bg-slate-200 ring-1 ring-slate-200 hover:ring-indigo-300 transition"
+      className="group relative block w-full rounded-xl overflow-hidden bg-slate-200 ring-1 ring-slate-200 hover:ring-indigo-300 transition"
       aria-label={alt}
+      style={{ maxHeight: '300px' }}
     >
       {src ? (
         <img
           src={src}
           alt={alt}
-          className="w-full h-full object-cover"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '300px' }}
           loading="lazy"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-slate-200">
+        <div className="w-full h-48 flex items-center justify-center bg-slate-200">
           <span className="text-slate-400 text-sm">無圖片</span>
         </div>
       )}

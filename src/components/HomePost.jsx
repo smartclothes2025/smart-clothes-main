@@ -122,18 +122,21 @@ export default function HomePost() {
                 console.error(`解析貼文 ${post.id} 的 media 失敗:`, e);
               }
               
+              // 檢查後端是否已經提供了簽署的 URL
               const processedMedia = mediaArr.map(m => {
-                if (m?.url || m?.authenticated_url || m?.image_url) {
-                  return {
-                    ...m,
-                    _view: m.url || m.authenticated_url || m.image_url
-                  };
+                // 後端已經在 m.url 中提供簽署的 URL
+                if (m?.url) {
+                  return { ...m, _view: m.url };
                 }
+                if (m?.authenticated_url) {
+                  return { ...m, _view: m.authenticated_url };
+                }
+                if (m?.image_url) {
+                  return { ...m, _view: m.image_url };
+                }
+                // 如果後端沒有提供 URL，嘗試自己處理 gcs_uri
                 if (m?.gcs_uri) {
-                  return {
-                    ...m,
-                    _view: resolveGcsUrl(m.gcs_uri)
-                  };
+                  return { ...m, _view: resolveGcsUrl(m.gcs_uri) };
                 }
                 return m;
               });
@@ -244,6 +247,7 @@ export default function HomePost() {
             // 解析 media 欄位
             try {
               if (Array.isArray(post.media)) {
+                // 後端已經返回解析好的陣列
                 mediaArr = post.media;
               } else if (typeof post.media === 'string') {
                 mediaArr = JSON.parse(post.media || "[]");
@@ -252,24 +256,35 @@ export default function HomePost() {
               console.error(`解析貼文 ${post.id} 的 media 失敗:`, e, post.media);
             }
             
-            // 檢查 media 中是否已有可用的 URL
+            console.log(`🔍 搜尋結果 - 貼文 ${post.id} 原始 media:`, mediaArr);
+            
+            // 檢查後端是否已經提供了簽署的 URL
             const processedMedia = mediaArr.map(m => {
-              // 如果已經有 url 就直接使用
-              if (m?.url || m?.authenticated_url || m?.image_url) {
-                return {
-                  ...m,
-                  _view: m.url || m.authenticated_url || m.image_url
-                };
+              // 後端已經在 m.url 中提供簽署的 URL
+              if (m?.url) {
+                console.log(`✅ 貼文 ${post.id} 已有簽署 URL:`, m.url);
+                return { ...m, _view: m.url };
               }
-              // 如果只有 gcs_uri，嘗試轉換
+              // 備用：檢查其他可能的 URL 欄位
+              if (m?.authenticated_url) {
+                console.log(`✅ 貼文 ${post.id} 使用 authenticated_url:`, m.authenticated_url);
+                return { ...m, _view: m.authenticated_url };
+              }
+              if (m?.image_url) {
+                console.log(`✅ 貼文 ${post.id} 使用 image_url:`, m.image_url);
+                return { ...m, _view: m.image_url };
+              }
+              // 如果後端沒有提供 URL，嘗試自己處理 gcs_uri
               if (m?.gcs_uri) {
-                return {
-                  ...m,
-                  _view: resolveGcsUrl(m.gcs_uri)
-                };
+                console.log(`⚠️ 貼文 ${post.id} 只有 gcs_uri，嘗試轉換:`, m.gcs_uri);
+                const converted = resolveGcsUrl(m.gcs_uri);
+                return { ...m, _view: converted };
               }
+              console.warn(`❌ 貼文 ${post.id} 的 media 項目沒有可用的 URL:`, m);
               return m;
             });
+            
+            console.log(`🔍 貼文 ${post.id} 處理後的 media:`, processedMedia);
             
             hydrated.push({ 
               ...post, 
@@ -351,7 +366,7 @@ export default function HomePost() {
           搜尋「<span className="font-semibold">{searchQuery}</span>」的結果：共 {posts.length} 篇貼文
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {posts.map((post) => {
           const coverUrl = pickCoverUrl(post._mediaArr);
           

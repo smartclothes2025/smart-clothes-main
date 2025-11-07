@@ -7,8 +7,8 @@ import { useToast } from '../../components/ToastProvider';
 const initialMetrics = {
   height: '165', weight: '55', bust: '85', shoulder: '40',
   waist: '68', hips: '92', shoeSize: '24.5',
-  // **資料庫欄位：性別，預設為 Female**
-  sex: 'Female', // 已將 gender 改為 sex
+  // **資料庫欄位：性別，預設為女**
+  sex: '女', // 使用中文
 };
 // 單位物件，方便管理
 const units = {
@@ -105,14 +105,14 @@ function getMaleBodyType({ shoulder, waist, hips }) {
 function analyseBodyShape(metrics) {
     const { sex } = metrics; // 使用 sex
     
-    if (sex === 'Female') {
+    if (sex === '女') {
         const result = getFemaleBodyType(metrics);
         return {
             type: result.type,
             details: result.info,
             analysisModel: '女性身體比例模型 (沙漏、梨型等)',
         };
-    } else if (sex === 'Male') {
+    } else if (sex === '男') {
         const result = getMaleBodyType(metrics);
         return {
             type: result.type,
@@ -206,11 +206,6 @@ const BodyMetrics = () => {
     load();
   }, []);
 
-  // 處理性別選擇變動 (用於即時分析)
-  const handleSexChange = (e) => { // 函式名稱改為 handleSexChange
-    setMetrics(prev => ({ ...prev, sex: e.target.value })); // 使用 sex
-  };
-
   // 載入使用者資料以開啟 Modal
   const loadProfileForModal = async () => {
     setLoading(true);
@@ -255,7 +250,7 @@ const BodyMetrics = () => {
       const token = localStorage.getItem('token');
       if (!token) { navigate('/'); return; }
       
-      // 1. 更新身體數據
+      // 1. 更新身體數據（包含性別）
       const bodyMetricsPayload = {
         height_cm: updatedData.height ? Number(updatedData.height) : null,
         weight_kg: updatedData.weight ? Number(updatedData.weight) : null,
@@ -263,6 +258,7 @@ const BodyMetrics = () => {
         waist_cm: updatedData.waist ? Number(updatedData.waist) : null,
         hip_cm: updatedData.hip ? Number(updatedData.hip) : null,
         shoulder_cm: updatedData.shoulder ? Number(updatedData.shoulder) : null,
+        sex: updatedData.sex || null, // 將性別加入 body_metrics
       };
 
       const resMetrics = await fetch('http://127.0.0.1:8000/api/v1/me/body_metrics', {
@@ -276,16 +272,7 @@ const BodyMetrics = () => {
       }
       const savedMetrics = await resMetrics.json().catch(() => ({}));
       
-      // 2. 更新性別 (假設有一個更新用戶 profile 的 API)
-      // 這裡假設性別是與 display_name/bio 一同更新
-      const profilePayload = {
-        display_name: updatedData.displayName || null,
-        interformation: updatedData.bio ?? null,
-        sex: updatedData.sex ?? null, // 假設後端接收 sex 欄位
-      };
-      // 這裡暫時跳過 profile API 呼叫，僅更新本地狀態
-
-      // 3. 更新本地狀態：優先使用後端回傳的 sex，否則使用 modal 的值
+      // 2. 更新本地狀態：優先使用後端回傳的 sex，否則使用 modal 的值
       setMetrics(prev => ({
         ...prev,
         ...mapFromServer(savedMetrics),
@@ -294,7 +281,17 @@ const BodyMetrics = () => {
       setProfileUser(updatedData);
       setIsProfileModalOpen(false);
       toast.addToast && toast.addToast({ type: 'success', title: '修改成功' });
-      // ... (更新 localStorage 和 dispatch event 的部分)
+      
+      // 3. 更新 localStorage 中的使用者資料
+      try {
+        const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...localUser, sex: savedMetrics.sex ?? updatedData.sex }));
+      } catch (e) {
+        console.warn('更新 localStorage 失敗', e);
+      }
+      
+      // 4. 發送事件讓其他元件知道資料已更新
+      window.dispatchEvent(new Event('user-profile-updated'));
       
     } catch (err) {
       console.error('儲存失敗', err);
@@ -346,14 +343,13 @@ const BodyMetrics = () => {
         {/* 數據列表 */}
         <div className="border border-gray-200 rounded-lg p-3 mb-6">
           <h4 className="font-semibold text-indigo-700 mb-2">我的測量結果</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-sm">
             {renderMetricItem('height', '身高')}
             {renderMetricItem('weight', '體重')}
             {renderMetricItem('bust', '胸圍')}
             {renderMetricItem('shoulder', '肩寬')}
             {renderMetricItem('waist', '腰圍')}
             {renderMetricItem('hips', '臀圍')}
-            {renderMetricItem('shoeSize', '鞋子尺寸')}
           </div>
         </div>
 
@@ -366,16 +362,12 @@ const BodyMetrics = () => {
           </div>
 
           <div className="flex items-center justify-between mb-3 border-b border-indigo-200 pb-2">
-            <span className="text-base font-semibold text-gray-700">性別 (用於分析)</span> {/* 標籤更新 */}
-            <select
-              value={metrics.sex} // 使用 sex
-              onChange={handleSexChange} // 使用 handleSexChange
-              className="p-1 border border-indigo-300 rounded-md bg-white focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-            >
-              <option value="Female">女性 (沙漏、梨型等)</option>
-              <option value="Male">男性 (倒三角、矩形等)</option>
-              <option value="Other">其他/未指定</option>
-            </select>
+            <span className="text-base font-semibold text-gray-700">性別</span>
+            <span className="text-base font-medium text-indigo-600">
+              {metrics.sex || '未設定'}
+              {metrics.sex === '女'}
+              {metrics.sex === '男'}
+            </span>
           </div>
 
           <div>
