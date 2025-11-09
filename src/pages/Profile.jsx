@@ -209,7 +209,21 @@ export default function Profile() {
             }
           })();
 
-        const picture = resolveGcsUrl(pictureRaw);
+        // ✅ Bucket 已設為公開，處理圖片 URL
+        let picture = null;
+        if (pictureRaw) {
+          // 如果是簽名 URL（包含 X-Goog-Signature），去掉簽名參數
+          if (pictureRaw.includes('X-Goog-Signature')) {
+            // 取得 ? 之前的乾淨 URL
+            picture = pictureRaw.split('?')[0];
+          } else if (pictureRaw.startsWith('gs://')) {
+            // 如果是 gs:// URI，轉換為公開 URL
+            picture = resolveGcsUrl(pictureRaw);
+          } else {
+            // 已經是乾淨的 HTTP(S) URL
+            picture = pictureRaw;
+          }
+        }
 
         setUser({
           displayName,
@@ -418,8 +432,12 @@ useEffect(() => {
                         throw new Error(err?.detail || `上傳失敗 (status ${resp.status})`);
                       }
                       const uploaded = await resp.json();
-                      const rawUrl = uploaded.authenticated_url || uploaded.image_url || uploaded.gcs_uri || null;
+                      
+                      // ✅ Bucket 已設為公開，優先使用 gcs_uri 產生公開 URL
+                      // 避免使用後端返回的簽名 URL（帶有 X-Goog-Signature 等參數）
+                      const rawUrl = uploaded.gcs_uri || uploaded.image_url || uploaded.authenticated_url || null;
                       const imageUrl = resolveGcsUrl(rawUrl);
+                      
                       const bustUrl = imageUrl
                         ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${Date.now()}`
                         : null;

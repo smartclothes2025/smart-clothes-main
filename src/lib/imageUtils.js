@@ -1,7 +1,52 @@
 // src/lib/imageUtils.js
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+
+/**
+ * 取得簽名的 GCS URL（用於私有儲存桶）
+ * @param {string} gcsUri - GCS URI (gs://...) 或其他 URL
+ * @param {string} token - 授權 token
+ * @returns {Promise<string|null>} 簽名的 URL 或原始 URL
+ */
+export async function getSignedUrl(gcsUri, token = null) {
+  if (!gcsUri) return null;
+  
+  // 如果已經是 HTTP(S) URL，直接返回
+  if (gcsUri.startsWith("http://") || gcsUri.startsWith("https://")) {
+    return gcsUri;
+  }
+  
+  // 如果是 gs:// URI，呼叫後端取得簽名 URL
+  if (gcsUri.startsWith("gs://")) {
+    try {
+      const url = `${API_BASE}/media/signed-url?gcs_uri=${encodeURIComponent(gcsUri)}`;
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.authenticated_url || data.url || resolveGcsUrl(gcsUri);
+      } else {
+        console.warn(`取得簽名 URL 失敗 (${response.status}):`, gcsUri);
+        return resolveGcsUrl(gcsUri);
+      }
+    } catch (error) {
+      console.error("取得簽名 URL 時發生錯誤:", error);
+      return resolveGcsUrl(gcsUri);
+    }
+  }
+  
+  return gcsUri;
+}
+
 /**
  * 解析 Google Cloud Storage (GCS) URI 為可訪問的 HTTPS URL
+ * ⚠️ 注意：此函數產生的是公開 URL，僅適用於公開儲存桶
+ * 對於私有儲存桶，請使用 getSignedUrl()
  * @param {string} gsOrHttp - GCS URI (gs://...) 或已經是 HTTP(S) URL
  * @returns {string|null} 可訪問的 HTTPS URL 或 null
  */
@@ -21,7 +66,7 @@ export function resolveGcsUrl(gsOrHttp) {
     if (slash > 0) {
       const bucket = without.slice(0, slash);
       const object = encodeURI(without.slice(slash + 1));
-      return `https://storage.cloud.google.com/${bucket}/${object}`;
+      return `https://storage.googleapis.com/${bucket}/${object}`;
     }
   }
   
