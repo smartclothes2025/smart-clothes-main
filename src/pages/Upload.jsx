@@ -24,9 +24,10 @@ export default function Upload({ theme, setTheme }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [removeBg, setRemoveBg] = useState(false);
   const [aiDetect, setAiDetect] = useState(false);
+  const [aiResults, setAiResults] = useState([]); // AI 辨識結果
   const [uploading, setUploading] = useState(false);
-  // 預設允許的風格（對應後端 enum 的預期值），若後端有不同請同步調整
-  const ALLOWED_STYLES = ["休閒", "正式", "運動", "可愛", "個性", "簡約", "復古", "其他"];
+  const [hasShownToast, setHasShownToast] = useState(false); // 追蹤是否已顯示 toast
+  // 風格欄位不受限制，可以自由輸入任何文字
 
   useEffect(() => {
     if (!files.length) {
@@ -53,15 +54,57 @@ export default function Upload({ theme, setTheme }) {
         ? Math.min(Math.max(0, st.primaryIndex), st.files.length - 1)
         : 0;
       setCurrentIndex(p);
-      const initForms = st.files.map(() => ({
-        name: "",
-        category: "上衣",
-        color: "",
-        material: "棉",
-        style: "休閒",
-        size: "M",
-        brand: "",
-      }));
+      
+      // 如果有 AI 辨識結果，儲存起來
+      if (st?.aiResults && Array.isArray(st.aiResults)) {
+        setAiResults(st.aiResults);
+      }
+      
+      // 根據 AI 結果初始化表單
+      const initForms = st.files.map((file, index) => {
+        const aiResult = st?.aiResults?.[index];
+        
+        // 類別對照表（英文 -> 中文）
+        const categoryMap = {
+          "tops": "上衣",
+          "pants": "褲子",
+          "skirts": "裙子",
+          "dresses": "洋裝",
+          "outerwear": "外套",
+          "shoes": "鞋子",
+          "bags": "包包",
+          "hats": "帽子",
+          "socks": "襪子",
+          "jewelry": "配件",
+          "special": "特殊",
+          "bottoms": "下身",
+          "pantsuits": "套裝"
+        };
+        
+        if (aiResult) {
+          // 使用 AI 辨識結果填入表單
+          return {
+            name: "",
+            category: categoryMap[aiResult.category] || "上衣",
+            color: aiResult.colors?.[0] || "",
+            material: aiResult.material || "棉",
+            style: aiResult.style || "休閒",
+            size: aiResult.size || "M",
+            brand: "",
+          };
+        } else {
+          // 沒有 AI 結果，使用預設值
+          return {
+            name: "",
+            category: "上衣",
+            color: "",
+            material: "棉",
+            style: "休閒",
+            size: "M",
+            brand: "",
+          };
+        }
+      });
       setForms(initForms);
     } else if (st?.file) {
       setFiles([st.file]);
@@ -82,6 +125,22 @@ export default function Upload({ theme, setTheme }) {
     // 從前一頁（UploadEdit）傳來的狀態來設定 Checkbox
     if (typeof st?.removeBg === "boolean") setRemoveBg(st.removeBg);
     if (typeof st?.aiDetect === "boolean") setAiDetect(st.aiDetect);
+    
+    // 如果有 AI 結果，顯示提示（只顯示一次）
+    if (st?.aiResults && Array.isArray(st.aiResults) && !hasShownToast) {
+      const successCount = st.aiResults.filter(r => r !== null).length;
+      if (successCount > 0) {
+        // 延遲顯示 toast，確保頁面已完全載入
+        setTimeout(() => {
+          addToast({ 
+            type: 'info', 
+            title: 'AI 辨識完成', 
+            message: `已自動填入 ${successCount} 件衣物的 AI 建議資料，您可以修改後再上傳`
+          });
+          setHasShownToast(true); // 標記已顯示
+        }, 300);
+      }
+    }
   }, [location.state]);
 
   function handleFileChange(e) {
@@ -131,19 +190,15 @@ export default function Upload({ theme, setTheme }) {
     fd.append("category", form.category || "上衣");
     fd.append("color", form.color || "");
     
-    // 驗證 style，避免送出後端 enum 無效值
-    let validatedStyle = (form.style || "").trim();
-    if (!validatedStyle) validatedStyle = "休閒";
-    if (!ALLOWED_STYLES.includes(validatedStyle)) {
-      validatedStyle = "其他";
-    }
+    // style 不受限制，直接使用使用者輸入的值
+    const styleValue = (form.style || "").trim();
     
     const tagsArr = [];
-    if (validatedStyle) tagsArr.push(validatedStyle);
+    if (styleValue) tagsArr.push(styleValue);
     if (form.brand) tagsArr.push(form.brand);
     
-    // 將 validatedStyle 明確加入 form data，後端會直接使用此欄位
-    fd.append("style", validatedStyle);
+    // 將 style 直接加入 form data
+    fd.append("style", styleValue);
     fd.append("tags", JSON.stringify(tagsArr));
     
     // 將 material, size, brand 放入 attributes 欄位

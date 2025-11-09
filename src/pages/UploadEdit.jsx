@@ -31,6 +31,8 @@ export default function UploadEdit({ theme, setTheme }) {
   const [primaryIndex, setPrimaryIndex] = useState(0);
   const [removeBg, setRemoveBg] = useState(false); // <- 預設改為 false
   const [aiDetect, setAiDetect] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiResults, setAiResults] = useState([]); // 儲存每張圖片的 AI 辨識結果
 
   const [rotateArr, setRotateArr] = useState([]);
   const [fitArr, setFitArr] = useState([]);
@@ -138,10 +140,74 @@ export default function UploadEdit({ theme, setTheme }) {
     setZoomArr(Array(n).fill(1));
     setCroppedAreaPixelsArr(Array(n).fill(null));
     setMediaSizeArr(Array(n).fill({ width: 0, height: 0 }));
+    setAiResults(Array(n).fill(null)); // 初始化 AI 結果陣列
     setCurrentIndex(0);
     setPrimaryIndex(0);
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [srcFiles]);
+
+  // AI 辨識功能
+  async function handleAIAnalyze() {
+    if (!srcFiles.length) {
+      addToast({ type: 'warning', title: '沒有圖片', message: '請先選擇圖片' });
+      return;
+    }
+
+    setAnalyzing(true);
+    const token = localStorage.getItem('token');
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+
+    try {
+      const results = [];
+      
+      // 批次辨識所有圖片
+      for (let i = 0; i < srcFiles.length; i++) {
+        const formData = new FormData();
+        formData.append('file', srcFiles[i]);
+
+        const response = await fetch(`${API_BASE}/ai/clothing`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          results.push(result.success ? result.analysis : null);
+        } else {
+          results.push(null);
+        }
+      }
+
+      setAiResults(results);
+      
+      const successCount = results.filter(r => r !== null).length;
+      if (successCount > 0) {
+        addToast({ 
+          type: 'success', 
+          title: 'AI 辨識完成', 
+          message: `成功辨識 ${successCount} 張圖片，將在下一步自動填入資料` 
+        });
+      } else {
+        addToast({ 
+          type: 'warning', 
+          title: 'AI 辨識失敗', 
+          message: '所有圖片辨識失敗，請手動填寫資料' 
+        });
+      }
+    } catch (error) {
+      console.error('AI 辨識錯誤:', error);
+      addToast({ 
+        type: 'error', 
+        title: 'AI 辨識失敗', 
+        message: '發生錯誤，請稍後再試' 
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   async function handleNext() {
     const editedFiles = [];
@@ -181,7 +247,8 @@ export default function UploadEdit({ theme, setTheme }) {
     const file = new File([blob], `${baseName}${ext}`, { type: "image/jpeg" });
       editedFiles.push(file);
     }
-    navigate("/upload", { state: { files: editedFiles, originalFiles: srcFiles, primaryIndex, removeBg, aiDetect } });
+    
+    navigate("/upload", { state: { files: editedFiles, originalFiles: srcFiles, primaryIndex, removeBg, aiDetect, aiResults } });
   }
 
   return (
@@ -276,11 +343,25 @@ export default function UploadEdit({ theme, setTheme }) {
 
                     <div className="flex items-center gap-3">
                       <label className="inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                        <input type="checkbox" checked={aiDetect} onChange={(e) => setAiDetect(e.target.checked)} className="form-checkbox" />
-                        <span className="select-none text-sm">AI 辨識</span>
+                        <input 
+                          type="checkbox" 
+                          checked={aiDetect} 
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAiDetect(checked);
+                            if (checked) {
+                              handleAIAnalyze();
+                            }
+                          }} 
+                          disabled={analyzing}
+                          className="form-checkbox" 
+                        />
+                        <span className="select-none text-sm">
+                          {analyzing ? 'AI 辨識中...' : 'AI 辨識'}
+                        </span>
                       </label>
                       <button type="button" aria-label="AI 說明" title="AI 說明"
-                        onClick={() => addToast({ type: 'info', title: 'AI 辨識說明', message: '使用 AI 辨識可幫你自動判斷衣物類別、顏色與風格，加速標註流程。' })}
+                        onClick={() => addToast({ type: 'info', title: 'AI 辨識說明', message: '勾選後會立即使用 AI 辨識所有圖片的類別、顏色、材質等資訊，並在下一步自動填入表單。' })}
                         className="p-1.5 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
                         <Icon path={mdiInformationSlabCircleOutline} size={0.8} />
                       </button>
