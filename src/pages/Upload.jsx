@@ -60,8 +60,15 @@ export default function Upload({ theme, setTheme }) {
         setAiResults(st.aiResults);
       }
       
-      // 根據 AI 結果初始化表單
+      // 根據 AI 結果或之前保存的表單資料初始化表單
       const initForms = st.files.map((file, index) => {
+        // 優先使用之前保存的表單資料（從上一頁返回時）
+        const savedForm = st?.savedForms?.[index];
+        if (savedForm) {
+          return savedForm;
+        }
+        
+        // 否則使用 AI 辨識結果
         const aiResult = st?.aiResults?.[index];
         
         // 類別對照表（英文 -> 中文）
@@ -87,20 +94,20 @@ export default function Upload({ theme, setTheme }) {
             name: "",
             category: categoryMap[aiResult.category] || "上衣",
             color: aiResult.colors?.[0] || "",
-            material: aiResult.material || "棉",
-            style: aiResult.style || "休閒",
-            size: aiResult.size || "M",
+            material: aiResult.material || "",
+            style: aiResult.style || "",
+            size: aiResult.size || "",
             brand: "",
           };
         } else {
-          // 沒有 AI 結果，使用預設值
+          // 沒有 AI 結果，不使用預設值
           return {
             name: "",
             category: "上衣",
             color: "",
-            material: "棉",
-            style: "休閒",
-            size: "M",
+            material: "",
+            style: "",
+            size: "",
             brand: "",
           };
         }
@@ -115,9 +122,9 @@ export default function Upload({ theme, setTheme }) {
           name: "",
           category: "上衣",
           color: "",
-          material: "棉",
-          style: "休閒",
-          size: "M",
+          material: "",
+          style: "",
+          size: "",
           brand: "",
         },
       ]);
@@ -159,9 +166,9 @@ export default function Upload({ theme, setTheme }) {
         name: "",
         category: "上衣",
         color: "",
-        material: "棉",
-        style: "休閒",
-        size: "M",
+        material: "",
+        style: "",
+        size: "",
         brand: "",
       }));
       return [...prev, ...newForms];
@@ -446,7 +453,16 @@ export default function Upload({ theme, setTheme }) {
                 <div className="p-2 rounded-lg bg-white/5 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => navigate("/upload/edit", { state: { files: originalFiles.length > 0 ? originalFiles : files, primaryIndex, removeBg, aiDetect } })}
+                    onClick={() => navigate("/upload/edit", { 
+                      state: { 
+                        files: originalFiles.length > 0 ? originalFiles : files, 
+                        primaryIndex, 
+                        removeBg, 
+                        aiDetect,
+                        aiResults,
+                        savedForms: forms  // 保存當前的表單資料
+                      } 
+                    })}
                     className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
                     <Icon path={mdiChevronLeft} size={0.9} />

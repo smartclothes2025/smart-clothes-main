@@ -23,6 +23,9 @@ export default function UploadEdit({ theme, setTheme }) {
   const { addToast } = useToast();
   const srcFile = state?.file || null;
   const srcFiles = state?.files || (srcFile ? [srcFile] : []);
+  
+  // 從 Upload 頁面返回時，保存的表單資料
+  const savedForms = state?.savedForms || null;
 
   const imgRef = useRef(null);
   const cropWrapRef = useRef(null);
@@ -248,7 +251,17 @@ export default function UploadEdit({ theme, setTheme }) {
       editedFiles.push(file);
     }
     
-    navigate("/upload", { state: { files: editedFiles, originalFiles: srcFiles, primaryIndex, removeBg, aiDetect, aiResults } });
+    navigate("/upload", { 
+      state: { 
+        files: editedFiles, 
+        originalFiles: srcFiles, 
+        primaryIndex, 
+        removeBg, 
+        aiDetect, 
+        aiResults,
+        savedForms: savedForms  // 傳遞保存的表單資料
+      } 
+    });
   }
 
   return (
