@@ -7,6 +7,7 @@ import { Cog6ToothIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import PostCard from "../components/PostCard";
 import StyledButton from "../components/ui/StyledButton";
 import EditProfileModal from "./EditProfileModal";
+import PostDetailModal from "../components/PostDetailModal";
 import { useToast } from "../components/ToastProvider";
 
 // ✅ 後端 API 基底網址（從 .env 讀，沒讀到就用本機）
@@ -145,6 +146,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState(null);
 
   // ✅ 我的貼文列表（hooks 一律放在元件裡）
   const [posts, setPosts] = useState([]);
@@ -299,11 +301,14 @@ useEffect(() => {
   };
 
   fetchPosts();
-  const h = () => fetchPosts();
-  window.addEventListener("post-created", h);
+  const handlePostCreated = () => fetchPosts();
+  const handlePostDeleted = () => fetchPosts();
+  window.addEventListener("post-created", handlePostCreated);
+  window.addEventListener("post-deleted", handlePostDeleted);
   return () => {
     controller.abort();
-    window.removeEventListener("post-created", h);
+    window.removeEventListener("post-created", handlePostCreated);
+    window.removeEventListener("post-deleted", handlePostDeleted);
   };
 }, []);
 
@@ -374,7 +379,7 @@ useEffect(() => {
       );
 
       setIsModalOpen(false);
-      toast.addToast && toast.addToast({ type: "success", title: "修改成功" });
+      toast.addToast && toast.addToast({ type: "success", title: "個人資料修改成功" });
       window.dispatchEvent(new CustomEvent("user-profile-updated", { detail: saved }));
     } catch (err) {
       console.error("儲存個人檔案失敗:", err);
@@ -415,7 +420,11 @@ useEffect(() => {
                     if (!f) return;
                     const token = localStorage.getItem("token");
                     if (!token) {
-                      alert("請先登入");
+                      toast.addToast && toast.addToast({ 
+                        type: "warning", 
+                        title: "請先登入",
+                        message: "需要登入才能上傳頭貼"
+                      });
                       return;
                     }
                     setUploading(true);
@@ -432,9 +441,7 @@ useEffect(() => {
                         throw new Error(err?.detail || `上傳失敗 (status ${resp.status})`);
                       }
                       const uploaded = await resp.json();
-                      
-                      // ✅ Bucket 已設為公開，優先使用 gcs_uri 產生公開 URL
-                      // 避免使用後端返回的簽名 URL（帶有 X-Goog-Signature 等參數）
+
                       const rawUrl = uploaded.gcs_uri || uploaded.image_url || uploaded.authenticated_url || null;
                       const imageUrl = resolveGcsUrl(rawUrl);
                       
@@ -451,10 +458,23 @@ useEffect(() => {
                         window.dispatchEvent(
                           new CustomEvent("user-profile-updated", { detail: { picture: bustUrl } })
                         );
+                        
+                        // 顯示成功通知
+                        toast.addToast && toast.addToast({ 
+                          type: "success", 
+                          title: "頭貼上傳成功",
+                          message: "個人頭像已更新",
+                          autoDismiss: 2000
+                        });
                       }
                     } catch (err) {
                       console.error("上傳頭貼失敗", err);
-                      alert(err?.message || "上傳頭貼失敗");
+                      toast.addToast && toast.addToast({ 
+                        type: "error", 
+                        title: "上傳失敗",
+                        message: err?.message || "上傳頭貼失敗，請稍後再試",
+                        autoDismiss: 4000
+                      });
                     } finally {
                       setUploading(false);
                       e.target.value = "";
@@ -566,7 +586,7 @@ useEffect(() => {
                             imageUrl={url}
                             alt={p.title || "貼文"}
                             likes={p.like_count ?? 0}
-                            to={`/posts/${p.id}`}        // ← 新增：點卡片可進詳情
+                            onClick={() => setSelectedPostId(p.id)}
                           />
                         );
                       })}
@@ -582,6 +602,10 @@ useEffect(() => {
 
       {isModalOpen && (
         <EditProfileModal user={user} onClose={() => setIsModalOpen(false)} onSave={handleSaveProfile} />
+      )}
+      
+      {selectedPostId && (
+        <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} />
       )}
     </Layout>
   );

@@ -1,6 +1,7 @@
 // src/components/HomePost.jsx
 import React, { useEffect, useState } from "react";
 import PostCard from "./PostCard";
+import PostDetailModal from "./PostDetailModal";
 
 // ✅ 後端 API 基底網址
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
@@ -91,6 +92,7 @@ export default function HomePost() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -318,19 +320,27 @@ export default function HomePost() {
       fetchPublicPosts();
     }
 
-    // 監聽新貼文事件
+    // 監聽新貼文事件和刪除事件
     const handlePostCreated = () => {
       if (!searchQuery) {
         fetchPublicPosts();
       }
     };
     
+    const handlePostDeleted = () => {
+      if (!searchQuery) {
+        fetchPublicPosts();
+      }
+    };
+    
     window.addEventListener("post-created", handlePostCreated);
+    window.addEventListener("post-deleted", handlePostDeleted);
     window.addEventListener("search-posts", handleSearchPosts);
 
     return () => {
       controller.abort();
       window.removeEventListener("post-created", handlePostCreated);
+      window.removeEventListener("post-deleted", handlePostDeleted);
       window.removeEventListener("search-posts", handleSearchPosts);
     };
   }, []);
@@ -385,11 +395,15 @@ export default function HomePost() {
               imageUrl={coverUrl}
               alt={post.title || "貼文"}
               likes={post.like_count ?? 0}
-              to={`/posts/${post.id}`}
+              onClick={() => setSelectedPostId(post.id)}
             />
           );
         })}
       </div>
+      
+      {selectedPostId && (
+        <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} />
+      )}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Layout from '../components/Layout'; // 假設您的 Layout 在 components/
 import {
     BellIcon,
@@ -86,6 +86,20 @@ export default function Notice() {
     const [notifications, setNotifications] = useState(() => loadLocalNotifications());
     const [filter, setFilter] = useState('all'); // 'all' 或 'unread'
     const [loading, setLoading] = useState(false);
+
+    // 監聽新通知事件
+    useEffect(() => {
+        const handleNotificationAdded = () => {
+            // 重新載入通知列表
+            setNotifications(loadLocalNotifications());
+        };
+
+        window.addEventListener('notification-added', handleNotificationAdded);
+        
+        return () => {
+            window.removeEventListener('notification-added', handleNotificationAdded);
+        };
+    }, []);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 

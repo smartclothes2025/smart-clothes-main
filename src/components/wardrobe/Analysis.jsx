@@ -110,14 +110,14 @@ function analyseBodyShape(metrics) {
         return {
             type: result.type,
             details: result.info,
-            analysisModel: '女性身體比例模型 (沙漏、梨型等)',
+            analysisModel: '女性身體比例模型 ',
         };
     } else if (sex === '男') {
         const result = getMaleBodyType(metrics);
         return {
             type: result.type,
             details: result.info,
-            analysisModel: '男性身體比例模型 (倒三角、矩形等)',
+            analysisModel: '男性身體比例模型 ',
         };
     }
     return {
@@ -357,8 +357,8 @@ const BodyMetrics = () => {
         {/* ➌ 性別與分析結果區塊 (版面調整重點) */}
         <div className="p-4 rounded-xl border-2 border-indigo-200 bg-indigo-50/50">
           <div className="flex justify-between items-center mb-4">
-            <div className="text-lg font-bold text-indigo-800">身形分析結果</div>
-            <div className="text-sm text-gray-500">模型：{analysisResult.analysisModel}</div>
+            <div className="text-lg font-bold text-indigo-800">分析結果</div>
+            <div className="text-sm text-gray-500">{analysisResult.analysisModel}</div>
           </div>
 
           <div className="flex items-center justify-between mb-3 border-b border-indigo-200 pb-2">

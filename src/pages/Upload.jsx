@@ -133,21 +133,7 @@ export default function Upload({ theme, setTheme }) {
     if (typeof st?.removeBg === "boolean") setRemoveBg(st.removeBg);
     if (typeof st?.aiDetect === "boolean") setAiDetect(st.aiDetect);
     
-    // 如果有 AI 結果，顯示提示（只顯示一次）
-    if (st?.aiResults && Array.isArray(st.aiResults) && !hasShownToast) {
-      const successCount = st.aiResults.filter(r => r !== null).length;
-      if (successCount > 0) {
-        // 延遲顯示 toast，確保頁面已完全載入
-        setTimeout(() => {
-          addToast({ 
-            type: 'info', 
-            title: 'AI 辨識完成', 
-            message: `已自動填入 ${successCount} 件衣物的 AI 建議資料，您可以修改後再上傳`
-          });
-          setHasShownToast(true); // 標記已顯示
-        }, 300);
-      }
-    }
+    // AI 辨識完成的通知已在 UploadEdit.jsx 中顯示，這裡不再重複顯示
   }, [location.state]);
 
   function handleFileChange(e) {
@@ -272,15 +258,28 @@ export default function Upload({ theme, setTheme }) {
         uploadedItems.push(nameVal);
       }
 
-      // Toast 訊息
-      const toastTitle = "上傳完成";
-      const toastMessage = `成功上傳 ${files.length} 件衣物！`;
+      // Toast 訊息 - 包含衣物名稱
+      let toastTitle = "上傳完成";
+      let toastMessage = "";
       
-      // 顯示 Toast
+      if (uploadedItems.length === 1) {
+        // 單件衣物：顯示衣物名稱
+        toastTitle = `${uploadedItems[0]} 上傳成功`;
+        toastMessage = "已成功加入衣櫃";
+      } else if (uploadedItems.length <= 3) {
+        // 2-3件衣物：列出所有名稱
+        toastTitle = "上傳完成";
+        toastMessage = `${uploadedItems.join('、')} 已成功上傳`;
+      } else {
+        // 多件衣物：列出前3件 + 其他
+        const first3 = uploadedItems.slice(0, 3).join('、');
+        const remaining = uploadedItems.length - 3;
+        toastTitle = "上傳完成";
+        toastMessage = `${first3} 等 ${uploadedItems.length} 件衣物已成功上傳`;
+      }
+      
+      // 顯示 Toast（會自動保存到通知中心）
       addToast({ type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 });
-      
-  // 使用相同內容建立通知（儲存到通知中心 via toast-fired event）
-  window.dispatchEvent(new CustomEvent('toast-fired', { detail: { id: `ui-${Date.now()}`, type: 'success', title: toastTitle, message: toastMessage, autoDismiss: 3000 } }));
 
       navigate("/upload/select");
     } catch (err) {

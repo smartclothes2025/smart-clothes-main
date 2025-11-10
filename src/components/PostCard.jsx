@@ -4,12 +4,16 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import { HeartIcon } from "@heroicons/react/24/outline";
 
-export default function PostCard({ imageUrl, alt = "Post", likes = 0, to }) {
+export default function PostCard({ imageUrl, alt = "Post", likes = 0, to, onClick }) {
   const navigate = useNavigate();
   const src = imageUrl;
 
   function handleClick() {
-    if (to) navigate(to);
+    if (onClick) {
+      onClick();
+    } else if (to) {
+      navigate(to);
+    }
   }
 
   return (
@@ -49,5 +53,6 @@ PostCard.propTypes = {
   imageUrl: PropTypes.string,
   alt: PropTypes.string,
   likes: PropTypes.number,
-  to: PropTypes.string,            // ← 新增：點卡片導向
+  to: PropTypes.string,
+  onClick: PropTypes.func,
 };

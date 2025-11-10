@@ -3,6 +3,45 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 
 const DEFAULT_AUTO_DISMISS = 4200; // 預設自動關閉時間
 const ToastContext = createContext(null);
+const LOCAL_NOTIFICATIONS_KEY = 'local_notifications'; // 與 Notice.jsx 保持一致
+
+// Toast 類型映射到通知類型
+const TOAST_TO_NOTIFICATION_TYPE = {
+  success: 'new_item',
+  error: 'alert',
+  warning: 'alert',
+  info: 'system',
+};
+
+// 保存通知到 localStorage
+function saveToastAsNotification({ id, type, title, message }) {
+  try {
+    const notifications = JSON.parse(localStorage.getItem(LOCAL_NOTIFICATIONS_KEY) || '[]');
+    
+    const notification = {
+      id: `toast-${id}-${Date.now()}`, // 確保唯一性
+      type: TOAST_TO_NOTIFICATION_TYPE[type] || 'system',
+      message: title || message || '通知',
+      details: title ? message : null, // 如果有標題，則 message 作為詳細內容
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      unread: true,
+    };
+    
+    // 新通知添加到列表頂部
+    notifications.unshift(notification);
+    
+    // 限制通知數量（最多保留 100 條）
+    const trimmedNotifications = notifications.slice(0, 100);
+    
+    localStorage.setItem(LOCAL_NOTIFICATIONS_KEY, JSON.stringify(trimmedNotifications));
+    
+    // 觸發事件通知 Notice 頁面更新
+    window.dispatchEvent(new CustomEvent('notification-added', { detail: notification }));
+  } catch (e) {
+    console.warn('Failed to save toast as notification', e);
+  }
+}
 
 // 命名匯出 useToast
 export function useToast() {
@@ -36,6 +75,10 @@ export function ToastProvider({ children }) {
       remainingRef.current[id] = autoDismiss;
       timersRef.current[id] = setTimeout(() => removeToast(id), autoDismiss);
     }
+    
+    // 保存到通知列表（localStorage）
+    saveToastAsNotification({ id, type, title, message });
+    
     // 廣播事件，讓 NotificationProvider 可以將此 toast 同步寫入後端通知
     try {
       window.dispatchEvent(new CustomEvent('toast-fired', { detail: { id, type, title, message, autoDismiss } }));
@@ -185,18 +228,6 @@ function ToastItem({ toast, onRemove, onPause, onResume }) {
           <p className={`mt-1 text-sm ${title ? 'text-zinc-700' : 'text-zinc-900'}`}>{message}</p>
         </div>
         
-        {/* 關閉按鈕 */}
-        <div className="ml-4 flex-shrink-0">
-          <button
-            onClick={() => onRemove(id)}
-            className="inline-flex rounded-md text-zinc-500 hover:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 p-1"
-          >
-            <span className="sr-only">Close</span>
-            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
-          </button>
-        </div>
       </div>
 
       {/* 進度條 (細線條在底部) */}
@@ -215,7 +246,7 @@ function ToastItem({ toast, onRemove, onPause, onResume }) {
 
 function ToastContainer({ toasts = [], removeToast, pauseToast, resumeToast }) {
   return (
-    <div aria-live="assertive" className="pointer-events-none fixed inset-0 flex items-end px-4 py-6 sm:items-start sm:p-6 z-[9999]">
+    <div aria-live="assertive" className="pointer-events-none fixed inset-0 flex items-start px-4 py-6 sm:p-6 z-[9999]">
       <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
         {toasts.map(t => (
           <ToastItem key={t.id} toast={t} onRemove={removeToast} onPause={pauseToast} onResume={resumeToast} />

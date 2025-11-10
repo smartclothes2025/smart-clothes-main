@@ -32,9 +32,10 @@ export default function UploadEdit({ theme, setTheme }) {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [primaryIndex, setPrimaryIndex] = useState(0);
-  const [removeBg, setRemoveBg] = useState(false); // <- 預設改為 false
+  const [removeBg, setRemoveBg] = useState(true); // <- 預設為 true（智慧去背預設開啟）
   const [aiDetect, setAiDetect] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [processing, setProcessing] = useState(false); // 追蹤是否正在處理（AI 辨識或去背）
   const [aiResults, setAiResults] = useState([]); // 儲存每張圖片的 AI 辨識結果
 
   const [rotateArr, setRotateArr] = useState([]);
@@ -143,9 +144,24 @@ export default function UploadEdit({ theme, setTheme }) {
     setZoomArr(Array(n).fill(1));
     setCroppedAreaPixelsArr(Array(n).fill(null));
     setMediaSizeArr(Array(n).fill({ width: 0, height: 0 }));
-    setAiResults(Array(n).fill(null)); // 初始化 AI 結果陣列
+    
+    // 從 state 中恢復 AI 辨識結果（如果有的話）
+    if (state?.aiResults && Array.isArray(state.aiResults)) {
+      setAiResults(state.aiResults);
+    } else {
+      setAiResults(Array(n).fill(null));
+    }
+    
+    // 從 state 中恢復 removeBg 和 aiDetect 狀態
+    if (typeof state?.removeBg === 'boolean') {
+      setRemoveBg(state.removeBg);
+    }
+    if (typeof state?.aiDetect === 'boolean') {
+      setAiDetect(state.aiDetect);
+    }
+    
     setCurrentIndex(0);
-    setPrimaryIndex(0);
+    setPrimaryIndex(state?.primaryIndex ?? 0);
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [srcFiles]);
 
@@ -213,7 +229,84 @@ export default function UploadEdit({ theme, setTheme }) {
   }
 
   async function handleNext() {
+    setProcessing(true); // 開始處理
     const editedFiles = [];
+    let finalAiResults = aiResults; // 保存最終的 AI 辨識結果
+    
+    // 如果勾選了 AI 辨識，先執行 AI 辨識
+    if (aiDetect && aiResults.every(r => r === null)) {
+      addToast({ 
+        type: 'info', 
+        title: 'AI 辨識中', 
+        message: '正在使用 AI 辨識圖片，請稍候...' 
+      });
+      
+      setAnalyzing(true);
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+
+      try {
+        const results = [];
+        
+        // 批次辨識所有圖片
+        for (let i = 0; i < srcFiles.length; i++) {
+          const formData = new FormData();
+          formData.append('file', srcFiles[i]);
+
+          const response = await fetch(`${API_BASE}/ai/clothing`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            results.push(result.success ? result.analysis : null);
+          } else {
+            results.push(null);
+          }
+        }
+
+        setAiResults(results);
+        finalAiResults = results; // 更新局部變數
+        
+        const successCount = results.filter(r => r !== null).length;
+        if (successCount > 0) {
+          addToast({ 
+            type: 'success', 
+            title: 'AI 辨識完成', 
+            message: `成功辨識 ${successCount} 張圖片` 
+          });
+        } else {
+          addToast({ 
+            type: 'warning', 
+            title: 'AI 辨識失敗', 
+            message: '所有圖片辨識失敗，請手動填寫資料' 
+          });
+        }
+      } catch (error) {
+        console.error('AI 辨識錯誤:', error);
+        addToast({ 
+          type: 'error', 
+          title: 'AI 辨識失敗', 
+          message: '發生錯誤，請稍後再試' 
+        });
+      } finally {
+        setAnalyzing(false);
+      }
+    }
+    
+    // 如果勾選了智慧去背，顯示處理中的提示
+    if (removeBg) {
+      addToast({ 
+        type: 'info', 
+        title: '去背處理中', 
+        message: '正在進行智慧去背，請稍候...' 
+      });
+    }
+    
     for (let i = 0; i < srcFiles.length; i++) {
       const pv = previewUrls[i];
       const rot = rotateArr[i] || 0;
@@ -242,14 +335,74 @@ export default function UploadEdit({ theme, setTheme }) {
         removeBg // 當 removeBg 為 true 時，前端輸出 PNG
       );
       if (!blob) continue;
-    const originalName = srcFiles[i].name || '';
-    const baseName = originalName.replace(/\.[^.]+$/, "") || `image_${i + 1}`;
-    const extMatch = originalName.match(/(\.[^.]+$)/);
-    const ext = extMatch ? extMatch[1] : '.jpg';
-    // 不再加上 _edited，保留原始檔名（僅改副檔名為 jpg 如必要）
-    const file = new File([blob], `${baseName}${ext}`, { type: "image/jpeg" });
+      
+      const originalName = srcFiles[i].name || '';
+      const baseName = originalName.replace(/\.[^.]+$/, "") || `image_${i + 1}`;
+      
+      let finalBlob = blob;
+      let finalExt = '.jpg';
+      let finalType = 'image/jpeg';
+      
+      // 如果勾選了智慧去背，呼叫後端 API 進行去背處理
+      if (removeBg) {
+        try {
+          const token = localStorage.getItem('token');
+          const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+          
+          // 建立 FormData 上傳裁切後的圖片
+          const formData = new FormData();
+          const tempFile = new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+          formData.append('file', tempFile);
+          
+          // 呼叫去背 API
+          const response = await fetch(`${API_BASE}/ai/remove-background`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (response.ok) {
+            // 取得去背後的圖片
+            const removedBgBlob = await response.blob();
+            finalBlob = removedBgBlob;
+            finalExt = '.png';
+            finalType = 'image/png';
+            console.log(`第 ${i + 1} 張圖片去背成功`);
+          } else {
+            console.error(`第 ${i + 1} 張圖片去背失敗`);
+            addToast({ 
+              type: 'warning', 
+              title: '去背失敗', 
+              message: `第 ${i + 1} 張圖片去背失敗，將使用原始圖片` 
+            });
+          }
+        } catch (error) {
+          console.error(`第 ${i + 1} 張圖片去背錯誤:`, error);
+          addToast({ 
+            type: 'warning', 
+            title: '去背錯誤', 
+            message: `第 ${i + 1} 張圖片去背錯誤，將使用原始圖片` 
+          });
+        }
+      }
+      
+      // 建立最終的檔案
+      const file = new File([finalBlob], `${baseName}${finalExt}`, { type: finalType });
       editedFiles.push(file);
     }
+    
+    // 如果有進行去背，顯示完成提示
+    if (removeBg) {
+      addToast({ 
+        type: 'success', 
+        title: '去背完成', 
+        message: '智慧去背處理完成！' 
+      });
+    }
+    
+    setProcessing(false); // 處理完成
     
     navigate("/upload", { 
       state: { 
@@ -258,7 +411,7 @@ export default function UploadEdit({ theme, setTheme }) {
         primaryIndex, 
         removeBg, 
         aiDetect, 
-        aiResults,
+        aiResults: finalAiResults, // 使用局部變數確保傳遞最新的 AI 辨識結果
         savedForms: savedForms  // 傳遞保存的表單資料
       } 
     });
@@ -348,7 +501,7 @@ export default function UploadEdit({ theme, setTheme }) {
                         <span className="select-none text-sm">智慧去背</span>
                       </label>
                       <button type="button" aria-label="去背說明" title="去背說明"
-                        onClick={() => addToast({ type: 'info', title: '智慧去背說明', message: '使用去背功能需要較長的處理時間，請耐心等待。' })}
+                        onClick={() => addToast({ type: 'info', title: '智慧去背說明', message: '勾選後，點擊「下一步」時會進行去背處理，需要較長的處理時間，請耐心等待。' })}
                         className="p-1.5 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
                         <Icon path={mdiInformationSlabCircleOutline} size={0.8} />
                       </button>
@@ -359,22 +512,13 @@ export default function UploadEdit({ theme, setTheme }) {
                         <input 
                           type="checkbox" 
                           checked={aiDetect} 
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setAiDetect(checked);
-                            if (checked) {
-                              handleAIAnalyze();
-                            }
-                          }} 
-                          disabled={analyzing}
+                          onChange={(e) => setAiDetect(e.target.checked)} 
                           className="form-checkbox" 
                         />
-                        <span className="select-none text-sm">
-                          {analyzing ? 'AI 辨識中...' : 'AI 辨識'}
-                        </span>
+                        <span className="select-none text-sm">AI 辨識</span>
                       </label>
                       <button type="button" aria-label="AI 說明" title="AI 說明"
-                        onClick={() => addToast({ type: 'info', title: 'AI 辨識說明', message: '勾選後會立即使用 AI 辨識所有圖片的類別、顏色、材質等資訊，並在下一步自動填入表單。' })}
+                        onClick={() => addToast({ type: 'info', title: 'AI 辨識說明', message: '勾選後，點擊「下一步」時會使用 AI 辨識所有圖片的類別、顏色、材質等資訊，並在下一步自動填入表單。' })}
                         className="p-1.5 rounded-full transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400">
                         <Icon path={mdiInformationSlabCircleOutline} size={0.8} />
                       </button>
@@ -415,18 +559,22 @@ export default function UploadEdit({ theme, setTheme }) {
 
                 <div className="p-2 rounded-lg bg-white/5 flex gap-2">
                   <button
-                    className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="flex-1 flex items-center justify-center gap-1.5 border rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => navigate("/upload/select")}
+                    disabled={processing}
                   >
                     <Icon path={mdiChevronLeft} size={0.9} />
                     <span className="whitespace-nowrap text-sm">上一步</span>
                   </button>
                   <button
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-black text-white rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-black text-white rounded-lg py-2.5 transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleNext}
+                    disabled={processing}
                   >
-                    <span className="whitespace-nowrap text-sm">下一步</span>
-                    <Icon path={mdiChevronRight} size={0.9} />
+                    <span className="whitespace-nowrap text-sm">
+                      {processing ? '處理中...' : '下一步'}
+                    </span>
+                    {!processing && <Icon path={mdiChevronRight} size={0.9} />}
                   </button>
                 </div>
               </div>

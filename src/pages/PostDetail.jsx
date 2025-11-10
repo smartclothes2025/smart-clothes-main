@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
@@ -72,6 +72,7 @@ async function resolveMediaArray(mediaArr, token) {
 export default function PostDetail({ theme, setTheme }) {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -214,7 +215,14 @@ export default function PostDetail({ theme, setTheme }) {
             <div className="page-wrapper h-full overflow-y-auto py-8">
                 <br />
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => {
+                        // 如果有歷史記錄，返回上一頁；否則跳轉到 /profile
+                        if (window.history.length > 1 && location.key !== 'default') {
+                            navigate(-1);
+                        } else {
+                            navigate('/profile');
+                        }
+                    }}
                     className="mb-6 flex items-center text-indigo-600 hover:text-indigo-800 font-medium transition"
                 >
                     <svg
