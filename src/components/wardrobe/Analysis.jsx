@@ -165,8 +165,8 @@ const BodyMetrics = () => {
 
         // 假設 sex 從 auth/me 取得 (或另一個 profile API)
         const [r1, r2] = await Promise.all([
-            fetch('http://127.0.0.1:8000/api/v1/auth/me', { headers }).catch(() => null),
-            fetch('http://127.0.0.1:8000/api/v1/me/body_metrics', { headers }).catch(() => null),
+            fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/me', { headers }).catch(() => null),
+            fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/me/body_metrics', { headers }).catch(() => null),
         ]);
 
         let authData = {};
@@ -214,8 +214,8 @@ const BodyMetrics = () => {
       const token = localStorage.getItem('token');
       if (!token) { navigate('/'); return; }
       const [r1, r2] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('http://127.0.0.1:8000/api/v1/me/body_metrics', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/me/body_metrics', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
       ]);
       let auth = {}; if (r1 && r1.ok) auth = await r1.json().catch(() => ({}));
       let bm = {}; if (r2 && r2.ok) bm = await r2.json().catch(() => ({}));
@@ -261,7 +261,7 @@ const BodyMetrics = () => {
         sex: updatedData.sex || null, // 將性別加入 body_metrics
       };
 
-      const resMetrics = await fetch('http://127.0.0.1:8000/api/v1/me/body_metrics', {
+      const resMetrics = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/me/body_metrics', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(bodyMetricsPayload),

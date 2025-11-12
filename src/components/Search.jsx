@@ -55,7 +55,7 @@ const App = () => {
   const [searchType, setSearchType] = useState('external'); // 'external' 或 'internal'
 
   // [API 端點] 後端 API 基底網址
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+  const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
   // [API 端點] 全站搜尋 API 端點
   const API_ENDPOINT_INTERNAL = `${API_BASE}/search/posts`;
 

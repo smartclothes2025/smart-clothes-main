@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const API_TARGET = 'http://localhost:8000'
+  const API_TARGET = 'https://cometical-kyphotic-deborah.ngrok-free.dev'
 
   console.log('🔧 Vite Proxy Config:')
   console.log('  API_TARGET:', API_TARGET)
@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       allowedHosts: [
-        'cometical-kyphotic-deborah.ngrok-free.dev' // ✅ 加這行
+        'smartcloset.ngrok.dev' // ✅ 加這行
       ],
       proxy: {
         '/api': {

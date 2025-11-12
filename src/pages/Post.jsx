@@ -13,7 +13,7 @@ import {
 import { useToast } from "../components/ToastProvider";
 
 // 後端 API 基底網址（.env 沒設就 fallback 本機）
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 function getToken() {
   return localStorage.getItem("token") || "";

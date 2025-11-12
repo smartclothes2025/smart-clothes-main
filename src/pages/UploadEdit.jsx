@@ -174,7 +174,7 @@ export default function UploadEdit({ theme, setTheme }) {
 
     setAnalyzing(true);
     const token = localStorage.getItem('token');
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+    const API_BASE = import.meta.env.VITE_API_BASE || 'https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1';
 
     try {
       const results = [];
@@ -243,7 +243,7 @@ export default function UploadEdit({ theme, setTheme }) {
       
       setAnalyzing(true);
       const token = localStorage.getItem('token');
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+      const API_BASE = import.meta.env.VITE_API_BASE || 'https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1';
 
       try {
         const results = [];
@@ -347,7 +347,7 @@ export default function UploadEdit({ theme, setTheme }) {
       if (removeBg) {
         try {
           const token = localStorage.getItem('token');
-          const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+          const API_BASE = import.meta.env.VITE_API_BASE || 'https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1';
           
           // 建立 FormData 上傳裁切後的圖片
           const formData = new FormData();

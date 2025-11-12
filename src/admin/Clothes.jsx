@@ -10,7 +10,7 @@ import AskModal from "../components/AskModal";
 export default function AdminClothes() {
   const [users, setUsers] = useState([]);
   const [usersMap, setUsersMap] = useState({});
-  const API_BASE = import.meta.env.VITE_API_BASE || ""; // e.g. http://127.0.0.1:8000/api/v1
+  const API_BASE = import.meta.env.VITE_API_BASE || ""; // e.g. https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1
   const SERVER_ORIGIN = useMemo(
     () => (API_BASE || "").replace(/\/api\/v1\/?$/, ""),
     [API_BASE]

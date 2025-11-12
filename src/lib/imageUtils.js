@@ -1,6 +1,6 @@
 // src/lib/imageUtils.js
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 /**
  * 取得簽名的 GCS URL（用於私有儲存桶）

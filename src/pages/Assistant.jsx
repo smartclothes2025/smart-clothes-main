@@ -113,7 +113,7 @@ export default function Assistant({ theme, setTheme }) {
         throw new Error("未找到登入 Token，請先登入");
       }
 
-      const res = await fetch("http://127.0.0.1:8000/api/v1/chat/", {
+      const res = await fetch("https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/chat/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -415,7 +415,7 @@ Assistant.propTypes = {
 //     setIsTyping(true);
 
 //     try {
-//       const res = await fetch("http://127.0.0.1:8000/api/v1/chat/", {
+//       const res = await fetch("https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/chat/", {
 //         method: "POST",
 //         headers: { "Content-Type": "application/json" },
 //         body: JSON.stringify({ user_input: txt }),

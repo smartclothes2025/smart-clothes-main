@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 
-const API_BASE = import.meta.env?.VITE_API_BASE || "http://127.0.0.1:8000";
+const API_BASE = import.meta.env?.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev";
 
 export default function VirtualFitting({ theme, setTheme }) {
   const navigate = useNavigate();

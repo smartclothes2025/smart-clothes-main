@@ -96,7 +96,7 @@ const LoginPage = ({ onLogin }) => {
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
       const idToken = await userCredential.user.getIdToken(true);
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+      const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ const LoginPage = ({ onLogin }) => {
 
     // fallback: 後端直接驗證
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+      const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email: username, password }),
@@ -206,11 +206,11 @@ const LoginPage = ({ onLogin }) => {
     setSubmitting(true);
     try {
       await new Promise((r) => setTimeout(r, 200));
-      // 使用真實的測試使用者 ID
-      const testUserId = '9c33c7e9-ce22-4c4d-b385-15504ef368da';
+      // 使用獨立的訪客測試帳號 ID（不與真實帳號衝突）
+      const testUserId = 'guest-00000000-0000-0000-0000-000000000001';
       const fake = {
-        token: `user-${testUserId}-token`,
-        user: { id: testUserId, name: '測試使用者', email: 'test@local', role: 'user' },
+        token: `guest-token-${Date.now()}`,
+        user: { id: testUserId, name: '訪客使用者', email: 'guest@local', role: 'user' },
       };
       if (onLogin) onLogin({ token: fake.token, user: fake.user });
       try {

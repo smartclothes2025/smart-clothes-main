@@ -4,7 +4,7 @@ import PostCard from "./PostCard";
 import PostDetailModal from "./PostDetailModal";
 
 // ✅ 後端 API 基底網址
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 /** 將 gs:// 轉為可瀏覽的網址 */
 function resolveGcsUrl(gsOrHttp) {

@@ -11,7 +11,7 @@ import PostDetailModal from "../components/PostDetailModal";
 import { useToast } from "../components/ToastProvider";
 
 // ✅ 後端 API 基底網址（從 .env 讀，沒讀到就用本機）
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 /** 將 gs:// 轉為可瀏覽的網址（若已是 http/https 直接回傳） */
 function resolveGcsUrl(gsOrHttp) {

@@ -3,7 +3,7 @@ import { X, Trash2, Edit3, UserPlus, UserCheck } from 'lucide-react';
 import AskModal from './AskModal';
 import { useToast } from './ToastProvider';
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 function resolveGcsUrl(gsOrHttp) {
     if (!gsOrHttp) return null;

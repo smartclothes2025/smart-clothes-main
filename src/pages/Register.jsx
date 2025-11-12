@@ -62,7 +62,7 @@ const RegisterPage = () => {
       body.append('password', password);
       body.append('display_name', displayName);
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
+      const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),

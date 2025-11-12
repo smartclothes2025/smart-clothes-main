@@ -25,7 +25,7 @@ export default function AdminUsers() {
   const [askOpen, setAskOpen] = useState(false);
   const [askTargetId, setAskTargetId] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || ""; // 例如 http://localhost:8000/api/v1
+  const API_BASE = import.meta.env.VITE_API_BASE || ""; // 例如 https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1
 
   useEffect(() => {
     fetchUsers();
