@@ -1,6 +1,5 @@
 import WeatherCard from "../components/WeatherCard";
 import RecommendInactive from "../components/RecommendInactive";
-import DesktopRightPanel from "../components/DesktopRightPanel";
 import Search from "../components/Search";
 import Layout from "../components/Layout";
 import HomePost from "../components/HomePost";
@@ -23,9 +22,6 @@ export default function Home({ theme, setTheme }) {
             </section>
           </main>
         </div>
-        {/* <div className="fixed top-16 right-3 hidden lg:block w-65">
-          <DesktopRightPanel />
-        </div> */}
       </div>
     </Layout>
   );

@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
-// [修正] 移除對外部套件的依賴，使用自定義 SVG
-// import { mdiLoading } from '@mdi/js'; 
-// import Icon from '@mdi/react'; 
 
-// Mock variables (保持一致性)
 const __app_id = 'clothing-search-app';
 const __firebase_config = '{}';
 const __initial_auth_token = 'mock-token';
 
-// SearchIcon 元件 (保留您原本的 SVG 結構)
 const SearchIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -28,7 +23,6 @@ const SearchIcon = () => (
   </svg>
 );
 
-// [新增] 簡單的 Loading Icon 元件 (使用 SVG 實現)
 const LoadingIcon = ({ size = 2, className = "text-indigo-500" }) => (
   <svg
     className={`animate-spin ${className}`}
@@ -44,39 +38,32 @@ const LoadingIcon = ({ size = 2, className = "text-indigo-500" }) => (
 
 const App = () => {
   const [query, setQuery] = useState(() => {
-    // 從 sessionStorage 恢復搜尋關鍵字
     try {
       return sessionStorage.getItem('homepost_search_query') || "";
     } catch {
       return "";
     }
   });
-  // [保留] 搜尋類型狀態
   const [searchType, setSearchType] = useState('external'); // 'external' 或 'internal'
 
-  // [API 端點] 後端 API 基底網址
   const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
-  // [API 端點] 全站搜尋 API 端點
   const API_ENDPOINT_INTERNAL = `${API_BASE}/search/posts`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
-      // 清空搜尋，顯示所有公開貼文
       handleClearSearch();
       return;
     }
 
-    // --- 模式一：Google 搜尋 (直接導向新標籤) ---
     if (searchType === 'external') {
       const encodedQuery = encodeURIComponent(trimmedQuery);
-      const googleUrl = `https://www.google.com/search?q=${encodedQuery}&tbm=isch&hl=zh-TW&gl=tw`;
+      const googleUrl = `https://www.pinterest.com/search/pins/?q=${encodedQuery}&rs=rs&source_id=rs_AtBIBlhK&eq=&etslf=7336`;
       window.open(googleUrl, '_blank');
       return;
     }
 
-    // --- 模式二：全站搜尋 (更新 HomePost 顯示) ---
     try {
       // 發送載入中事件
       window.dispatchEvent(new CustomEvent('search-posts', { detail: { query: trimmedQuery, loading: true } }));
@@ -91,8 +78,7 @@ const App = () => {
       });
 
       const posts = response.data.results || [];
-      
-      // 發送搜尋結果事件
+
       window.dispatchEvent(new CustomEvent('search-posts', { 
         detail: { 
           query: trimmedQuery, 
@@ -120,7 +106,6 @@ const App = () => {
     window.dispatchEvent(new CustomEvent('search-posts', { detail: { query: '', results: null } }));
   };
 
-  // [保留] 需求 3：切換按鈕的元件
   const SearchTypeToggle = () => (
     <div className="flex justify-center mt-3 mb-1">
       <div className="flex p-1 bg-slate-100 rounded-full">
@@ -132,7 +117,7 @@ const App = () => {
             : 'text-slate-500 hover:text-slate-800'
             } transition-all`}
         >
-          Google 搜尋
+          pinterest搜尋
         </button>
         <button
           type="button"
@@ -158,7 +143,7 @@ const App = () => {
             </div>
             <input
               type="text"
-              placeholder={searchType === 'external' ? '搜尋 Google 穿搭靈感' : '搜尋站內貼文'}
+              placeholder={searchType === 'external' ? '搜尋穿搭靈感' : '搜尋站內貼文'}
               className="w-full bg-transparent text-xl font-medium text-black placeholder-black focus:outline-none"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
