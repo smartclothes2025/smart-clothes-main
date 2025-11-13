@@ -61,6 +61,12 @@
   box-sizing: border-box;
   width: 100%;
 }
+
+.assistant-page {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
 /* 內容頁調整(桌機)*/
 @media (min-width: 1024px) {
   .page-wrapper {
@@ -73,8 +79,18 @@
 
   /* optional: 如果你想 bottom-nav 在桌面也避開左側 */
   .bottom-nav { left: calc(var(--left-sidebar-w) + var(--gutter)); }
-}
 
+  .assistant-page {
+    width: calc(100% - var(--left-sidebar-w));
+    margin-left: var(--left-sidebar-w);
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .assistant-page .assistant-card {
+    width: 100%;
+  }
+}
 
 /* home-grid: single column on mobile, two-column on lg+ */
 .home-grid { display: block; gap: var(--gap); }

@@ -9,7 +9,7 @@ export default function BottomNav() {
     <>
       {/* Mobile bottom nav - hidden on lg+ */}
       <nav
-        className="fixed left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 lg:hidden"
+        className="layout-bottom-nav fixed left-4 right-4 bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-lg z-40 lg:hidden"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.5rem)" }}
       >
         <div className="max-w-3xl mx-auto flex justify-between items-center px-6 py-3">

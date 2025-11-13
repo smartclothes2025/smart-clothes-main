@@ -8,19 +8,14 @@ import {
   MicrophoneIcon,
   ArrowUpCircleIcon,
   Cog6ToothIcon,
-  BellIcon,
-  ClockIcon,
 } from "@heroicons/react/24/outline";
 
-/* =========================
-   設定區
-========================= */
-// 儲存聊天紀錄的 key（有變更資料結構時記得+1）
 const STORAGE_KEY = "assistant:messages:v3";
 
-// 卡片高度額外縮減（越大=越矮）
-const SHRINK_PX_DESKTOP = 140;
-const SHRINK_PX_MOBILE = 120;
+// 【修正 1】：大幅減少桌面版卡片高度縮減值，僅保留少量 padding 空間
+// 目的：讓桌面版卡片盡可能高，只保留 Layout 上下邊距需要的空間。
+const SHRINK_PX_DESKTOP = 20; // 從 140 減到 20
+const SHRINK_PX_MOBILE = 50;
 
 // API 基底：優先吃 .env 的 VITE_API_BASE，否則用 ngrok 後備
 const API_BASE =
@@ -30,10 +25,7 @@ const API_BASE =
 function getToken() {
   return localStorage.getItem("token") || "";
 }
-
-/* =========================
-   序列化工具（localStorage 用）
-========================= */
+// ... (packMessages, restoreMessages 保持不變) ...
 function packMessages(msgs) {
   return msgs.map((m) => {
     if (m.kind === "image") {
@@ -59,9 +51,6 @@ function restoreMessages() {
   }
 }
 
-/* =========================
-   主元件
-========================= */
 export default function Assistant({ theme, setTheme }) {
   const restored = restoreMessages();
   const [messages, setMessages] = useState(
@@ -91,19 +80,30 @@ export default function Assistant({ theme, setTheme }) {
       parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
 
+    // 抓取 header
     const headerEl = document.querySelector("header");
     const headerH = headerEl
       ? headerEl.getBoundingClientRect().height
       : 4 * rootFontSize;
+    
+    // 抓取 Layout 底部導航欄
+    const layoutBottomNav = document.querySelector(".layout-bottom-nav"); 
+    const bottomNavH = layoutBottomNav 
+      ? layoutBottomNav.getBoundingClientRect().height 
+      : 4 * rootFontSize; // 預設底部導航欄高度
+    
 
-    const mobileExtraPx = 10 * rootFontSize;
+    // 行動版需要額外扣除底部導航欄高度
+    const mobileExtraPx = isMobile ? bottomNavH : 0; 
     const vh = window.innerHeight;
 
-    const base = isMobile
-      ? Math.floor(vh - mobileExtraPx) - SHRINK_PX_MOBILE
-      : Math.floor(vh - headerH) - SHRINK_PX_DESKTOP;
+    const shrinkPx = isMobile ? SHRINK_PX_MOBILE : SHRINK_PX_DESKTOP;
+    
+    // 計算最終高度
+    const base = Math.floor(vh - headerH - mobileExtraPx) - shrinkPx;
 
-    return Math.max(isMobile ? 220 : 300, base);
+    // 【修改 1 續】：讓卡片盡可能貼合底部
+    return Math.max(isMobile ? 180 : 300, base);
   }
   useEffect(() => {
     const update = () => setCardHeightPx(computeCardHeightPx());
@@ -116,10 +116,19 @@ export default function Assistant({ theme, setTheme }) {
       ro = new ResizeObserver(() => update());
       ro.observe(headerEl);
     }
+    // 監聽底部導航欄，如果存在
+    const layoutBottomNav = document.querySelector(".layout-bottom-nav");
+    let roBottom;
+    if (layoutBottomNav && typeof ResizeObserver !== "undefined") {
+        roBottom = new ResizeObserver(() => update());
+        roBottom.observe(layoutBottomNav);
+    }
+
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
       if (ro && headerEl) ro.disconnect();
+      if (roBottom && layoutBottomNav) roBottom.disconnect();
     };
   }, []);
 
@@ -137,7 +146,7 @@ export default function Assistant({ theme, setTheme }) {
     const el = scrollRef.current;
     if (!el) return;
     const id = requestAnimationFrame(() =>
-      el.scrollTo({ top: el.scrollHeight, behavior: "auto" })
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }) 
     );
     return () => cancelAnimationFrame(id);
   }, [messages, isTyping]);
@@ -226,6 +235,13 @@ export default function Assistant({ theme, setTheme }) {
     }
   }
 
+  function handleFileChange(e) {
+    const list = Array.from(e.target.files || []);
+    const imgs = list.filter((f) => f.type?.startsWith("image/"));
+    if (!imgs.length) return;
+    // 這裡只是個示範，實際應用中應處理圖片上傳邏輯
+  }
+
   const quickPrompts = [
     "推薦今日穿搭",
     "正式場合穿搭建議",
@@ -243,31 +259,16 @@ export default function Assistant({ theme, setTheme }) {
         @keyframes typing{0%{transform:translateY(0)}50%{transform:translateY(-4px);opacity:1}100%{transform:translateY(0)}}
       `}</style>
 
-      <div className="page-wrapper">
-        <div className="max-w-5xl mx-auto mt-2 px-2 md:px-0">
-          {/* 頂部列 */}
-          <header className="flex items-center justify-between bg-white/70 backdrop-blur rounded-xl px-4 py-3 shadow-sm mb-2">
-            <div className="flex items-center gap-2 text-slate-800">
-              <span className="text-xl">🧥</span>
-              <h1 className="font-semibold">穿搭小助手</h1>
-              <span className="ml-2 text-xs text-slate-500 hidden sm:block">
-                Beta
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-600">
-              <ClockIcon className="w-5 h-5" />
-              <BellIcon className="w-5 h-5" />
-              <Cog6ToothIcon className="w-5 h-5" />
-            </div>
-          </header>
-
+      <div className="page-wrapper assistant-page">
+        {/* 【修正 2】：移除桌機版的 mt-4，僅在行動版保留 px-3 */}
+        <div className="w-full mt-4 md:mt-0 px-3 md:px-0"> 
           {/* 聊天卡片 */}
           <div
-            className="assistant-card bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col"
+            className="assistant-card bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col mx-auto max-w-5xl" // 【修正 3】：新增 max-w-5xl 限制寬度，並確保居中
             style={cardHeightPx ? { height: `${cardHeightPx}px` } : undefined}
           >
-            {/* 建議捷徑 */}
-            <div className="px-4 pt-4 pb-2 border-b bg-white/60 backdrop-blur flex flex-wrap gap-2">
+            {/* 快速提示區：調整顏色和陰影，使其更像卡片的一部分 */}
+            <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur flex flex-wrap gap-2 sticky top-0 z-10">
               {quickPrompts.map((q) => (
                 <button
                   key={q}
@@ -275,7 +276,8 @@ export default function Assistant({ theme, setTheme }) {
                     setInput(q);
                     setTimeout(() => handleSend(null), 0);
                   }}
-                  className="px-3 py-1 rounded-full text-sm border border-slate-200 hover:bg-slate-50"
+                  // 優化快速提示按鈕樣式
+                  className="px-3 py-1 rounded-full text-sm border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
                 >
                   {q}
                 </button>
@@ -285,7 +287,7 @@ export default function Assistant({ theme, setTheme }) {
             {/* 訊息區 */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 bg-slate-50"
+              className="flex-1 overflow-y-auto p-4 bg-white" 
               aria-live="polite"
             >
               {messages.map((m) => {
@@ -297,35 +299,38 @@ export default function Assistant({ theme, setTheme }) {
                       isAssistant ? "items-start" : "justify-end"
                     }`}
                   >
+                    {/* 助手頭像：保持一致的圓角和顏色 */}
                     {isAssistant && (
                       <div className="flex-shrink-0 mr-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-lg font-semibold shadow-md">
                           🤖
                         </div>
                       </div>
                     )}
 
+                    {/* 訊息氣泡：優化圓角設計 */}
                     <div
-                      className={`px-4 py-2 max-w-[70ch] break-words ${
+                      className={`max-w-[70ch] break-words shadow-md transition-all duration-300 ${
                         isAssistant
-                          ? "bg-white text-slate-800 rounded-xl rounded-tl-none border border-slate-200"
-                          : "bg-indigo-600 text-white rounded-xl rounded-tr-none shadow"
+                          ? "bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-4 py-3"
+                          : "bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-3"
                       }`}
                     >
                       {m.kind === "image" ? (
                         <img
                           src={m.url}
                           alt={m.alt || "image"}
-                          className="mt-1 w-full max-w-2xl rounded-xl shadow"
+                          className="mt-1 w-full max-w-2xl rounded-xl shadow-lg" 
                         />
                       ) : (
                         m.text
                       )}
                     </div>
 
+                    {/* 用戶頭像：優化樣式，使用更鮮明的顏色並加入陰影 */}
                     {!isAssistant && (
                       <div className="flex-shrink-0 ml-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-slate-700">
+                        <div className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center text-white text-lg font-semibold shadow-md">
                           U
                         </div>
                       </div>
@@ -334,14 +339,15 @@ export default function Assistant({ theme, setTheme }) {
                 );
               })}
 
+              {/* 打字中動畫：優化氣泡樣式與助手氣泡保持一致 */}
               {isTyping && (
                 <div className="mb-4 flex items-start">
                   <div className="flex-shrink-0 mr-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-lg font-semibold shadow-md">
                       🤖
                     </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-xl rounded-tl-none px-4 py-2">
+                  <div className="bg-indigo-50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md">
                     <span className="typing-dot" />
                     <span className="typing-dot mx-1" />
                     <span className="typing-dot" />
@@ -350,54 +356,40 @@ export default function Assistant({ theme, setTheme }) {
               )}
             </div>
 
-            {/* 底部輸入工具列 */}
-            <div className="border-t px-3 py-3 bg-white flex-shrink-0">
+            {/* 輸入區 */}
+            <div className="px-3 py-3 bg-white flex-shrink-0">
               <form onSubmit={handleSend} className="flex items-center gap-2">
+                {/* 輔助按鈕：相機 */}
                 <button
                   type="button"
-                  className="p-2 rounded-lg hover:bg-slate-100"
-                  title="附加檔案"
-                >
-                  <PaperClipIcon className="w-5 h-5 text-slate-600" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 rounded-lg hover:bg-slate-100"
+                  className="p-3 rounded-full hover:bg-slate-100 text-slate-500 transition-colors flex-shrink-0"
                   title="相機"
+                  onChange={handleFileChange}
                 >
-                  <CameraIcon className="w-5 h-5 text-slate-600" />
+                  <CameraIcon className="w-6 h-6" />
                 </button>
-
+                {/* 語音輸入按鈕 (為了保持和上次的輸出一致，這裡暫時將 MicrophoneIcon 移除) */}
+                
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) handleSend(e);
                   }}
-                  placeholder="在這裡輸入，你可以問各種穿搭建議"
-                  className="flex-1 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="你可以問各種穿搭建議"
+                  className="flex-1 rounded-full px-4 py-3 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-shadow text-base"
                 />
 
-                <button
-                  type="button"
-                  className="p-2 rounded-lg hover:bg-slate-100"
-                  title="語音輸入"
-                >
-                  <MicrophoneIcon className="w-5 h-5 text-slate-600" />
-                </button>
-
+                {/* 送出按鈕 */}
                 <button
                   type="submit"
-                  disabled={sending}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-xl text-white ${
-                    sending
-                      ? "bg-indigo-400 cursor-not-allowed"
-                      : "bg-indigo-600 hover:bg-indigo-700"
+                  disabled={sending || !input.trim()}
+                  className={`p-3 rounded-full text-white transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed flex-shrink-0 ${ 
+                    sending ? "bg-indigo-400" : "bg-indigo-600 hover:bg-indigo-700"
                   }`}
                   title="送出"
                 >
-                  <ArrowUpCircleIcon className="w-5 h-5" />
-                  <span>{sending ? "傳送中…" : "送出"}</span>
+                  <ArrowUpCircleIcon className="w-6 h-6 rotate-90" />
                 </button>
               </form>
             </div>

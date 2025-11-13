@@ -9,17 +9,17 @@ export default function VirtualFitting({ theme, setTheme }) {
   const navigate = useNavigate();
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // 表單數據
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [syncToPost, setSyncToPost] = useState(false);
-  
+
   // 用戶照片上傳
   const [userPhoto, setUserPhoto] = useState(null);
   const [userPhotoPreview, setUserPhotoPreview] = useState(null);
-  
+
   // 衣物位置映射（簡化版，實際可以更複雜）
   const [clothingPositions, setClothingPositions] = useState({
     hat: null,
@@ -28,14 +28,14 @@ export default function VirtualFitting({ theme, setTheme }) {
     shoes: null,
     accessory: null,
   });
-  
+
 
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [usedPrompt, setUsedPrompt] = useState("");
-  
+
   useEffect(() => {
     // 從 localStorage 載入選中的單品
     const items = JSON.parse(localStorage.getItem('virtual_fitting_items') || '[]');
@@ -45,7 +45,7 @@ export default function VirtualFitting({ theme, setTheme }) {
       return;
     }
     setSelectedItems(items);
-    
+
     // 自動分配衣物到對應位置
     const positions = { hat: null, top: null, bottom: null, shoes: null, accessory: null };
     items.forEach(item => {
@@ -57,17 +57,11 @@ export default function VirtualFitting({ theme, setTheme }) {
       else positions.accessory = item;
     });
     setClothingPositions(positions);
-    
+
     setLoading(false);
-    
-    // 自動調用 AI 生成穿搭圖
     autoGenerateImage(items);
   }, [navigate]);
 
-
-
-
-  // 處理用戶照片上傳
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -87,17 +81,14 @@ export default function VirtualFitting({ theme, setTheme }) {
     if (!items || items.length === 0) {
       return;
     }
-
     setGenerating(true);
     setGeneratedImageUrl(null);
     setGenerationError(null);
-
     try {
       const token = localStorage.getItem('token');
-      
-      // 構建請求 payload
+
       const payload = {
-        user_input: photoBase64 
+        user_input: photoBase64
           ? "根據我的照片和選中的衣物，生成一套適合我的時尚穿搭"
           : "專業時尚模特兒展示，高質感穿搭攝影，自然光線，簡約背景",
         selected_items: items.map(item => ({
@@ -106,8 +97,7 @@ export default function VirtualFitting({ theme, setTheme }) {
           category: item.category
         }))
       };
-      
-      // 如果有用戶照片，添加到 payload
+
       if (photoBase64) {
         payload.user_photo = photoBase64;
       }
@@ -146,16 +136,15 @@ export default function VirtualFitting({ theme, setTheme }) {
     autoGenerateImage(selectedItems, userPhotoPreview);
   };
 
-
   const handleSaveOutfit = async () => {
     if (!title.trim()) {
       alert('請填寫標題');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       // 如果選擇同步到貼文
       if (syncToPost) {
         const postRes = await fetch(`${API_BASE}/posts`, {
@@ -172,7 +161,7 @@ export default function VirtualFitting({ theme, setTheme }) {
             image_url: generatedImageUrl,
           }),
         });
-        
+
         if (postRes.ok) {
           alert('穿搭已保存並發布到貼文！');
         } else {
@@ -181,7 +170,7 @@ export default function VirtualFitting({ theme, setTheme }) {
       } else {
         alert('穿搭已保存！');
       }
-      
+
       // 清理並返回
       localStorage.removeItem('virtual_fitting_items');
       navigate('/wardrobe');
@@ -194,25 +183,12 @@ export default function VirtualFitting({ theme, setTheme }) {
   return (
     <Layout title="虛擬試衣" theme={theme} setTheme={setTheme}>
       <div className="page-wrapper">
-        <div className="max-w-6xl mx-auto p-4">
+        <div className="w-full w-full mt-4 md:px-0:max-w-6xl mx-auto">
           {loading ? (
             <div className="text-center py-8">載入中...</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 左側：人體模型區域 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold">AI 虛擬試衣</h2>
-                  {generatedImageUrl && (
-                    <button
-                      onClick={handleRegenerate}
-                      className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-md hover:bg-indigo-200 transition-colors"
-                    >
-                      🔄 重新生成
-                    </button>
-                  )}
-                </div>
-
+              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
                 {/* 用戶照片上傳 */}
                 <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">📸 上傳您的照片</h3>
@@ -241,14 +217,13 @@ export default function VirtualFitting({ theme, setTheme }) {
                     )}
                   </label>
                 </div>
-                
-                {/* 人體模型展示區 */}
-                <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-8 min-h-[600px] flex items-center justify-center overflow-hidden">
-                  {/* 優先顯示 AI 生成圖，其次是載入中，最後是 SVG 模型 */}
+
+                <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-4 sm:p-8 min-h-[400px] h-[60vh] max-h-[700px] flex items-center justify-center overflow-hidden">
+
                   {generating ? (
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                      <p className="text-gray-600 font-medium">🤖 AI 正在生成逼真穿搭圖...</p>
+                      <p className="text-gray-600 font-medium">AI 正在生成逼真穿搭圖...</p>
                       <p className="text-xs text-gray-500 mt-2">這可能需要 10-30 秒</p>
                     </div>
                   ) : generationError ? (
@@ -267,10 +242,10 @@ export default function VirtualFitting({ theme, setTheme }) {
                     </div>
                   ) : generatedImageUrl ? (
                     <div className="w-full h-full flex flex-col items-center justify-center">
-                      <img 
-                        src={generatedImageUrl} 
-                        alt="AI 生成的穿搭圖" 
-                        className="max-w-full max-h-[500px] object-contain rounded-lg shadow-lg"
+                      <img
+                        src={generatedImageUrl}
+                        alt="AI 生成的穿搭圖"
+                        className="w-full h-full object-contain rounded-lg shadow-lg"
                       />
                       <div className="mt-4 text-center">
                         <p className="text-sm text-gray-600 font-medium">✨ AI 生成的專業時尚穿搭圖</p>
@@ -280,6 +255,14 @@ export default function VirtualFitting({ theme, setTheme }) {
                             className="text-xs text-indigo-600 hover:underline mt-1"
                           >
                             {showPrompt ? '隱藏' : '查看'} 生成提示詞
+                          </button>
+                        )}
+                        {generatedImageUrl && (
+                          <button
+                            onClick={handleRegenerate}
+                            className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full hover:bg-indigo-200 transition-colors font-medium" // 按鈕改成 full-rounded
+                          >
+                            🔄 重新生成
                           </button>
                         )}
                         {showPrompt && usedPrompt && (
@@ -297,8 +280,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                     </div>
                   )}
                 </div>
-                
-                {/* 已選擇的衣物列表 */}
+
                 <div className="mt-4">
                   <h3 className="font-semibold mb-2">已選擇的衣物</h3>
                   <div className="flex flex-wrap gap-2">
@@ -311,11 +293,11 @@ export default function VirtualFitting({ theme, setTheme }) {
                   </div>
                 </div>
               </div>
-              
+
               {/* 右側：表單區域 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6"> {/* 統一 shadow 和 padding */}
                 <h2 className="text-xl font-bold mb-4">穿搭資訊</h2>
-                
+
                 {/* 標題 */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2">標題 (必填)</label>
@@ -327,7 +309,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                     className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
-                
+
                 {/* 描述 */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2">想要分享什麼？</label>
@@ -339,7 +321,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                     className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
-                
+
                 {/* 標籤 */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2"># 標籤</label>
@@ -352,7 +334,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                   />
                   <p className="text-xs text-gray-500 mt-1">用空格或逗號分隔不同標籤</p>
                 </div>
-                
+
                 {/* 同步到貼文選項 */}
                 <div className="mb-6">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -368,7 +350,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                     勾選後，這個穿搭會自動發布到您的貼文動態
                   </p>
                 </div>
-                
+
                 {/* 操作按鈕 */}
                 <div className="flex gap-3">
                   <button

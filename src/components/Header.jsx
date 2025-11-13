@@ -1,6 +1,13 @@
-import { Bell, Calendar } from 'lucide-react'; 
 import { Link } from 'react-router-dom';
-
+import {
+  PaperClipIcon,
+  CameraIcon,
+  MicrophoneIcon,
+  ArrowUpCircleIcon,
+  Cog6ToothIcon,
+  CalendarIcon,
+  BellIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Header({ title, user }) {
   // try prop first, then fallback to localStorage-stored user
@@ -23,10 +30,10 @@ export default function Header({ title, user }) {
       </div>
       <div className="flex items-center gap-3">
         <Link to="/wardrobe?tab=穿搭" className="ml-2">
-          <Calendar className="w-5 h-5 text-gray-600" />
+          <CalendarIcon className="w-5 h-5" />
         </Link>
         <Link to="/notice" className="ml-2">
-          <Bell className="w-5 h-5 text-gray-600" />
+          <BellIcon className="w-5 h-5" />
         </Link>
         <Link to="/settings" className="ml-2">
           <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-semibold">{avatarChar}</div>
@@ -35,3 +42,5 @@ export default function Header({ title, user }) {
     </header>
   );
 }
+
+              

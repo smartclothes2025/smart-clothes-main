@@ -152,7 +152,7 @@ export default function CreatePost() {
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           let parsed = null;
-          try { parsed = JSON.parse(text); } catch {}
+          try { parsed = JSON.parse(text); } catch { }
           const errMsg = parsed?.detail || text || `${res.status} ${res.statusText}`;
           throw new Error(`第 ${i + 1} 張上傳失敗：${errMsg}`);
         }
@@ -191,11 +191,10 @@ export default function CreatePost() {
 
   return (
     <Layout title="上傳貼文">
-      <div className="page-wrapper h-full overflow-y-auto py-8">
-        <div className="max-w-5xl mt-6 px-4">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* 左：預覽與拖放 */}
-            <div className="md:col-span-7 space-y-4">
+      <div className="page-wrapper">
+        <div className="w-full w-full mt-4 md:px-0:max-w-6xl mx-auto">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
               <div
                 className="w-full aspect-[4/3] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 relative flex items-center justify-center overflow-hidden"
                 onDrop={handleDrop}
@@ -261,9 +260,8 @@ export default function CreatePost() {
                     {previews.map((url, i) => (
                       <div
                         key={i}
-                        className={`relative flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${
-                          i === currentIndex ? "border-indigo-600" : "border-transparent"
-                        }`}
+                        className={`relative flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${i === currentIndex ? "border-indigo-600" : "border-transparent"
+                          }`}
                       >
                         <button type="button" onClick={() => setCurrentIndex(i)} className="absolute inset-0" />
                         <img src={url} alt={`thumb-${i}`} className="object-cover w-full h-full" />
@@ -286,7 +284,7 @@ export default function CreatePost() {
             </div>
 
             {/* 右：單一表單（套用到所有圖片） */}
-            <div className="md:col-span-5">
+            <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
               <aside className="bg-white rounded-2xl p-6 shadow-xl sticky top-6 space-y-5">
                 <div>
                   <label htmlFor="post-title" className="block text-sm font-medium text-slate-700">
