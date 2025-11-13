@@ -3,6 +3,7 @@
 
 const MAX_CACHE_ITEMS = 100; // 依需求可調
 const cacheMap = new Map();  // key: url, value: { objectUrl, lastUsed, size }
+let imageLogoutListenerAttached = false;
 
 async function fetchAsObjectURL(url) {
   const res = await fetch(url, { cache: "no-store" }); // 避免瀏覽器自己的快取干擾
@@ -76,4 +77,9 @@ export function clearAllImageCache() {
     try { URL.revokeObjectURL(entry.objectUrl); } catch (_) {}
   }
   cacheMap.clear();
+}
+
+if (typeof window !== "undefined" && !imageLogoutListenerAttached) {
+  window.addEventListener("logout", clearAllImageCache);
+  imageLogoutListenerAttached = true;
 }

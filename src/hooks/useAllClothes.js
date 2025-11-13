@@ -5,6 +5,17 @@ import { MockClothesApi } from "../mock/clothesMockData";
 // 全域快取，避免多頁重複 fetch
 let globalClothesCache = null;
 let globalClothesPromise = null;
+let clothesLogoutListenerAttached = false;
+
+export function clearAllClothesCache() {
+  globalClothesCache = null;
+  globalClothesPromise = null;
+}
+
+export function setAllClothesCache(items) {
+  globalClothesCache = Array.isArray(items) ? items : [];
+  globalClothesPromise = null;
+}
 
 export default function useAllClothes(API_BASE) {
   const [allItems, setAllItems] = useState(globalClothesCache || []);
@@ -14,6 +25,31 @@ export default function useAllClothes(API_BASE) {
   useEffect(() => {
     // Check if mock mode is enabled
     const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+
+    try {
+      const token = localStorage.getItem("token") || "";
+      let storedUser = null;
+      try {
+        storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      } catch {
+        storedUser = null;
+      }
+      const isGuest =
+        token === 'guest-token-000' ||
+        storedUser?.id === 99 ||
+        storedUser?.name === '訪客' ||
+        storedUser?.email === 'guest@local';
+      if (isGuest) {
+        globalClothesCache = [];
+        globalClothesPromise = null;
+        setAllItems([]);
+        setError("訪客無法查看衣櫃，請用註冊帳號或其他使用者登入");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
 
     if (globalClothesCache) {
       setAllItems(globalClothesCache);
@@ -70,4 +106,9 @@ export default function useAllClothes(API_BASE) {
   }, [API_BASE]);
 
   return { allItems, loading, error };
+}
+
+if (typeof window !== "undefined" && !clothesLogoutListenerAttached) {
+  window.addEventListener("logout", clearAllClothesCache);
+  clothesLogoutListenerAttached = true;
 }

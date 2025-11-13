@@ -261,7 +261,7 @@ export default function Assistant({ theme, setTheme }) {
 
       <div className="page-wrapper assistant-page">
         {/* 【修正 2】：移除桌機版的 mt-4，僅在行動版保留 px-3 */}
-        <div className="w-full mt-4 md:mt-0 px-3 md:px-0"> 
+        <div className="w-full mt-4 md:mt-0 px-1 md:px-0"> 
           {/* 聊天卡片 */}
           <div
             className="assistant-card bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col mx-auto max-w-5xl" // 【修正 3】：新增 max-w-5xl 限制寬度，並確保居中
@@ -302,8 +302,9 @@ export default function Assistant({ theme, setTheme }) {
                     {/* 助手頭像：保持一致的圓角和顏色 */}
                     {isAssistant && (
                       <div className="flex-shrink-0 mr-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-lg font-semibold shadow-md">
-                          🤖
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-semibold shadow-md">
+                          <img src="/favicon-32x32.png"></img>
+
                         </div>
                       </div>
                     )}
@@ -312,8 +313,8 @@ export default function Assistant({ theme, setTheme }) {
                     <div
                       className={`max-w-[70ch] break-words shadow-md transition-all duration-300 ${
                         isAssistant
-                          ? "bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-4 py-3"
-                          : "bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-3"
+                          ? "bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-2 py-3"
+                          : "bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-2 py-3"
                       }`}
                     >
                       {m.kind === "image" ? (
