@@ -25,6 +25,7 @@ import AdminDashboard from './admin/Dashboard';
 import AdminUsers from './admin/Users';
 import AdminSettings from './admin/Settings';
 import AdminClothes from './admin/Clothes';
+// import AdminPosts from './admin/Posts';
 
 export default function App() {
   const [theme, setTheme] = useState('light');

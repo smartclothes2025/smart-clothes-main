@@ -1,114 +1,50 @@
 // src/hooks/useAllClothes.js
-import { useEffect, useRef, useState } from "react";
-import { MockClothesApi } from "../mock/clothesMockData";
+// 💡 優化: 重構成使用 SWR，並新增 options 參數來控制 scope
+import useSWR from 'swr';
+import fetchJSON from '../lib/api'; 
 
-// 全域快取，避免多頁重複 fetch
-let globalClothesCache = null;
-let globalClothesPromise = null;
-let clothesLogoutListenerAttached = false;
+const API_BASE = import.meta.env.VITE_API_BASE || "/api/v1"; 
 
-export function clearAllClothesCache() {
-  globalClothesCache = null;
-  globalClothesPromise = null;
-}
-
-export function setAllClothesCache(items) {
-  globalClothesCache = Array.isArray(items) ? items : [];
-  globalClothesPromise = null;
-}
-
-export default function useAllClothes(API_BASE) {
-  const [allItems, setAllItems] = useState(globalClothesCache || []);
-  const [loading, setLoading] = useState(!globalClothesCache);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    // Check if mock mode is enabled
-    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-
-    try {
-      const token = localStorage.getItem("token") || "";
-      let storedUser = null;
-      try {
-        storedUser = JSON.parse(localStorage.getItem("user") || "null");
-      } catch {
-        storedUser = null;
-      }
-      const isGuest =
-        token === 'guest-token-000' ||
-        storedUser?.id === 99 ||
-        storedUser?.name === '訪客' ||
-        storedUser?.email === 'guest@local';
-      if (isGuest) {
-        globalClothesCache = [];
-        globalClothesPromise = null;
-        setAllItems([]);
-        setError("訪客無法查看衣櫃，請用註冊帳號或其他使用者登入");
-        setLoading(false);
-        return;
-      }
-    } catch {
-      /* ignore */
+/**
+ * 統一的衣物資料獲取 Hook (使用 SWR)
+ * 預設只獲取當前登入使用者的衣物
+ * @param {object} options - 選項, e.g., { scope: 'all' }
+ */
+export default function useAllClothes(options = {}) {
+  // 🚨 修正: 根據 options.scope 決定是否加上 &scope=all
+  const scopeQuery = options.scope === 'all' ? '&scope=all' : '';
+  const url = `${API_BASE}/clothes?limit=1000${scopeQuery}`; 
+  
+  // 如果是訪客，則不發送請求，直接返回空列表
+  try {
+    const token = localStorage.getItem("token") || "";
+    // 您的登入邏輯中，訪客 token 以 'guest-token' 開頭
+    if (token.startsWith('guest-token')) { 
+        return { 
+            allItems: [], 
+            loading: false, 
+            error: "訪客無法查看衣櫃，請用註冊帳號或其他使用者登入",
+            mutate: async () => {},
+        };
     }
+  } catch {}
 
-    if (globalClothesCache) {
-      setAllItems(globalClothesCache);
-      setLoading(false);
-      return;
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    fetchJSON,
+    {
+      revalidateIfStale: true,
+      revalidateOnFocus: false, 
+      dedupingInterval: 10000, 
     }
-    if (globalClothesPromise) {
-      globalClothesPromise.then(setAllItems).catch(e => setError(e?.message || "讀取失敗")).finally(() => setLoading(false));
-      return;
-    }
-    setLoading(true);
-    setError("");
-    
-    globalClothesPromise = (async () => {
-      // If mock mode is enabled, return mock data
-      if (useMock) {
-        console.log('🎭 Using mock clothes data');
-        const mockData = await MockClothesApi.getAllClothes();
-        globalClothesCache = mockData;
-        return globalClothesCache;
-      }
+  );
 
-      // Otherwise, try to fetch from API with corrected endpoints
-      // Note: API_BASE already includes /api/v1
-      const candidates = [
-        `${API_BASE}/clothes?limit=1000`,
-        `/api/v1/clothes?limit=1000`,
-        `${API_BASE}/admin/clothes?limit=1000`,
-        `/api/v1/admin/clothes?limit=1000`,
-      ];
-      let data = null;
-      let lastInfo = null;
-      for (const url of candidates) {
-        try {
-          const res = await fetch(url, { headers: { Accept: 'application/json' } });
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            lastInfo = { url, status: res.status, text: txt };
-            continue;
-          }
-          data = await res.json();
-          console.log(`✅ Successfully fetched from: ${url}`);
-          break;
-        } catch (err) {
-          lastInfo = err;
-        }
-      }
-      if (!data) throw new Error(`fetch failed for all candidates: ${JSON.stringify(lastInfo)}`);
-      // 直接回傳原始陣列，正規化交由頁面端處理
-      globalClothesCache = Array.isArray(data) ? data : [];
-      return globalClothesCache;
-    })();
-    globalClothesPromise.then(setAllItems).catch(e => setError(e?.message || "讀取失敗")).finally(() => setLoading(false));
-  }, [API_BASE]);
-
-  return { allItems, loading, error };
-}
-
-if (typeof window !== "undefined" && !clothesLogoutListenerAttached) {
-  window.addEventListener("logout", clearAllClothesCache);
-  clothesLogoutListenerAttached = true;
+  const allItems = Array.isArray(data) ? data : (Array.isArray(data?.initialItems) ? data.initialItems : []);
+  
+  return { 
+    allItems, 
+    loading: isLoading, 
+    error: error ? (error.message || "載入衣物資料失敗") : null,
+    mutate // 導出 SWR 的 mutate 函數
+  };
 }

@@ -1,9 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
+// src/components/wardrobe/WardrobeOverview.jsx
+import React, { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import WardrobeItem from "./WardrobeItem";
 import EditClothModal from "./EditClothModal";
 import AskModal from "../AskModal";
-import { useToast } from "../ToastProvider"; // 引入 Toast
+import { useToast } from "../ToastProvider"; 
+import useAllClothes from "../../hooks/useAllClothes"; // 引入 SWR Hook
+import fetchJSON from "../../lib/api";
 
 const OUTFIT_KEY = "outfit_history";
 // 輔助函式：取得歷史穿搭 (保持不變)
@@ -34,7 +37,8 @@ const addOutfit = ({ clothesIds = [], note = "", img = "" }) => {
 };
 
 const filters = ["全部", "上衣", "褲子", "裙子", "洋裝", "外套", "鞋子", "帽子", "包包", "配件", "襪子"];
-const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : ""; // use relative paths by default to enable Vite proxy
+const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) ? import.meta.env.VITE_API_BASE : "/api/v1"; 
+const API_ENDPOINT = `${API_BASE}/clothes`; 
 
 // 輔助函式：取得 JWT Token
 function getToken() {
@@ -43,159 +47,66 @@ function getToken() {
 
 export default function WardrobeOverview() {
   const INACTIVE_THRESHOLD = 90;
-  const { addToast } = useToast(); // 初始化 Toast
+  const { addToast } = useToast(); 
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    // 啟動時清理本地舊的測試數據
-    try {
-      localStorage.removeItem("wardrobe_items");
-      localStorage.removeItem("wardrobe_items_seed");
-    } catch { }
-  }, []);
-
-  const [items, setItems] = useState([]);
+  // 🚨 優化: 使用 SWR Hook 獲取數據 (無參數 = 預設獲取當前使用者的衣物)
+  const { allItems: items, loading, error: fetchError, mutate } = useAllClothes();
+  
   const [activeFilter, setActiveFilter] = useState(filters[0]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const navigate = useNavigate();
-
-  // --- 數據載入邏輯 ---
-  const fetchWardrobe = useCallback(async (signal) => {
-    setLoading(true);
-    setError("");
-    const token = getToken();
-    
-    // 訪客帳號檢查
-    let storedUser = null;
-    try {
-      const u = localStorage.getItem('user');
-      storedUser = u ? JSON.parse(u) : null;
-    } catch (e) {
-      storedUser = null;
-    }
-    const isGuest = token === 'guest-token-000' || storedUser?.id === 99 || storedUser?.name === '訪客' || storedUser?.email === 'guest@local';
-    
-    if (isGuest) {
-      setItems([]);
-      setError('訪客無法查看衣櫃，請用註冊帳號或其他使用者登入');
-      setLoading(false);
-      return;
-    }
-
-    const headers = { Authorization: `Bearer ${token}` };
-    
-    // 🎯 修正後的 API 呼叫：統一且確定的路由
-    const URL = `${API_BASE}/clothes`; 
-    
-    try {
-        const res = await fetch(URL, { method: "GET", headers, signal });
-        
-        if (res.status === 404) {
-             throw new Error(`獲取衣物清單失敗: 後端路由 ${URL} 找不到 (404)`);
-        }
-        
-        if (!res.ok) {
-            const txt = await res.text().catch(() => "");
-            console.error('[wardrobe] fetch failed', res.status, txt);
-            throw new Error(`獲取衣物清單失敗: ${res.statusText}`);
-        }
-        
-        const data = await res.json();
-        
-        const arr = Array.isArray(data) ? data : (Array.isArray(data?.initialItems) ? data.initialItems : null);
-        if (!arr) {
-          throw new Error("API 回傳格式非預期（請檢查後端是否回傳陣列或 { initialItems: [...] }）");
-        }
-
-        // GCS 圖片處理：後端已返回 HTTPS 網址，前端只需簡單處理 URL
-        const mapped = arr.map((it) => {
-    // 優先使用 item.cover_url (如果後端有提供)
-    let rawUrl = it.cover_url || it.img || ""; 
-    let finalImgUrl = rawUrl;
-
-    // 🎯 修正：處理被錯誤拼接的 GCS URL
-    // 檢查是否有常見的錯誤拼接前綴
-    const localErrorPrefix = 'http://localhost:5173/';
-    
-    if (finalImgUrl && finalImgUrl.startsWith(localErrorPrefix)) {
-        // 如果是 GCS URL 被錯誤拼接了本地 host，移除本地 host
-        if (finalImgUrl.includes('https://storage.googleapis.com/')) {
-             finalImgUrl = finalImgUrl.substring(localErrorPrefix.length);
-             console.warn(`[ParentComponent] ⚠️ 修正 GCS URL 重複拼接: ${finalImgUrl}`);
-        }
-    }
-    
-    // 由於後端 resolve_image_url 已經返回完整的 HTTPS 網址，這裡只需確保非空
-    return {
-        id: Number.isInteger(+it.id) ? +it.id : it.id,
-        name: it.name || "",
-        category: it.category || "",
-        wearCount: it.wearCount || 0,
-        // 確保 img 欄位使用修正後的 URL
-        img: finalImgUrl || '/default-placeholder.png', 
-        daysInactive: typeof it.daysInactive === "number" ? it.daysInactive : null,
-        color: it.color || "",
-    };
-});
-
-setItems(mapped);
-
-    } catch (err) {
-        if (err && err.name === "AbortError") return;
-        console.warn("載入衣櫃失敗:", err);
-        setError(err.message || "無法載入衣櫃，請確認後端或網路連線");
-        setItems([]);
-    } finally {
-        setLoading(false);
-    }
-  }, [API_BASE, addToast]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchWardrobe(controller.signal);
-    return () => controller.abort();
-  }, [fetchWardrobe]);
 
   // --- 新增刪除衣物功能 ---
   const [askOpen, setAskOpen] = useState(false);
   const [askTargetId, setAskTargetId] = useState(null);
   const [batchAskOpen, setBatchAskOpen] = useState(false);
 
+  // 🚨 優化: 刪除邏輯使用 SWR Optimistic Update
   const deleteItem = useCallback(async (itemId) => {
-  setLoading(true);
-  const token = getToken();
-  const headers = { Authorization: `Bearer ${token}` };
-
-  try {
-    // 🎯 呼叫後端 DELETE 路由: /api/v1/clothes/{itemId}
-    const res = await fetch(`${API_BASE}/clothes/${itemId}`, {
-      method: "DELETE",
-      headers,
+    const token = getToken();
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // 1. 設置樂觀更新 (Optimistic Update)
+    const optimisticData = items.filter(item => item.id !== itemId);
+    mutate(optimisticData, {
+        revalidate: false, // 不重新獲取資料，直到遠端響應
+        populateCache: true,
+        rollbackOnError: true,
     });
+    
+    try {
+        // 2. 呼叫後端 DELETE 路由
+        const res = await fetch(
+            `${API_ENDPOINT}/${itemId}`, 
+            { method: "DELETE", headers }
+        );
 
-    if (res.status === 204) { // 204 No Content 是成功的回應
-      addToast({ type: 'success', title: '刪除成功', message: '該衣物已從衣櫃中移除。' });
-      // 從本地狀態中移除
-      setItems(prev => prev.filter(item => item.id !== itemId));
-    } else if (res.status === 403) {
-       addToast({ type: 'error', title: '權限不足', message: '您沒有權限刪除這件衣物。' });
-    } else {
-      const txt = await res.text().catch(() => "未知錯誤");
-      addToast({ type: 'error', title: '刪除失敗', message: `後端錯誤：${res.status} ${txt}` });
+        if (res.status === 204) {
+            addToast({ type: 'success', title: '刪除成功', message: '該衣物已從衣櫃中移除。' });
+            return true;
+        } else if (res.status === 403) {
+            addToast({ type: 'error', title: '權限不足', message: '您沒有權限刪除這件衣物。' });
+        } else {
+            const txt = await res.text().catch(() => "未知錯誤");
+            addToast({ type: 'error', title: '刪除失敗', message: `後端錯誤：${res.status} ${txt}` });
+        }
+        
+        // 如果遠端刪除失敗，強制回滾本地快取
+        mutate(items); 
+        return false;
+
+    } catch (error) {
+        console.error("刪除錯誤:", error);
+        addToast({ type: 'error', title: '網路錯誤', message: '無法連線到伺服器，刪除失敗。' });
+        // 網路錯誤時回滾
+        mutate(items); 
+        return false;
     }
+  }, [API_ENDPOINT, addToast, items, mutate]);
 
-  } catch (error) {
-    console.error("刪除錯誤:", error);
-    addToast({ type: 'error', title: '網路錯誤', message: '無法連線到伺服器，刪除失敗。' });
-  } finally {
-    setLoading(false);
-  }
-  }, [API_BASE, addToast]);
 
   function openAskModal(id) {
   setAskTargetId(id);
@@ -207,21 +118,46 @@ setItems(mapped);
   }
 
   async function handleConfirmBatchDelete() {
-    // 關閉 modal 並逐一刪除選取項目
     setBatchAskOpen(false);
+    let successCount = 0;
     try {
       for (const id of selectedIds.slice()) {
-        // 等待每個刪除完成以避免同時改變狀態衝突
-        // deleteItem 會處理錯誤與 toast
+        // ⚠️ 這裡必須在迴圈中 await
         // eslint-disable-next-line no-await-in-loop
-        await deleteItem(id);
+        const success = await deleteItem(id); 
+        if(success) successCount++;
       }
     } finally {
       setSelecting(false);
       setSelectedIds([]);
+      // 由於 deleteItem 已經處理 mutate，這裡不再需要
     }
   }
-  // -----------------------
+  
+  // 🚨 優化: 編輯成功後，使用 mutate 局部更新快取，無需重新獲取全部列表
+  const handleEditSaved = (updated) => {
+    // 編輯後端回傳的格式可能包含 { item: {...} } 或直接就是 {...}
+    const updatedItem = updated.item || updated;
+
+    const newItems = items.map(it => {
+        if (String(it.id) !== String(updatedItem.id)) return it;
+        
+        // 合併舊數據和新數據
+        return {
+            ...it,
+            ...updatedItem, 
+            // 由於 WardrobeOverview.jsx 的 Item 模型是扁平的，我們確保關鍵欄位對應
+            name: updatedItem.name,
+            category: updatedItem.category,
+            color: updatedItem.color,
+            img: updatedItem.img, // 使用後端返回的簽名 URL
+        };
+    });
+    
+    mutate(newItems, { revalidate: false }); // 更新本地快取，不重新發送請求
+    addToast({ type: 'success', title: '已更新衣物' });
+  };
+
 
   const filteredItems = items.filter((it) => activeFilter === "全部" || it.category === activeFilter);
 
@@ -299,10 +235,10 @@ setItems(mapped);
       </div>
 
       {loading && <div className="py-6 text-gray-500">載入中…</div>}
-      {error && <div className="py-2 text-red-600">{error}</div>}
+      {fetchError && <div className="py-2 text-red-600">{fetchError}</div>}
 
       {/* 空資料提示 */}
-      {!loading && filteredItems.length === 0 ? (
+      {!loading && filteredItems.length === 0 && !fetchError ? (
         <div className="text-gray-500">目前衣櫃沒有衣服<br />請先確認是否有上傳衣服</div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -313,7 +249,6 @@ setItems(mapped);
               selecting={selecting}
               active={selectedIds.includes(item.id)}
               onToggle={() => toggleSelect(item.id)}
-              // 使用 onDelete 由父元件觸發 AskModal
               onDelete={() => openAskModal(item.id)}
               inactiveThreshold={INACTIVE_THRESHOLD}
                       onImageClick={(clicked) => { setEditItem(clicked); setEditOpen(true); }}
@@ -327,10 +262,7 @@ setItems(mapped);
                 item={editItem}
                 onClose={() => { setEditOpen(false); setEditItem(null); }}
                 apiBase={API_BASE}
-                onSaved={(updated) => {
-                  setItems(prev => prev.map(it => it.id === updated.id ? { ...it, ...updated } : it));
-                  addToast({ type: 'success', title: '已更新衣物' });
-                }}
+                onSaved={handleEditSaved}
               />
       <AskModal
         open={askOpen}

@@ -1,35 +1,40 @@
-import React, { useState, useEffect } from 'react';
+// src/components/WeatherCard.jsx
+import React from 'react';
+import useSWR from 'swr'; // 引入 useSWR
+import fetchJSON from '../lib/api'; // 引入我們統一的 fetcher
 
 export default function WeatherCard() {
-  const [weather, setWeather] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // 從 .env 讀取後端 Base URL
+  const BASE_URL = import.meta.env.VITE_API_BASE;
+  const url = `${BASE_URL}/weather/current?city=Taipei`;
 
-  useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        // 從 .env 讀取後端 Base URL
-        const BASE_URL = import.meta.env.VITE_API_BASE;
-        const res = await fetch(`${BASE_URL}/weather/current?city=Taipei`);
-        if (!res.ok) throw new Error(`伺服器回應異常: ${res.status}`);
-        const data = await res.json();
-        setWeather(data);
-      } catch (err) {
-        setError(err.message || '無法取得天氣資料');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 🚨 使用 useSWR 取代 useEffect 和 useState
+  const { 
+    data: weather, 
+    error, 
+    isLoading: loading 
+  } = useSWR(
+    url, // SWR 的快取 Key
+    fetchJSON, // 數據獲取函數
+    {
+      // --- 暫存與自動更新設定 ---
+      revalidateOnFocus: true, // 1. 當用戶切換視窗回來時，自動重新整理
+      refreshInterval: 600000, // 2. 每 10 分鐘 (600,000 ms) 自動在背景更新一次
+      dedupingInterval: 300000, // 3. 5 分鐘內避免重複請求 (例如快速切換頁面)
+    }
+  );
 
-    fetchWeather();
-  }, []);
-
+  // 載入中 (SWR 正在 initial loading)
   if (loading) {
     return <div className="p-4 bg-gray-100 rounded-xl">載入中...</div>;
   }
+  
+  // 錯誤 (SWR 請求失敗)
   if (error) {
-    return <div className="p-4 bg-red-100 text-red-700 rounded-xl">{error}</div>;
+    return <div className="p-4 bg-red-100 text-red-700 rounded-xl">{error.message || '無法取得天氣資料'}</div>;
   }
+  
+  // 成功，但沒有資料
   if (!weather) {
     return null;
   }

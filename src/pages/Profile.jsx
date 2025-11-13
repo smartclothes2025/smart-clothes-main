@@ -9,8 +9,6 @@ import StyledButton from "../components/ui/StyledButton";
 import EditProfileModal from "./EditProfileModal";
 import PostDetailModal from "../components/PostDetailModal";
 import { useToast } from "../components/ToastProvider";
-import { getMyPosts, clearPostsCache } from "../lib/postsCache";
-import { getProfileData, setProfileCache } from "../lib/profileCache";
 
 // ✅ 後端 API 基底網址（從 .env 讀，沒讀到就用本機）
 const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
@@ -178,16 +176,26 @@ export default function Profile() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    let cancelled = false;
+    const controller = new AbortController();
 
-    const loadProfile = async () => {
+    const load = async () => {
       setLoading(true);
       try {
-        const data = await getProfileData({ token });
-        if (cancelled) return;
+        const [r1, r2] = await Promise.all([
+          fetch(`${API_BASE}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            signal: controller.signal,
+          }),
+          fetch(`${API_BASE}/me/body_metrics`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            signal: controller.signal,
+          }),
+        ]);
 
-        const authData = data?.auth || {};
-        const metrics = data?.metrics || {};
+        let authData = {};
+        if (r1.ok) authData = (await r1.json().catch(() => ({}))) || {};
+        let metrics = {};
+        if (r2.ok) metrics = (await r2.json().catch(() => ({}))) || {};
 
         const displayName = authData.display_name || metrics.display_name || authData.name || "用戶";
         const bio = authData.interformation || "";
@@ -203,18 +211,23 @@ export default function Profile() {
             }
           })();
 
+        // ✅ Bucket 已設為公開，處理圖片 URL
         let picture = null;
         if (pictureRaw) {
+          // 如果是簽名 URL（包含 X-Goog-Signature），去掉簽名參數
           if (pictureRaw.includes('X-Goog-Signature')) {
+            // 取得 ? 之前的乾淨 URL
             picture = pictureRaw.split('?')[0];
           } else if (pictureRaw.startsWith('gs://')) {
+            // 如果是 gs:// URI，轉換為公開 URL
             picture = resolveGcsUrl(pictureRaw);
           } else {
+            // 已經是乾淨的 HTTP(S) URL
             picture = pictureRaw;
           }
         }
 
-        const merged = {
+        setUser({
           displayName,
           bio,
           height: metrics.height_cm ?? null,
@@ -225,63 +238,77 @@ export default function Profile() {
           shoulder: metrics.shoulder_cm ?? null,
           picture,
           sex: metrics.sex ?? authData.sex ?? null,
-        };
-
-        setUser(merged);
-        setProfileCache({
-          auth: authData,
-          metrics,
         });
       } catch (err) {
-        if (err?.name !== "AbortError" && err?.message !== "NO_TOKEN") {
-          console.warn("取得使用者資料失敗：", err);
-        }
+        if (err?.name !== "AbortError") console.warn("取得使用者資料失敗：", err);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     };
 
-    loadProfile();
-    return () => {
-      cancelled = true;
-    };
+    load();
+    return () => controller.abort();
   }, []);
 
 // 讀自己的貼文清單
 useEffect(() => {
   const token = localStorage.getItem("token");
   if (!token) return;
-  let cancelled = false;
+  const controller = new AbortController();
 
-  const loadMyPosts = async () => {
+  const fetchPosts = async () => {
     setLoadingPosts(true);
     try {
-      const data = await getMyPosts({ token });
-      if (!cancelled) {
-        setPosts(Array.isArray(data) ? data : []);
+      // 尾斜線避免 307
+      const res = await fetch(`${API_BASE}/posts/?scope=mine&limit=30`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        signal: controller.signal,
+      });
+      if (res.status === 401) {
+        console.warn("未授權，請先登入或 token 失效");
+        setPosts([]);
+        return;
       }
+      if (!res.ok) throw new Error(`讀取貼文失敗 (${res.status})`);
+
+      const data = await res.json();
+
+      // 先把 media 變成陣列
+      const prelim = (data || []).map((it) => {
+        let mediaArr = [];
+        try {
+          mediaArr = Array.isArray(it.media) ? it.media : JSON.parse(it.media || "[]");
+        } catch {
+          mediaArr = [];
+        }
+        return { ...it, _mediaArr: mediaArr };
+      });
+
+      // 逐篇把 gs:// 解析成可看的 _view
+      const hydrated = [];
+      for (const it of prelim) {
+        const resolved = await resolveMediaArray(it._mediaArr, token);
+        hydrated.push({ ...it, _mediaArr: resolved });
+      }
+
+      setPosts(hydrated);
     } catch (e) {
-      if (e?.name !== "AbortError") {
-        console.warn(e);
-        if (!cancelled) setPosts([]);
-      }
+      // React 18 開發模式 StrictMode 會二次執行 effect，第一次 cleanup 會 abort
+      if (e?.name !== "AbortError") console.warn(e);
     } finally {
-      if (!cancelled) setLoadingPosts(false);
+      setLoadingPosts(false);
     }
   };
 
-  const refreshPosts = () => {
-    clearPostsCache("mine");
-    loadMyPosts();
-  };
-
-  loadMyPosts();
-  window.addEventListener("post-created", refreshPosts);
-  window.addEventListener("post-deleted", refreshPosts);
+  fetchPosts();
+  const handlePostCreated = () => fetchPosts();
+  const handlePostDeleted = () => fetchPosts();
+  window.addEventListener("post-created", handlePostCreated);
+  window.addEventListener("post-deleted", handlePostDeleted);
   return () => {
-    cancelled = true;
-    window.removeEventListener("post-created", refreshPosts);
-    window.removeEventListener("post-deleted", refreshPosts);
+    controller.abort();
+    window.removeEventListener("post-created", handlePostCreated);
+    window.removeEventListener("post-deleted", handlePostDeleted);
   };
 }, []);
 

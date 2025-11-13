@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import PostCard from "./PostCard";
 import PostDetailModal from "./PostDetailModal";
-import { getPublicPosts, clearPostsCache } from "../lib/postsCache";
 
 // ✅ 後端 API 基底網址
 const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
@@ -167,8 +166,42 @@ export default function HomePost() {
       setLoading(true);
       setError(null);
       try {
-        const cached = await getPublicPosts({ token, signal: controller.signal });
-        setPosts(cached || []);
+        // 讀取所有 visibility=public 的貼文
+        const res = await fetch(`${API_BASE}/posts/?visibility=public&limit=50`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          console.warn(`讀取公開貼文失敗 (${res.status})`);
+          setPosts([]);
+          return;
+        }
+
+        const data = await res.json();
+
+        // 先把 media 變成陣列
+        const prelim = (data || []).map((it) => {
+          let mediaArr = [];
+          try {
+            mediaArr = Array.isArray(it.media) ? it.media : JSON.parse(it.media || "[]");
+          } catch {
+            mediaArr = [];
+          }
+          return { ...it, _mediaArr: mediaArr };
+        });
+
+        // 逐篇解析 media
+        const hydrated = [];
+        for (const it of prelim) {
+          const resolved = await resolveMediaArray(it._mediaArr, token);
+          hydrated.push({ ...it, _mediaArr: resolved });
+        }
+
+        setPosts(hydrated);
       } catch (e) {
         if (e?.name !== "AbortError") {
           console.warn("讀取公開貼文錯誤：", e);
@@ -290,14 +323,12 @@ export default function HomePost() {
     // 監聽新貼文事件和刪除事件
     const handlePostCreated = () => {
       if (!searchQuery) {
-        clearPostsCache("public");
         fetchPublicPosts();
       }
     };
     
     const handlePostDeleted = () => {
       if (!searchQuery) {
-        clearPostsCache("public");
         fetchPublicPosts();
       }
     };

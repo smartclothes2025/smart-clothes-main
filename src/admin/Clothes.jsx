@@ -6,19 +6,22 @@ import Page from "../components/Page";
 import { Icon } from "@iconify/react";
 import "../assets/TableStyles.css";
 import AskModal from "../components/AskModal";
+import useAllClothes from "../hooks/useAllClothes"; // 引入 SWR Hook
+import fetchJSON from "../lib/api"; // 引入 SWR Fetcher
 
 export default function AdminClothes() {
   const [users, setUsers] = useState([]);
   const [usersMap, setUsersMap] = useState({});
-  const API_BASE = import.meta.env.VITE_API_BASE || ""; // e.g. https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1
+  const API_BASE = import.meta.env.VITE_API_BASE || ""; // e.g. /api/v1
   const SERVER_ORIGIN = useMemo(
     () => (API_BASE || "").replace(/\/api\/v1\/?$/, ""),
     [API_BASE]
   );
 
-  const [allItems, setAllItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // 🚨 修正: 傳遞 { scope: 'all' } 確保管理員視圖獲取所有衣物
+  const { allItems: allRawItems, loading: clothesLoading, error: clothesError, mutate } = useAllClothes({ scope: 'all' });
+  
+  const [loading, setLoading] = useState(false); 
   const [query, setQuery] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -29,25 +32,22 @@ export default function AdminClothes() {
   const [askTargetId, setAskTargetId] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      const map = await fetchUsers();
-      await loadFromApi(map);
-    })();
+    // 僅在第一次載入時獲取使用者資料
+    fetchUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchUsers() {
+    setLoading(true);
     try {
       const token = localStorage.getItem("token");
       const url = new URL(`${API_BASE}/auth/users`);
       url.searchParams.set("limit", "1000");
-      const res = await fetch(url.toString(), {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+      
+      const data = await fetchJSON(url.toString(), {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) return;
-      const data = await res.json();
+      
       if (!Array.isArray(data)) return;
       setUsers(data);
       const map = {};
@@ -60,108 +60,93 @@ export default function AdminClothes() {
       return map;
     } catch (err) {
       console.warn("fetchUsers failed", err);
-    }
-  }
-
-  async function loadFromApi(usersMapArg = null) {
-    setLoading(true);
-    setError("");
-    try {
-      const token = localStorage.getItem("token");
-      const url = `${API_BASE}/clothes?limit=1000&scope=all`;
-
-      const res = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`, // 登入頁已處理 token，這裡一律帶上
-        },
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`fetch admin clothes failed: ${res.status} ${txt}`);
-      }
-
-      const data = await res.json();
-
-      // 正規化資料
-      const usersMapLocal = usersMapArg || usersMap || {};
-      const normalized = (Array.isArray(data) ? data : []).map((r, idx) => {
-        const id = r.id ?? r.clothes_id ?? idx + 1;
-        const name = r.name ?? r.title ?? r.filename ?? r.image ?? "未命名";
-        const category = r.category ?? r.type ?? r.category_name ?? "未分類";
-        let last_worn_at =
-          r.last_worn_at ??
-          r.lastWornAt ??
-          r.last_worn ??
-          null;
-
-        try {
-          if (last_worn_at) {
-            const d = new Date(last_worn_at);
-            last_worn_at = isNaN(d.getTime()) ? null : d.toISOString();
-          }
-        } catch {
-          last_worn_at = null;
-        }
-
-        const uid =
-          r.user_id ?? r.owner ?? r.user ?? r.userId ?? r.owner_id ?? null;
-        let user_display =
-          (uid && usersMapLocal[String(uid)])
-            ? usersMapLocal[String(uid)]
-            : r.owner_display_name ||
-              r.user_display_name ||
-              r.user_name ||
-              (uid ? String(uid) : "-");
-
-        // 圖片：若後端給的是簽名網址（http/https 開頭），直接使用
-        const filename =
-          r.filename ??
-          r.image ??
-          r.img ??
-          r.cover_image ??
-          r.cover_image_url ??
-          "";
-        let image_url = "";
-        if (filename) {
-          if (
-            typeof filename === "string" &&
-            (filename.startsWith("http://") || filename.startsWith("https://"))
-          ) {
-            image_url = filename;
-          } else if (typeof filename === "string" && filename.startsWith("/")) {
-            image_url = `${API_BASE.replace(/\/$/, "")}${filename}`;
-          } else {
-            image_url = `${SERVER_ORIGIN.replace(
-              /\/$/,
-              ""
-            )}/uploads/${filename}`;
-          }
-        }
-
-        return {
-          id,
-          name,
-          category,
-          last_worn_at,
-          user_display,
-          image_url,
-          raw: r,
-        };
-      });
-
-      setAllItems(normalized);
-      setPage(1);
-    } catch (e) {
-      console.error(e);
-      setError(e?.message || "讀取失敗");
     } finally {
       setLoading(false);
     }
   }
 
-  // 客端篩選
+  // 🚨 優化: 正規化邏輯 - 使用 useMemo 結合 SWR 獲取的原始數據
+  const allItems = useMemo(() => {
+    if (clothesLoading || clothesError) return [];
+    
+    const usersMapLocal = usersMap;
+    const normalized = (ArrayOfRawItems(allRawItems)).map((r, idx) => {
+      const id = r.id ?? r.clothes_id ?? idx + 1;
+      const name = r.name ?? r.title ?? r.filename ?? r.image ?? "未命名";
+      const category = r.category ?? r.type ?? r.category_name ?? "未分類";
+      let last_worn_at =
+          r.last_worn_at ??
+          r.lastWornAt ??
+          r.last_worn ??
+          null;
+          
+      // ... (日期轉換邏輯) ...
+      try {
+        if (last_worn_at) {
+          const d = new Date(last_worn_at);
+          last_worn_at = isNaN(d.getTime()) ? null : d.toISOString();
+        }
+      } catch {
+        last_worn_at = null;
+      }
+
+      const uid =
+        r.user_id ?? r.owner ?? r.user ?? r.userId ?? r.owner_id ?? null;
+      let user_display =
+        (uid && usersMapLocal[String(uid)])
+          ? usersMapLocal[String(uid)]
+          : r.owner_display_name ||
+            r.user_display_name ||
+            r.user_name ||
+            (uid ? String(uid) : "-");
+
+      // 圖片邏輯
+      const filename =
+        r.filename ??
+        r.image ??
+        r.img ??
+        r.cover_image ??
+        r.cover_image_url ??
+        "";
+      let image_url = "";
+      if (filename) {
+        if (typeof filename === "string" && (filename.startsWith("http://") || filename.startsWith("https://"))) {
+          image_url = filename;
+        } else if (typeof filename === "string" && filename.startsWith("/")) {
+          image_url = `${API_BASE.replace(/\/$/, "")}${filename}`;
+        } else if (r.img || r.cover_url) {
+           image_url = r.img || r.cover_url;
+        } else {
+          image_url = `${SERVER_ORIGIN.replace(
+            /\/$/,
+            ""
+          )}/uploads/${filename}`;
+        }
+      }
+
+      return {
+        id,
+        name,
+        category,
+        last_worn_at,
+        user_display,
+        image_url,
+        raw: r,
+      };
+    });
+    
+    return normalized;
+  }, [allRawItems, usersMap, clothesLoading, clothesError, API_BASE, SERVER_ORIGIN]);
+  
+  // 輔助函數：確保 allRawItems 是陣列
+  function ArrayOfRawItems(data) {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.initialItems)) return data.initialItems;
+    return [];
+  }
+
+
+  // 客端篩選 (保持不變)
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const uf = userFilter.trim().toLowerCase();
@@ -180,7 +165,7 @@ export default function AdminClothes() {
     });
   }, [allItems, query, userFilter, categoryFilter]);
 
-  // 分頁
+  // 分頁 (保持不變)
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pageItems = useMemo(() => {
@@ -192,24 +177,35 @@ export default function AdminClothes() {
     setPage(Math.max(1, Math.min(totalPages, n)));
   }
 
+  // 🚨 優化: 刪除邏輯使用 SWR mutate + Optimistic Update
   async function handleDeleteClothes(id) {
     setLoading(true);
+    const token = localStorage.getItem("token");
+
+    // 樂觀更新: 立即從快取中移除該項目
+    const optimisticData = allItems.filter(item => item.id !== id);
+    mutate(optimisticData, {
+        revalidate: false,
+        populateCache: true,
+        rollbackOnError: true,
+    });
+
     try {
-      const token = localStorage.getItem("token");
       const url = `${API_BASE}/clothes/${id}`;
-      const res = await fetch(url, {
+      // 呼叫刪除 API
+      await fetchJSON(url, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`delete failed: ${res.status} ${txt}`);
-      }
-      setAllItems((prev) => prev.filter((x) => x.id !== id));
+      
+      // 刪除成功，觸發背景重新驗證，確保數據一致性
+      mutate(); 
+      
     } catch (err) {
       alert("刪除失敗：" + (err?.message || "未知錯誤"));
+      mutate(); // 刪除失敗則回滾（或重新獲取）
     } finally {
       setLoading(false);
     }
@@ -244,6 +240,7 @@ export default function AdminClothes() {
               className="form-select-custom w-56"
             >
               <option value="">所有分類</option>
+              {/* 使用已經正規化的 allItems 來獲取分類列表 */}
               {Array.from(
                 new Set(allItems.map((it) => it.category).filter(Boolean))
               ).map((cat) => (
@@ -253,7 +250,7 @@ export default function AdminClothes() {
               ))}
             </select>
 
-            <StyledButton onClick={() => loadFromApi()}>
+            <StyledButton onClick={() => mutate()}> {/* 🚨 優化: 點擊按鈕手動觸發 SWR 重新驗證 */}
               重新載入
             </StyledButton>
           </div>
@@ -274,7 +271,8 @@ export default function AdminClothes() {
             </thead>
             <tbody>
               {(() => {
-                if (loading) {
+                // 🚨 狀態合併判斷
+                if (clothesLoading && allItems.length === 0) {
                   return (
                     <tr>
                       <td colSpan="6" className="p-6 text-center">
@@ -283,14 +281,14 @@ export default function AdminClothes() {
                     </tr>
                   );
                 }
-                if (error) {
+                if (clothesError) {
                   return (
                     <tr>
                       <td
                         colSpan="6"
                         className="p-6 text-center text-red-600"
                       >
-                        {error}
+                        {clothesError}
                       </td>
                     </tr>
                   );
