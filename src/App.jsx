@@ -25,7 +25,7 @@ import AdminDashboard from './admin/Dashboard';
 import AdminUsers from './admin/Users';
 import AdminSettings from './admin/Settings';
 import AdminClothes from './admin/Clothes';
-// import AdminPosts from './admin/Posts';
+import AdminPosts from './admin/Posts';
 
 export default function App() {
   const [theme, setTheme] = useState('light');
@@ -117,6 +117,16 @@ export default function App() {
                 <RequireAuth>
                   <RequireRole role="admin">
                     <AdminUsers />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/Posts"
+              element={
+                <RequireAuth>
+                  <RequireRole role="admin">
+                    <AdminPosts />
                   </RequireRole>
                 </RequireAuth>
               }

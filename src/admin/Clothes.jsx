@@ -20,8 +20,8 @@ export default function AdminClothes() {
 
   // 🚨 修正: 傳遞 { scope: 'all' } 確保管理員視圖獲取所有衣物
   const { allItems: allRawItems, loading: clothesLoading, error: clothesError, mutate } = useAllClothes({ scope: 'all' });
-  
-  const [loading, setLoading] = useState(false); 
+
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -34,7 +34,7 @@ export default function AdminClothes() {
   useEffect(() => {
     // 僅在第一次載入時獲取使用者資料
     fetchUsers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchUsers() {
@@ -43,11 +43,11 @@ export default function AdminClothes() {
       const token = localStorage.getItem("token");
       const url = new URL(`${API_BASE}/auth/users`);
       url.searchParams.set("limit", "1000");
-      
+
       const data = await fetchJSON(url.toString(), {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!Array.isArray(data)) return;
       setUsers(data);
       const map = {};
@@ -68,18 +68,18 @@ export default function AdminClothes() {
   // 🚨 優化: 正規化邏輯 - 使用 useMemo 結合 SWR 獲取的原始數據
   const allItems = useMemo(() => {
     if (clothesLoading || clothesError) return [];
-    
+
     const usersMapLocal = usersMap;
     const normalized = (ArrayOfRawItems(allRawItems)).map((r, idx) => {
       const id = r.id ?? r.clothes_id ?? idx + 1;
       const name = r.name ?? r.title ?? r.filename ?? r.image ?? "未命名";
       const category = r.category ?? r.type ?? r.category_name ?? "未分類";
       let last_worn_at =
-          r.last_worn_at ??
-          r.lastWornAt ??
-          r.last_worn ??
-          null;
-          
+        r.last_worn_at ??
+        r.lastWornAt ??
+        r.last_worn ??
+        null;
+
       // ... (日期轉換邏輯) ...
       try {
         if (last_worn_at) {
@@ -96,9 +96,9 @@ export default function AdminClothes() {
         (uid && usersMapLocal[String(uid)])
           ? usersMapLocal[String(uid)]
           : r.owner_display_name ||
-            r.user_display_name ||
-            r.user_name ||
-            (uid ? String(uid) : "-");
+          r.user_display_name ||
+          r.user_name ||
+          (uid ? String(uid) : "-");
 
       // 圖片邏輯
       const filename =
@@ -115,7 +115,7 @@ export default function AdminClothes() {
         } else if (typeof filename === "string" && filename.startsWith("/")) {
           image_url = `${API_BASE.replace(/\/$/, "")}${filename}`;
         } else if (r.img || r.cover_url) {
-           image_url = r.img || r.cover_url;
+          image_url = r.img || r.cover_url;
         } else {
           image_url = `${SERVER_ORIGIN.replace(
             /\/$/,
@@ -134,10 +134,10 @@ export default function AdminClothes() {
         raw: r,
       };
     });
-    
+
     return normalized;
   }, [allRawItems, usersMap, clothesLoading, clothesError, API_BASE, SERVER_ORIGIN]);
-  
+
   // 輔助函數：確保 allRawItems 是陣列
   function ArrayOfRawItems(data) {
     if (Array.isArray(data)) return data;
@@ -165,6 +165,13 @@ export default function AdminClothes() {
     });
   }, [allItems, query, userFilter, categoryFilter]);
 
+  // ［新增］把「共 X 筆資料」寫進 localStorage，給儀表板使用
+  useEffect(() => {
+    try {
+      localStorage.setItem("kpi:clothesTotal", String(filtered.length));
+    } catch {}
+  }, [filtered.length]);
+
   // 分頁 (保持不變)
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -182,30 +189,44 @@ export default function AdminClothes() {
     setLoading(true);
     const token = localStorage.getItem("token");
 
-    // 樂觀更新: 立即從快取中移除該項目
-    const optimisticData = allItems.filter(item => item.id !== id);
-    mutate(optimisticData, {
-        revalidate: false,
-        populateCache: true,
-        rollbackOnError: true,
-    });
+    // ✅ 在 SWR 的「raw 快取」上做函式型 mutate，維持相同資料形狀
+    mutate((currentRaw) => {
+      if (!currentRaw) return currentRaw;
+
+      // 兼容多種後端欄位命名，必要時用 index 後援
+      const isNotTarget = (r, idx) => {
+        const rid =
+          r?.id ??
+          r?.clothes_id ??
+          r?.raw_id ??
+          r?.cloth_id ??
+          (r?.raw?.id) ??
+          (idx + 1);
+        return String(rid) !== String(id);
+      };
+
+      // 支援兩種形狀：純陣列 或 { initialItems: [...] }
+      if (Array.isArray(currentRaw)) {
+        return currentRaw.filter(isNotTarget);
+      }
+      if (Array.isArray(currentRaw.initialItems)) {
+        return { ...currentRaw, initialItems: currentRaw.initialItems.filter(isNotTarget) };
+      }
+      return currentRaw;
+    }, { revalidate: false });
 
     try {
       const url = `${API_BASE}/clothes/${id}`;
-      // 呼叫刪除 API
       await fetchJSON(url, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      // 刪除成功，觸發背景重新驗證，確保數據一致性
-      mutate(); 
-      
+      // 成功後再拉一次後端，確保一致
+      mutate();
     } catch (err) {
       alert("刪除失敗：" + (err?.message || "未知錯誤"));
-      mutate(); // 刪除失敗則回滾（或重新獲取）
+      // 回滾：重新取得正確資料
+      mutate();
     } finally {
       setLoading(false);
     }
@@ -223,14 +244,14 @@ export default function AdminClothes() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-2">
             <input
-                className="form-input w-56"
-                placeholder="搜尋衣物或使用者"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setPage(1);
-                }}
-              />
+              className="form-input w-56"
+              placeholder="搜尋衣物或使用者"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+            />
             <select
               value={categoryFilter}
               onChange={(e) => {
@@ -321,13 +342,13 @@ export default function AdminClothes() {
                     <td className="p-3 text-sm text-gray-500">
                       {item.last_worn_at
                         ? new Date(item.last_worn_at).toLocaleString("zh-TW", {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })
                         : "從未穿著"}
                     </td>
                     <td className="p-3">
@@ -369,6 +390,8 @@ export default function AdminClothes() {
           }}
           onConfirm={() => {
             if (askTargetId) handleDeleteClothes(askTargetId);
+            setAskOpen(false);
+            setAskTargetId(null);
           }}
         />
       </div>

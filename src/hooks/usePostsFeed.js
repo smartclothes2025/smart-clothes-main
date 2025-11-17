@@ -1,62 +1,73 @@
-import { useEffect, useRef, useState } from "react";
-import { getSessionCache, setSessionCache } from "../lib/sessionCache";
+// src/hooks/usePostsFeed.js
+import { useEffect, useRef, useState, useCallback } from "react";
+import { getSessionCache, setSessionCache, removeSessionCache } from "../lib/sessionCache";
 
-const CACHE_KEY_DATA = "posts_feed_cache_v1";
-const CACHE_KEY_SCROLL = "posts_feed_scroll_v1";
-
-// 小工具：去掉 query（做為穩定 key）
 export function stripQuery(u) {
   try { const url = new URL(u); url.search = ""; return url.toString(); }
   catch { return u; }
 }
 
 /**
- * props:
- *  - fetcher: () => Promise<Post[]>  你現有的抓貼文函式
- *  - ttlMs: 快取壽命（預設 15 分鐘）
+ * 可重複使用的貼文 Feed 鉤子 (支援 Session 快取)
+ * @param {Function} fetcher - 抓取資料的異步函數
+ * @param {string} cacheKey - 用於 sessionStorage 的鍵名
+ * @param {number} [ttlMs=900000] - 快取存活時間 (預設 15 分鐘)
  */
-export function usePostsFeed(fetcher, ttlMs = 15 * 60 * 1000) {
-  const [posts, setPosts] = useState(() => getSessionCache(CACHE_KEY_DATA) || []);
+export function usePostsFeed(fetcher, cacheKey, ttlMs = 15 * 60 * 1000) {
+  const [posts, setPosts] = useState(() => getSessionCache(cacheKey) || []);
   const [loading, setLoading] = useState(posts.length === 0);
   const [error, setError] = useState(null);
   const restoringRef = useRef(false);
+  const scrollCacheKey = `${cacheKey}_scroll`;
 
-  // 首次載入：如果 cache 有資料，先用；然後背景更新一次
-  useEffect(() => {
-    let alive = true;
-    async function load() {
-      try {
-        setLoading(posts.length === 0);
-        const fresh = await fetcher();
-        if (!alive) return;
-        setPosts(fresh);
-        setSessionCache(CACHE_KEY_DATA, fresh, ttlMs);
-      } catch (e) {
-        if (alive) setError(e?.message || "載入失敗");
-      } finally {
-        if (alive) setLoading(false);
-      }
+  // 封裝載入邏輯
+  const load = useCallback(async (signal) => {
+    // 檢查快取
+    const cached = getSessionCache(cacheKey);
+    if (cached) {
+      setPosts(cached);
+      setLoading(false); // 有快取，不顯示載入中
+    } else {
+      setLoading(true); // 無快取，顯示載入中
     }
-    load();
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 只跑一次
+    
+    try {
+      const fresh = await fetcher({ signal });
+      if (Array.isArray(fresh)) {
+        setPosts(fresh);
+        setSessionCache(cacheKey, fresh, ttlMs);
+      }
+    } catch (e) {
+      if (e?.name !== "AbortError") {
+        console.warn(`[usePostsFeed] ${cacheKey} 載入失敗:`, e);
+        setError(e?.message || "載入失敗");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [fetcher, cacheKey, ttlMs]);
 
-  // 恢復捲動位置（只在第一次進到頁面時）
+  // 初始載入
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  // 恢復捲動位置
   useEffect(() => {
     if (restoringRef.current) return;
     restoringRef.current = true;
-    const y = getSessionCache(CACHE_KEY_SCROLL);
+    const y = getSessionCache(scrollCacheKey);
     if (typeof y === "number") {
-      // 等到下一個 tick，確保列表畫出來
       setTimeout(() => window.scrollTo(0, y), 0);
     }
-  }, []);
+  }, [scrollCacheKey]);
 
-  // 在跳頁前/卸載時，記住捲動位置
+  // 儲存捲動位置
   useEffect(() => {
     const handler = () => {
-      try { setSessionCache(CACHE_KEY_SCROLL, window.scrollY, 24 * 60 * 60 * 1000); } catch {}
+      try { setSessionCache(scrollCacheKey, window.scrollY, 24 * 60 * 60 * 1000); } catch {}
     };
     window.addEventListener("pagehide", handler);
     window.addEventListener("beforeunload", handler);
@@ -65,7 +76,15 @@ export function usePostsFeed(fetcher, ttlMs = 15 * 60 * 1000) {
       window.removeEventListener("pagehide", handler);
       window.removeEventListener("beforeunload", handler);
     };
-  }, []);
+  }, [scrollCacheKey]);
+  
+  // 導出 mutate 函數，用於手動清除快取並重新整理
+  const mutate = useCallback(() => {
+      console.log(`[usePostsFeed] Mutating ${cacheKey}`);
+      removeSessionCache(cacheKey);
+      const controller = new AbortController();
+      load(controller.signal);
+  }, [load, cacheKey]);
 
-  return { posts, setPosts, loading, error };
+  return { posts, setPosts, loading, error, mutate };
 }

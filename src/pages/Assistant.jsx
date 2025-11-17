@@ -10,14 +10,21 @@ import {
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 
-const STORAGE_KEY = "assistant:messages:v3";
+const STORAGE_PREFIX = "assistant:messages";
+const LEGACY_STORAGE_KEY = "assistant:messages:v3";
 
-// 【修正 1】：大幅減少桌面版卡片高度縮減值，僅保留少量 padding 空間
-// 目的：讓桌面版卡片盡可能高，只保留 Layout 上下邊距需要的空間。
-const SHRINK_PX_DESKTOP = 20; // 從 140 減到 20
+const DEFAULT_MESSAGES = Object.freeze([
+  {
+    id: 1,
+    role: "assistant",
+    kind: "text",
+    text: "嗨！我是你的穿搭小助手，有什麼穿搭建議都歡迎詢問我喔～",
+  },
+]);
+
+const SHRINK_PX_DESKTOP = 20; 
 const SHRINK_PX_MOBILE = 50;
 
-// API 基底：優先吃 .env 的 VITE_API_BASE，否則用 ngrok 後備
 const API_BASE =
   import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
   "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
@@ -26,6 +33,45 @@ function getToken() {
   return localStorage.getItem("token") || "";
 }
 // ... (packMessages, restoreMessages 保持不變) ...
+function getStorageKey(token) {
+  return token ? `${STORAGE_PREFIX}:${token}` : `${STORAGE_PREFIX}:guest`;
+}
+
+function cloneDefaultMessages() {
+  return DEFAULT_MESSAGES.map((m) => ({ ...m }));
+}
+
+function calculateNextId(list) {
+  const maxId = list.reduce((mx, m) => Math.max(mx, m.id || 0), 0);
+  return maxId + 1;
+}
+
+function formatAssistantText(text) {
+  if (!text) return "";
+  const parts = text.match(/[^。]*。|[^。]+/g);
+  if (!parts) return text;
+  return parts.map((part, index) => (
+    <React.Fragment key={index}>
+      {part.trim()}
+      {index !== parts.length - 1 && <br />}
+    </React.Fragment>
+  ));
+}
+
+function createPendingImageEntry(file, dataUrl) {
+  const id =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
+  return {
+    id,
+    name: file.name || "image",
+    size: file.size || 0,
+    type: file.type || "",
+    dataUrl,
+  };
+}
+
 function packMessages(msgs) {
   return msgs.map((m) => {
     if (m.kind === "image") {
@@ -36,73 +82,57 @@ function packMessages(msgs) {
   });
 }
 
-function restoreMessages() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const arr = JSON.parse(raw);
-    return arr.map((m) =>
-      m.kind === "image"
-        ? { id: m.id, role: m.role, kind: "image", url: m.url, alt: m.alt || "image" }
-        : { id: m.id, role: m.role, kind: "text", text: m.text ?? "" }
-    );
-  } catch {
-    return null;
+function restoreMessages(token) {
+  const candidateKeys = [getStorageKey(token), LEGACY_STORAGE_KEY];
+  for (const key of candidateKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const arr = JSON.parse(raw);
+      return arr.map((m) =>
+        m.kind === "image"
+          ? { id: m.id, role: m.role, kind: "image", url: m.url, alt: m.alt || "image" }
+          : { id: m.id, role: m.role, kind: "text", text: m.text ?? "" }
+      );
+    } catch {
+    }
   }
+  return null;
 }
 
 export default function Assistant({ theme, setTheme }) {
-  const restored = restoreMessages();
-  const [messages, setMessages] = useState(
-    restored ?? [
-      {
-        id: 1,
-        role: "assistant",
-        kind: "text",
-        text: "嗨！我是你的穿搭小助手，有什麼穿搭建議都歡迎詢問我喔～",
-      },
-    ]
-  );
-  const nextIdRef = useRef(
-    (restored?.reduce((mx, m) => Math.max(mx, m.id || 0), 1) ?? 1) + 1
-  );
-
+  const [token, setToken] = useState(() => getToken());
+  const initialMessages = restoreMessages(token) ?? cloneDefaultMessages();
+  const [messages, setMessages] = useState(initialMessages);
+  const nextIdRef = useRef(calculateNextId(initialMessages));
+  const tokenRef = useRef(token);
+  const fileInputRef = useRef(null);
+  const [pendingImages, setPendingImages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
-
   const scrollRef = useRef(null);
 
-  // —— 卡片高度（依螢幕與 header 自適應 + 額外縮減）——
   const [cardHeightPx, setCardHeightPx] = useState(null);
   function computeCardHeightPx() {
     const rootFontSize =
       parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
 
-    // 抓取 header
     const headerEl = document.querySelector("header");
     const headerH = headerEl
       ? headerEl.getBoundingClientRect().height
       : 4 * rootFontSize;
-    
-    // 抓取 Layout 底部導航欄
+
     const layoutBottomNav = document.querySelector(".layout-bottom-nav"); 
     const bottomNavH = layoutBottomNav 
       ? layoutBottomNav.getBoundingClientRect().height 
-      : 4 * rootFontSize; // 預設底部導航欄高度
-    
+      : 4 * rootFontSize; 
 
-    // 行動版需要額外扣除底部導航欄高度
     const mobileExtraPx = isMobile ? bottomNavH : 0; 
     const vh = window.innerHeight;
-
     const shrinkPx = isMobile ? SHRINK_PX_MOBILE : SHRINK_PX_DESKTOP;
-    
-    // 計算最終高度
     const base = Math.floor(vh - headerH - mobileExtraPx) - shrinkPx;
-
-    // 【修改 1 續】：讓卡片盡可能貼合底部
     return Math.max(isMobile ? 180 : 300, base);
   }
   useEffect(() => {
@@ -153,14 +183,49 @@ export default function Assistant({ theme, setTheme }) {
 
   // 訊息變更 → 寫入暫存
   useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
+  useEffect(() => {
+    const restored = restoreMessages(tokenRef.current);
+    const base = restored ?? cloneDefaultMessages();
+    setMessages(base);
+    nextIdRef.current = calculateNextId(base);
+  }, [token]);
+
+  useEffect(() => {
+    const key = getStorageKey(tokenRef.current);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(packMessages(messages)));
+      localStorage.setItem(key, JSON.stringify(packMessages(messages)));
+      if (key !== LEGACY_STORAGE_KEY) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
     } catch (e) {
       console.warn("保存聊天暫存失敗：", e);
     }
-  }, [messages]);
+  }, [messages, token]);
 
-  // 新增訊息（text / image）
+  useEffect(() => {
+    const handleLogout = () => {
+      const currentToken = tokenRef.current;
+      try {
+        localStorage.removeItem(getStorageKey(currentToken));
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      } catch (e) {
+        console.warn("清除聊天暫存失敗：", e);
+      }
+      const defaults = cloneDefaultMessages();
+      setMessages(defaults);
+      nextIdRef.current = calculateNextId(defaults);
+      setToken("");
+    };
+
+    window.addEventListener("logout", handleLogout);
+    return () => {
+      window.removeEventListener("logout", handleLogout);
+    };
+  }, []);
+
   function addMessage(role, content, kind = "text", extra = {}) {
     if (kind === "image") {
       setMessages((m) => [
@@ -189,24 +254,51 @@ export default function Assistant({ theme, setTheme }) {
   async function handleSend(e) {
     e?.preventDefault();
     const txt = input.trim();
-    if (!txt || sending) return;
+    const hasText = txt.length > 0;
+    const imagesToSend = pendingImages;
+    const hasImages = imagesToSend.length > 0;
+    if ((!hasText && !hasImages) || sending) return;
+
+    const activeToken = getToken();
+    if (!activeToken) {
+      addMessage("assistant", "請先登入後再與小助手聊天。", "text");
+      return;
+    }
+
+    if (activeToken !== tokenRef.current) {
+      const restored = restoreMessages(activeToken) ?? cloneDefaultMessages();
+      setMessages(restored);
+      nextIdRef.current = calculateNextId(restored);
+      setToken(activeToken);
+    }
 
     setSending(true);
-    addMessage("user", txt, "text");
+    if (hasText) addMessage("user", txt, "text");
+    imagesToSend.forEach((img) => {
+      addMessage("user", img.dataUrl, "image", { alt: img.name || "已上傳圖片" });
+    });
     setInput("");
+    setPendingImages([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setIsTyping(true);
 
     try {
-      const token = getToken();
-      if (!token) throw new Error("未找到登入 Token，請先登入");
+      const tokenToUse = tokenRef.current || getToken();
+      if (!tokenToUse) throw new Error("未找到登入 Token，請先登入");
+
+      const payload = {
+        user_input: txt,
+        images: imagesToSend.map((img) => img.dataUrl),
+        image_names: imagesToSend.map((img) => img.name),
+      };
 
       const res = await fetch(`${API_BASE}/chat/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${tokenToUse}`,
         },
-        body: JSON.stringify({ user_input: txt }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -236,10 +328,50 @@ export default function Assistant({ theme, setTheme }) {
   }
 
   function handleFileChange(e) {
-    const list = Array.from(e.target.files || []);
-    const imgs = list.filter((f) => f.type?.startsWith("image/"));
-    if (!imgs.length) return;
-    // 這裡只是個示範，實際應用中應處理圖片上傳邏輯
+    const files = Array.from(e.target.files || []).filter((f) => f.type?.startsWith("image/"));
+    if (!files.length) return;
+
+    const activeToken = getToken();
+    if (!activeToken) {
+      addMessage("assistant", "請先登入後再上傳圖片。", "text");
+      e.target.value = "";
+      return;
+    }
+
+    if (activeToken !== tokenRef.current) {
+      const restored = restoreMessages(activeToken) ?? cloneDefaultMessages();
+      setMessages(restored);
+      nextIdRef.current = calculateNextId(restored);
+      setToken(activeToken);
+    }
+
+    const readers = files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ dataUrl: reader.result, file });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        })
+    );
+
+    Promise.all(readers)
+      .then((results) => {
+        const entries = results
+          .filter(({ dataUrl }) => typeof dataUrl === "string")
+          .map(({ dataUrl, file }) => createPendingImageEntry(file, dataUrl));
+        if (entries.length) {
+          setPendingImages((prev) => [...prev, ...entries]);
+        }
+      })
+      .catch((err) => {
+        console.error("圖片讀取失敗", err);
+        addMessage("assistant", "⚠️ 圖片讀取失敗，請重試", "text");
+      });
+  }
+
+  function removePendingImage(id) {
+    setPendingImages((prev) => prev.filter((item) => item.id !== id));
   }
 
   const quickPrompts = [
@@ -260,7 +392,6 @@ export default function Assistant({ theme, setTheme }) {
       `}</style>
 
       <div className="page-wrapper assistant-page">
-        {/* 【修正 2】：移除桌機版的 mt-4，僅在行動版保留 px-3 */}
         <div className="w-full mt-4 md:mt-0 px-1 md:px-0"> 
           {/* 聊天卡片 */}
           <div
@@ -268,7 +399,9 @@ export default function Assistant({ theme, setTheme }) {
             style={cardHeightPx ? { height: `${cardHeightPx}px` } : undefined}
           >
             {/* 快速提示區：調整顏色和陰影，使其更像卡片的一部分 */}
-            <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur flex flex-wrap gap-2 sticky top-0 z-10">
+            <div
+              className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur flex flex-wrap gap-2 sticky top-0 z-10"
+            >
               {quickPrompts.map((q) => (
                 <button
                   key={q}
@@ -277,7 +410,7 @@ export default function Assistant({ theme, setTheme }) {
                     setTimeout(() => handleSend(null), 0);
                   }}
                   // 優化快速提示按鈕樣式
-                  className="px-3 py-1 rounded-full text-sm border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                  className="px-3 py-1 rounded-full text-sm border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
                   {q}
                 </button>
@@ -304,7 +437,6 @@ export default function Assistant({ theme, setTheme }) {
                       <div className="flex-shrink-0 mr-3">
                         <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-semibold shadow-md">
                           <img src="/favicon-32x32.png"></img>
-
                         </div>
                       </div>
                     )}
@@ -313,8 +445,8 @@ export default function Assistant({ theme, setTheme }) {
                     <div
                       className={`max-w-[70ch] break-words shadow-md transition-all duration-300 ${
                         isAssistant
-                          ? "bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-2 py-3"
-                          : "bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-2 py-3"
+                          ? "bg-slate-100 text-slate-800 rounded-2xl rounded-tl-sm px-2 py-3 text-left"
+                          : "bg-slate-900 text-white rounded-2xl rounded-tr-sm px-2 py-3"
                       }`}
                     >
                       {m.kind === "image" ? (
@@ -324,31 +456,21 @@ export default function Assistant({ theme, setTheme }) {
                           className="mt-1 w-full max-w-2xl rounded-xl shadow-lg" 
                         />
                       ) : (
-                        m.text
+                        isAssistant ? formatAssistantText(m.text) : m.text
                       )}
                     </div>
-
-                    {/* 用戶頭像：優化樣式，使用更鮮明的顏色並加入陰影 */}
-                    {!isAssistant && (
-                      <div className="flex-shrink-0 ml-3">
-                        <div className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center text-white text-lg font-semibold shadow-md">
-                          U
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
 
-              {/* 打字中動畫：優化氣泡樣式與助手氣泡保持一致 */}
               {isTyping && (
                 <div className="mb-4 flex items-start">
                   <div className="flex-shrink-0 mr-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-lg font-semibold shadow-md">
-                      🤖
+                    <div className="w-9 h-9 rounded-full bg-slate-600 flex items-center justify中心 text-white text-lg font-semibold shadow-md">
+                      <img src="/favicon-32x32.png"></img>
                     </div>
                   </div>
-                  <div className="bg-indigo-50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md">
+                  <div className="bg-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md">
                     <span className="typing-dot" />
                     <span className="typing-dot mx-1" />
                     <span className="typing-dot" />
@@ -359,18 +481,45 @@ export default function Assistant({ theme, setTheme }) {
 
             {/* 輸入區 */}
             <div className="px-3 py-3 bg-white flex-shrink-0">
+              {pendingImages.length > 0 && (
+                <div className="mb-3 flex gap-3 overflow-x-auto pb-1">
+                  {pendingImages.map((item) => (
+                    <div key={item.id} className="relative flex-shrink-0">
+                      <img
+                        src={item.dataUrl}
+                        alt={item.name || "已選擇圖片"}
+                        className="h-20 w-20 object-cover rounded-lg border border-slate-200 shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePendingImage(item.id)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-700 text-white text-xs flex items-center justify-center shadow"
+                        aria-label={`移除 ${item.name || "圖片"}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <form onSubmit={handleSend} className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
                 {/* 輔助按鈕：相機 */}
                 <button
                   type="button"
                   className="p-3 rounded-full hover:bg-slate-100 text-slate-500 transition-colors flex-shrink-0"
                   title="相機"
-                  onChange={handleFileChange}
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 >
                   <CameraIcon className="w-6 h-6" />
                 </button>
-                {/* 語音輸入按鈕 (為了保持和上次的輸出一致，這裡暫時將 MicrophoneIcon 移除) */}
-                
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}

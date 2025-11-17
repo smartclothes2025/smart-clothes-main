@@ -78,7 +78,20 @@ export async function fetchJSON(url, opts = {}) {
     err.status = res.status;
     throw err;
   }
-  const data = await res.json();
+
+  // 204/205 等無內容回應，或 Content-Length 為 0 時直接返回 null
+  if (res.status === 204 || res.status === 205) {
+    console.log('  ✅ Success, empty body (no JSON)');
+    return null;
+  }
+
+  const text = await res.text();
+  if (!text) {
+    console.log('  ✅ Success, empty body (no JSON)');
+    return null;
+  }
+
+  const data = JSON.parse(text);
   console.log('  ✅ Success, data length:', Array.isArray(data) ? data.length : 'N/A');
   return data;
 }

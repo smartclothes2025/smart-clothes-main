@@ -3,67 +3,83 @@ import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import { HeartIcon } from "@heroicons/react/24/outline";
-import { getCachedObjectUrl } from "../lib/imageCache";
+// import { getCachedObjectUrl } from "../lib/imageCache"; // 公開模式下不需要
 import { stripQuery } from "../hooks/usePostsFeed";
+
+function gsToPublicUrl(url) {
+  if (!url || typeof url !== "string") return url;
+  if (!url.startsWith("gs://")) return url;
+  const without = url.replace("gs://", "");
+  const slash = without.indexOf("/");
+  if (slash <= 0) return url;
+  const bucket = without.slice(0, slash);
+  const object = encodeURI(without.slice(slash + 1));
+  return `https://storage.googleapis.com/${bucket}/${object}`;
+}
 
 export default function PostCard({
   imageUrl,
-  postId,            // ← 新增：用來刷新簽名網址
+  postId,
   alt = "Post",
   likes = 0,
   to,
   onClick,
-  cacheKey,
+  cacheKey,         // 公開模式其實用不到，但保留相容
+  useSigned = false, // 🔁 新增：是否使用簽名 URL
+  apiBase = "/api/v1", // 🔁 用於簽名模式
 }) {
   const navigate = useNavigate();
   const [resolvedSrc, setResolvedSrc] = useState(null);
   const [loading, setLoading] = useState(!!imageUrl);
+  const stableKey = useMemo(() => cacheKey || stripQuery(imageUrl || ""), [cacheKey, imageUrl]);
 
   function handleClick() {
     if (onClick) onClick();
     else if (to) navigate(to);
   }
 
-  const stableKey = useMemo(() => cacheKey || stripQuery(imageUrl || ""), [cacheKey, imageUrl]);
+  async function fetchSignedUrl() {
+    if (!postId) return null;
+    try {
+      const res = await fetch(`${apiBase}/posts/${postId}/signed-url`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.signed_url || data?.url || null;
+    } catch {
+      return null;
+    }
+  }
 
   useEffect(() => {
     let alive = true;
     async function run() {
-      if (!imageUrl) { setResolvedSrc(null); setLoading(false); return; }
+      if (!imageUrl) { if (alive) { setResolvedSrc(null); setLoading(false); } return; }
       setLoading(true);
-      try {
-        const src = await getCachedObjectUrl(imageUrl, stableKey);
-        if (alive) setResolvedSrc(src);     // Blob/ObjectURL
-      } catch {
-        if (alive) setResolvedSrc(imageUrl); // Fallback: <img src>
-      } finally {
-        if (alive) setLoading(false);
+
+      if (useSigned) {
+        // 簽名模式：先拿簽名 URL，再顯示
+        const signed = await fetchSignedUrl();
+        const finalUrl = signed || imageUrl;
+        if (alive) setResolvedSrc(finalUrl);
+        setLoading(false);
+      } else {
+        // 公開模式：不打簽名；若是 gs:// 轉 https 公開網址
+        const publicUrl = gsToPublicUrl(imageUrl);
+        if (alive) setResolvedSrc(publicUrl);
+        setLoading(false);
       }
     }
     run();
     return () => { alive = false; };
-  }, [imageUrl, stableKey]);
+  }, [imageUrl, useSigned, postId, apiBase, stableKey]);
 
-  // 圖片過期或 403 時自動刷新
   async function handleImgError() {
-    try {
-      if (!postId) return; // 沒 postId 就不刷新
-      // 假設你在後端有提供：GET /api/v1/posts/{postId}/signed-url
-      const res = await fetch(`/api/v1/posts/${postId}/signed-url`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const newUrl = data?.signed_url || data?.url || null;
-      if (!newUrl) return;
-      // 重新套用快取流程
-      try {
-        const src = await getCachedObjectUrl(newUrl, stripQuery(newUrl));
-        setResolvedSrc(src);
-      } catch {
-        setResolvedSrc(newUrl);
-      }
-    } catch {
-      // 真的不行就保持原樣（顯示失敗框）
-    }
+    if (!useSigned) return;  // 公開模式就讓它走 onError 後備圖即可
+    const signed = await fetchSignedUrl();
+    if (!signed) return;
+    setResolvedSrc(signed);
   }
 
   return (
@@ -85,6 +101,7 @@ export default function PostCard({
           className="w-full h-auto object-contain"
           style={{ maxHeight: "300px" }}
           loading="lazy"
+          decoding="async"
           onError={handleImgError}
         />
       ) : (
@@ -111,4 +128,6 @@ PostCard.propTypes = {
   to: PropTypes.string,
   onClick: PropTypes.func,
   cacheKey: PropTypes.string,
+  useSigned: PropTypes.bool,     // 🔁
+  apiBase: PropTypes.string,     // 🔁
 };

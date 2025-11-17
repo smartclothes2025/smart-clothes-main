@@ -136,7 +136,7 @@ const App = () => {
   return (
     <section>
         <form className="relative w-full" onSubmit={handleSubmit}>
-          <div className="absolute top-1 left-1 h-full w-full rounded-2xl bg-[#F87171]"></div>
+          <div className="absolute top-1 left-1 h-full w-full rounded-2xl bg-[#F1E1FF]"></div>
           <div className="relative flex h-full w-full items-center rounded-2xl border-2 border-black bg-white px-4 py-3">
             <div className="mr-4">
               <SearchIcon />

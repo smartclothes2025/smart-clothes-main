@@ -3,13 +3,16 @@ import React, { useEffect, useState } from "react";
 import PostCard from "./PostCard";
 import PostDetailModal from "./PostDetailModal";
 
-// ✅ 後端 API 基底網址
-const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
+// ✅ 後端 API 基底網址（僅用來抓公開貼文清單）
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
-/** 將 gs:// 轉為可瀏覽的網址 */
+/** 將 gs:// 轉為公開可瀏覽的網址（不走簽名） */
 function resolveGcsUrl(gsOrHttp) {
   if (!gsOrHttp) return null;
-  if (gsOrHttp.startsWith("http://") || gsOrHttp.startsWith("https://")) return gsOrHttp;
+  if (gsOrHttp.startsWith("http://") || gsOrHttp.startsWith("https://"))
+    return gsOrHttp;
   if (gsOrHttp.startsWith("gs://")) {
     const without = gsOrHttp.replace("gs://", "");
     const slash = without.indexOf("/");
@@ -22,67 +25,43 @@ function resolveGcsUrl(gsOrHttp) {
   return gsOrHttp;
 }
 
-/** 從 media 陣列找封面圖 */
+/** 從 media 陣列找封面圖（公開優先、完全不簽名） */
 function pickCoverUrl(media) {
-  if (!Array.isArray(media) || media.length === 0) {
-    return null;
-  }
-  
+  if (!Array.isArray(media) || media.length === 0) return null;
   const cover = media.find((m) => m?.is_cover) || media[0];
-  
-  if (!cover) {
-    return null;
-  }
+  if (!cover) return null;
 
-  // 優先順序：_view > url > authenticated_url > image_url > gcs_uri
+  // 優先：直接可公開取用的欄位
   const raw =
     cover?._view ||
     cover?.url ||
-    cover?.authenticated_url ||
     cover?.image_url ||
     cover?.image ||
+    cover?.authenticated_url || // 若後端曾塞過可直接取用的 URL
     cover?.gcs_uri ||
-    cover?.gcsUrl || null;
+    cover?.gcsUrl ||
+    null;
 
   return resolveGcsUrl(raw);
 }
 
-/** 解析 media 陣列，補上 _view 欄位 */
-async function resolveMediaArray(mediaArr, token) {
-  const trySign = async (gcsUri) => {
-    const url = `${API_BASE}/media/signed-url?gcs_uri=${encodeURIComponent(gcsUri)}`;
-    try {
-      const r = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (r.ok) {
-        const j = await r.json().catch(() => ({}));
-        return j.authenticated_url || j.url || null;
-      }
-    } catch {}
-    return null;
-  };
-
+/** 僅將 media 陣列的每個項目補上 _view（公開 URL），不簽名 */
+function normalizeMediaArray(mediaArr) {
   const out = [];
   for (const m of mediaArr || []) {
-    const direct = m?.authenticated_url || m?.url || m?.image_url;
-
+    // 先用已存在的明確 URL
+    const direct = m?.url || m?.image_url || m?.image || m?.authenticated_url;
     if (direct) {
       out.push({ ...m, _view: direct });
       continue;
     }
-
-    const gcs = m?.gcs_uri || m?.image || null;
-    if (!gcs) {
-      out.push(m);
+    // 再嘗試從 gcs_uri 轉公開網址
+    const gcs = m?.gcs_uri || m?.gcsUrl || null;
+    if (gcs) {
+      out.push({ ...m, _view: resolveGcsUrl(gcs) });
       continue;
     }
-
-    let signed = await trySign(gcs);
-    if (!signed) {
-      signed = resolveGcsUrl(gcs);
-    }
-    out.push({ ...m, _view: signed });
+    out.push(m);
   }
   return out;
 }
@@ -90,90 +69,59 @@ async function resolveMediaArray(mediaArr, token) {
 export default function HomePost() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
     const controller = new AbortController();
 
-    // 從 sessionStorage 恢復搜尋狀態
+    // 從 sessionStorage 恢復搜尋狀態（公開模式）
     const restoreSearchState = () => {
       try {
-        const savedQuery = sessionStorage.getItem('homepost_search_query');
-        const savedResults = sessionStorage.getItem('homepost_search_results');
-        
+        const savedQuery = sessionStorage.getItem("homepost_search_query");
+        const savedResults = sessionStorage.getItem("homepost_search_results");
         if (savedQuery && savedResults) {
           setSearchQuery(savedQuery);
-          
-          const results = JSON.parse(savedResults);
-          const processSearchResults = async () => {
-            const hydrated = [];
-            
-            for (const post of results) {
-              let mediaArr = [];
-              
-              try {
-                if (Array.isArray(post.media)) {
-                  mediaArr = post.media;
-                } else if (typeof post.media === 'string') {
-                  mediaArr = JSON.parse(post.media || "[]");
-                }
-              } catch (e) {
-                console.error(`解析貼文 ${post.id} 的 media 失敗:`, e);
-              }
-              
-              // 檢查後端是否已經提供了簽署的 URL
-              const processedMedia = mediaArr.map(m => {
-                // 後端已經在 m.url 中提供簽署的 URL
-                if (m?.url) {
-                  return { ...m, _view: m.url };
-                }
-                if (m?.authenticated_url) {
-                  return { ...m, _view: m.authenticated_url };
-                }
-                if (m?.image_url) {
-                  return { ...m, _view: m.image_url };
-                }
-                // 如果後端沒有提供 URL，嘗試自己處理 gcs_uri
-                if (m?.gcs_uri) {
-                  return { ...m, _view: resolveGcsUrl(m.gcs_uri) };
-                }
-                return m;
-              });
-              
-              hydrated.push({ 
-                ...post, 
-                _mediaArr: processedMedia 
-              });
-            }
 
-            setPosts(hydrated);
-            setLoading(false);
-          };
-          
-          processSearchResults();
+          const results = JSON.parse(savedResults);
+          const hydrated = [];
+          for (const post of results) {
+            let mediaArr = [];
+            try {
+              if (Array.isArray(post.media)) mediaArr = post.media;
+              else if (typeof post.media === "string")
+                mediaArr = JSON.parse(post.media || "[]");
+            } catch (e) {
+              console.error(`解析貼文 ${post.id} 的 media 失敗:`, e);
+            }
+            hydrated.push({
+              ...post,
+              _mediaArr: normalizeMediaArray(mediaArr),
+            });
+          }
+          setPosts(hydrated);
+          setLoading(false);
           return true;
         }
       } catch (e) {
-        console.error('恢復搜尋狀態失敗:', e);
+        console.error("恢復搜尋狀態失敗:", e);
       }
       return false;
     };
 
+    // 抓公開貼文（完全公開圖片，不簽名）
     const fetchPublicPosts = async () => {
       setLoading(true);
       setError(null);
       try {
-        // 讀取所有 visibility=public 的貼文
-        const res = await fetch(`${API_BASE}/posts/?visibility=public&limit=50`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            Accept: "application/json",
-          },
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `${API_BASE}/posts/?visibility=public&limit=50`,
+          {
+            headers: { Accept: "application/json" },
+            signal: controller.signal,
+          }
+        );
 
         if (!res.ok) {
           console.warn(`讀取公開貼文失敗 (${res.status})`);
@@ -183,23 +131,18 @@ export default function HomePost() {
 
         const data = await res.json();
 
-        // 先把 media 變成陣列
-        const prelim = (data || []).map((it) => {
+        // 正規化 media
+        const hydrated = (data || []).map((it) => {
           let mediaArr = [];
           try {
-            mediaArr = Array.isArray(it.media) ? it.media : JSON.parse(it.media || "[]");
+            mediaArr = Array.isArray(it.media)
+              ? it.media
+              : JSON.parse(it.media || "[]");
           } catch {
             mediaArr = [];
           }
-          return { ...it, _mediaArr: mediaArr };
+          return { ...it, _mediaArr: normalizeMediaArray(mediaArr) };
         });
-
-        // 逐篇解析 media
-        const hydrated = [];
-        for (const it of prelim) {
-          const resolved = await resolveMediaArray(it._mediaArr, token);
-          hydrated.push({ ...it, _mediaArr: resolved });
-        }
 
         setPosts(hydrated);
       } catch (e) {
@@ -212,127 +155,78 @@ export default function HomePost() {
       }
     };
 
-    // 監聽搜尋事件
+    // 監聽搜尋事件（外部觸發，結果直接用公開 URL 呈現）
     const handleSearchPosts = (event) => {
-      const { query, results, loading: searchLoading, error: searchError } = event.detail;
-      
-      setSearchQuery(query || '');
-      
+      const { query, results, loading: searchLoading, error: searchError } =
+        event.detail;
+
+      setSearchQuery(query || "");
+
       if (searchLoading) {
         setLoading(true);
         setError(null);
         return;
       }
-      
       if (searchError) {
         setError(searchError);
         setLoading(false);
         return;
       }
-      
-      if (results) {
-        // 收到搜尋結果，處理後顯示
-        const processSearchResults = async () => {
-          // 儲存搜尋狀態到 sessionStorage
-          try {
-            sessionStorage.setItem('homepost_search_query', query);
-            sessionStorage.setItem('homepost_search_results', JSON.stringify(results));
-          } catch (e) {
-            console.error('儲存搜尋狀態失敗:', e);
-          }
-          
-          const hydrated = [];
-          
-          for (const post of results) {
-            let mediaArr = [];
-            
-            // 解析 media 欄位
-            try {
-              if (Array.isArray(post.media)) {
-                // 後端已經返回解析好的陣列
-                mediaArr = post.media;
-              } else if (typeof post.media === 'string') {
-                mediaArr = JSON.parse(post.media || "[]");
-              }
-            } catch (e) {
-              console.error(`解析貼文 ${post.id} 的 media 失敗:`, e, post.media);
-            }
-            
-            console.log(`🔍 搜尋結果 - 貼文 ${post.id} 原始 media:`, mediaArr);
-            
-            // 檢查後端是否已經提供了簽署的 URL
-            const processedMedia = mediaArr.map(m => {
-              // 後端已經在 m.url 中提供簽署的 URL
-              if (m?.url) {
-                console.log(`✅ 貼文 ${post.id} 已有簽署 URL:`, m.url);
-                return { ...m, _view: m.url };
-              }
-              // 備用：檢查其他可能的 URL 欄位
-              if (m?.authenticated_url) {
-                console.log(`✅ 貼文 ${post.id} 使用 authenticated_url:`, m.authenticated_url);
-                return { ...m, _view: m.authenticated_url };
-              }
-              if (m?.image_url) {
-                console.log(`✅ 貼文 ${post.id} 使用 image_url:`, m.image_url);
-                return { ...m, _view: m.image_url };
-              }
-              // 如果後端沒有提供 URL，嘗試自己處理 gcs_uri
-              if (m?.gcs_uri) {
-                console.log(`⚠️ 貼文 ${post.id} 只有 gcs_uri，嘗試轉換:`, m.gcs_uri);
-                const converted = resolveGcsUrl(m.gcs_uri);
-                return { ...m, _view: converted };
-              }
-              console.warn(`❌ 貼文 ${post.id} 的 media 項目沒有可用的 URL:`, m);
-              return m;
-            });
-            
-            console.log(`🔍 貼文 ${post.id} 處理後的 media:`, processedMedia);
-            
-            hydrated.push({ 
-              ...post, 
-              _mediaArr: processedMedia 
-            });
-          }
 
-          setPosts(hydrated);
-          setLoading(false);
-        };
-        
-        processSearchResults();
-      } else if (query === '') {
-        // 清空搜尋，重新載入所有公開貼文
-        // 清除 sessionStorage 中的搜尋狀態
+      if (results) {
+        // 存搜尋狀態
         try {
-          sessionStorage.removeItem('homepost_search_query');
-          sessionStorage.removeItem('homepost_search_results');
+          sessionStorage.setItem("homepost_search_query", query);
+          sessionStorage.setItem(
+            "homepost_search_results",
+            JSON.stringify(results)
+          );
         } catch (e) {
-          console.error('清除搜尋狀態失敗:', e);
+          console.error("儲存搜尋狀態失敗:", e);
+        }
+
+        const hydrated = [];
+        for (const post of results) {
+          let mediaArr = [];
+          try {
+            if (Array.isArray(post.media)) mediaArr = post.media;
+            else if (typeof post.media === "string")
+              mediaArr = JSON.parse(post.media || "[]");
+          } catch (e) {
+            console.error(`解析貼文 ${post.id} 的 media 失敗:`, e, post.media);
+          }
+          hydrated.push({
+            ...post,
+            _mediaArr: normalizeMediaArray(mediaArr),
+          });
+        }
+
+        setPosts(hydrated);
+        setLoading(false);
+      } else if (query === "") {
+        // 清空搜尋 → 重載公開貼文
+        try {
+          sessionStorage.removeItem("homepost_search_query");
+          sessionStorage.removeItem("homepost_search_results");
+        } catch (e) {
+          console.error("清除搜尋狀態失敗:", e);
         }
         fetchPublicPosts();
       }
     };
 
-    // 初次載入時，先嘗試恢復搜尋狀態
+    // 初次載入：若無保存的搜尋狀態，就抓公開貼文
     const restored = restoreSearchState();
-    
-    if (!restored) {
-      // 如果沒有保存的搜尋狀態，載入所有公開貼文
-      fetchPublicPosts();
-    }
+    if (!restored) fetchPublicPosts();
 
-    // 監聽新貼文事件和刪除事件
+    // 新增/刪除貼文後，若非搜尋狀態，重新抓
     const handlePostCreated = () => {
-      if (!searchQuery) {
-        fetchPublicPosts();
-      }
+      if (!searchQuery) fetchPublicPosts();
     };
-    
     const handlePostDeleted = () => {
-      if (!searchQuery) {
-        fetchPublicPosts();
-      }
+      if (!searchQuery) fetchPublicPosts();
     };
-    
+
     window.addEventListener("post-created", handlePostCreated);
     window.addEventListener("post-deleted", handlePostDeleted);
     window.addEventListener("search-posts", handleSearchPosts);
@@ -348,23 +242,21 @@ export default function HomePost() {
   if (loading) {
     return (
       <div className="text-center text-slate-500 py-8">
-        {searchQuery ? `搜尋「${searchQuery}」中...` : '載入貼文中...'}
+        {searchQuery ? `搜尋「${searchQuery}」中...` : "載入貼文中..."}
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div className="text-center text-red-600 py-8">
-        {error}
-      </div>
-    );
+    return <div className="text-center text-red-600 py-8">{error}</div>;
   }
 
   if (posts.length === 0) {
     return (
       <div className="text-center text-slate-500 py-8">
-        {searchQuery ? `找不到與「${searchQuery}」相關的貼文` : '目前沒有公開貼文'}
+        {searchQuery
+          ? `找不到與「${searchQuery}」相關的貼文`
+          : "目前沒有公開貼文"}
       </div>
     );
   }
@@ -373,22 +265,20 @@ export default function HomePost() {
     <>
       {searchQuery && (
         <div className="mb-4 text-sm text-slate-600">
-          搜尋「<span className="font-semibold">{searchQuery}</span>」的結果：共 {posts.length} 篇貼文
+          搜尋「<span className="font-semibold">{searchQuery}</span>」的結果：共{" "}
+          {posts.length} 篇貼文
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {posts.map((post) => {
           const coverUrl = pickCoverUrl(post._mediaArr);
-          
-          // 臨時除錯：顯示 media 資訊
           if (!coverUrl) {
             console.warn(`⚠️ 貼文 ${post.id} 無封面圖:`, {
               mediaArr: post._mediaArr,
               media: post.media,
-              title: post.title
+              title: post.title,
             });
           }
-          
           return (
             <PostCard
               key={post.id}
@@ -396,13 +286,17 @@ export default function HomePost() {
               alt={post.title || "貼文"}
               likes={post.like_count ?? 0}
               onClick={() => setSelectedPostId(post.id)}
+              useSigned={false}   // ✅ 公開模式：不打 /signed-url，速度更快
             />
           );
         })}
       </div>
-      
+
       {selectedPostId && (
-        <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} />
+        <PostDetailModal
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+        />
       )}
     </>
   );

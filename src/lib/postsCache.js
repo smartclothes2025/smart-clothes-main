@@ -54,7 +54,7 @@ async function resolveMediaArray(mediaArr, token) {
       output.push(item);
       continue;
     }
-    let signed = await signGcsUri(gcs, token);
+    let signed = await signGcsUri(gcs, token); 
     if (!signed) signed = resolveGcsUrl(gcs);
     output.push({ ...item, _view: signed });
   }
@@ -63,7 +63,10 @@ async function resolveMediaArray(mediaArr, token) {
 
 async function fetchPosts(url, token, signal) {
   const headers = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
   const res = await fetch(url, { headers, signal });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -85,15 +88,7 @@ async function fetchPosts(url, token, signal) {
   return list;
 }
 
-function setCache(scope, data) {
-  caches[scope] = Array.isArray(data) ? data : [];
-}
-
-function clearCache(scope) {
-  caches[scope] = null;
-  promises[scope] = null;
-}
-
+// 🚨 補上遺漏的 fetchWithCache 函數定義
 async function fetchWithCache(scope, url, token, signal) {
   if (caches[scope]) return caches[scope];
   if (promises[scope]) return promises[scope];
@@ -108,14 +103,45 @@ async function fetchWithCache(scope, url, token, signal) {
   return promises[scope];
 }
 
-export async function getPublicPosts(options = {}) {
-  const token = storedToken(options.token);
-  return fetchWithCache("public", `${API_BASE}/posts/?visibility=public&limit=50`, token, options.signal);
+function setCache(scope, data) {
+  caches[scope] = Array.isArray(data) ? data : [];
 }
 
+function clearCache(scope) {
+  caches[scope] = null;
+  promises[scope] = null;
+}
+
+/**
+ * 獲取公開貼文 (不應傳送 Token)
+ */
+export async function getPublicPosts(options = {}) {
+  // 修正點：強制傳入 null，確保請求是匿名發送
+  return fetchWithCache(
+    "public", 
+    `${API_BASE}/posts/?visibility=public&limit=50`, 
+    null, // 👈 確保不傳送 Token
+    options.signal
+  );
+}
+
+/**
+ * 獲取我的貼文 (必須傳送 Token，且不能是訪客)
+ */
 export async function getMyPosts(options = {}) {
   const token = storedToken(options.token);
-  return fetchWithCache("mine", `${API_BASE}/posts/?scope=mine&limit=30`, token, options.signal);
+
+  if (!token || token.startsWith('guest-token')) {
+    console.warn("[getMyPosts] 訪客或未登入，拒絕獲取 '我的貼文'。");
+    return Promise.reject(new Error("訪客無法查看個人貼文，請先登入。"));
+  }
+
+  return fetchWithCache(
+    "mine", 
+    `${API_BASE}/posts/?scope=mine&limit=30`, 
+    token,
+    options.signal
+  );
 }
 
 export function setPostsCache(scope, data) {

@@ -1,44 +1,55 @@
-// src/admin/Dashboard.jsx（以 /api/v1 端點取得 KPI 與近期使用者）
 import React, { useEffect, useMemo, useState } from "react";
 import useAllClothes from "../hooks/useAllClothes";
 import Layout from "../components/Layout";
 
 export default function AdminDashboard() {
   const API_BASE = import.meta.env.VITE_API_BASE || "";
-  const { allItems, loading: clothesLoading, error: clothesError } = useAllClothes(API_BASE);
+  const { allItems, loading: clothesLoading } = useAllClothes(API_BASE);
 
   const [users, setUsers] = useState([]);
-  // allItems 由 useAllClothes 提供
-  // 移除 clothes 狀態，改用 allItems
   const [posts, setPosts] = useState([]);
   const [outfits, setOutfits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ 從 localStorage 讀取 KPI
+  const [localKpi, setLocalKpi] = useState({
+    clothes: 0,
+    posts: 0,
+  });
+
+  useEffect(() => {
+    try {
+      const clothesVal = localStorage.getItem("kpi:clothesTotal");
+      const postsVal = localStorage.getItem("kpi:poststotal");
+      setLocalKpi({
+        clothes: clothesVal ? parseInt(clothesVal, 10) : 0,
+        posts: postsVal ? parseInt(postsVal, 10) : 0,
+      });
+    } catch {
+      setLocalKpi({ clothes: 0, posts: 0 });
+    }
+  }, []);
+
+  // ✅ 第一次載入 API 只抓一次，不會重覆
   useEffect(() => {
     let mounted = true;
     (async () => {
-      setLoading(true); setError("");
+      setLoading(true);
       try {
         const token = localStorage.getItem("token");
         const headers = {
-          "Accept": "application/json",
+          Accept: "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        const [u, c, p, o] = await Promise.all([
+        const [u, o] = await Promise.all([
           fetch(`${API_BASE}/users?limit=1000`, { headers }),
-          fetch(`${API_BASE}/clothes?limit=1000`, { headers }),
-          fetch(`${API_BASE}/posts?limit=1000`, { headers }),
           fetch(`${API_BASE}/outfits?limit=1000`, { headers }),
         ]);
-        if (!u.ok || !c.ok || !p.ok || !o.ok) throw new Error("API 讀取失敗");
-        const [usersJson, clothesJson, postsJson, outfitsJson] = await Promise.all([
-          u.json(), c.json(), p.json(), o.json()
-        ]);
+        if (!u.ok || !o.ok) throw new Error("API 讀取失敗");
+        const [usersJson, outfitsJson] = await Promise.all([u.json(), o.json()]);
         if (!mounted) return;
         setUsers(Array.isArray(usersJson) ? usersJson : []);
-  // setClothes(Array.isArray(clothesJson) ? clothesJson : []); // 不再需要
-        setPosts(Array.isArray(postsJson) ? postsJson : []);
         setOutfits(Array.isArray(outfitsJson) ? outfitsJson : []);
       } catch (e) {
         console.error(e);
@@ -50,18 +61,35 @@ export default function AdminDashboard() {
     return () => { mounted = false; };
   }, [API_BASE]);
 
-  const kpis = useMemo(() => ([
-    { title: "使用者總數", value: users.length.toLocaleString() },
-    { title: "衣物總數", value: (allItems.length).toLocaleString() + " 件" },
-    { title: "貼文總數", value: posts.length.toLocaleString() },
-    { title: "穿搭總數", value: outfits.length.toLocaleString() },
-  ]), [users.length, allItems.length, posts.length, outfits.length]);
+  // ✅ 統一 KPI 顯示邏輯
+  const kpis = useMemo(() => {
+    return [
+      { title: "使用者總數", value: users.length.toLocaleString() },
+      {
+        title: "衣物總數",
+        value: `${(localKpi.clothes || allItems.length).toLocaleString()} 件`,
+      },
+      {
+        title: "貼文總數",
+        value: (localKpi.posts || posts.length).toLocaleString(),
+      },
+      { title: "穿搭總數", value: outfits.length.toLocaleString() },
+    ];
+  }, [
+    users.length,
+    allItems.length,
+    posts.length,
+    outfits.length,
+    localKpi.clothes,
+    localKpi.posts,
+  ]);
 
   const recentUsers = useMemo(() => {
     const arr = Array.isArray(users) ? users.slice() : [];
-    // 若有 created_at 可排序，否則取前 5 筆
-    arr.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-    return arr.slice(0, 5).map(u => ({
+    arr.sort((a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+    );
+    return arr.slice(0, 5).map((u) => ({
       id: u.id,
       name: u.username || u.email || `user-${u.id}`,
       email: u.email || "",
@@ -77,7 +105,9 @@ export default function AdminDashboard() {
           {kpis.map((k) => (
             <div key={k.title} className="bg-white rounded-lg shadow p-4">
               <div className="text-sm text-gray-500">{k.title}</div>
-              <div className="mt-2 text-2xl font-semibold">{loading ? "-" : k.value}</div>
+              <div className="mt-2 text-2xl font-semibold">
+                {loading ? "-" : k.value}
+              </div>
             </div>
           ))}
         </div>
@@ -98,7 +128,7 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg shadow p-4">
             <h2 className="font-semibold">近期註冊</h2>
             <ul className="mt-4 space-y-3">
-              {recentUsers.map(u => (
+              {recentUsers.map((u) => (
                 <li key={u.id} className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">{u.name}</div>
