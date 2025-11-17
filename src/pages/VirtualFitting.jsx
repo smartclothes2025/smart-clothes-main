@@ -135,47 +135,122 @@ export default function VirtualFitting({ theme, setTheme }) {
     autoGenerateImage(selectedItems, userPhotoPreview);
   };
 
+  // src/pages/VirtualFitting.jsx
+
+  // (🔴 替換掉整個 handleSaveOutfit 函數 🔴)
   const handleSaveOutfit = async () => {
     if (!title.trim()) {
       alert('請填寫標題');
       return;
     }
+    alert('正在保存穿搭...');
 
-    try {
+    try { // (1. 這是我們的 try 區塊)
       const token = localStorage.getItem('token');
+      if (!token) {
+        alert('請先登入');
+        navigate('/login');
+        return;
+      }
 
-      // 如果選擇同步到貼文
+      const item_ids = selectedItems.map(item => Number(item.id));
+      const today = new Date().toISOString().split('T')[0];
+
+      // --- 第一階段：POST /outfits ---
+      const outfitStage1Res = await fetch(`${API_BASE}/outfits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          worn_date: today,
+          image_url: generatedImageUrl,
+          is_ai_generated: true,
+          item_ids: item_ids,
+        }),
+      });
+
+      // (🔴 2. 這是最關鍵的錯誤處理)
+      if (!outfitStage1Res.ok) {
+        // 嘗試從後端獲取詳細的 JSON 錯誤訊息 (例如 422 錯誤)
+        try {
+          const errorBody = await outfitStage1Res.json();
+          // 'detail' 是 FastAPI 驗證錯誤的預設欄位
+          const errorDetail = errorBody.detail || JSON.stringify(errorBody);
+          console.error('後端驗證失敗 (Stage 1):', errorDetail);
+          // (🔴 3. 拋出一個*包含後端訊息*的錯誤)
+          throw new Error(`保存圖片失敗 (1/2): ${errorDetail}`);
+        } catch (e) {
+          // 如果回傳的不是 JSON (例如 500 錯誤頁面)
+          const errorText = await outfitStage1Res.text();
+          console.error('伺服器錯誤 (Stage 1):', errorText);
+          throw new Error(`伺服器錯誤 (1/2): ${outfitStage1Res.status} ${errorText}`);
+        }
+      }
+
+      const newOutfit = await outfitStage1Res.json();
+      const newOutfitId = newOutfit.id;
+
+      // --- 第二階段：PATCH /outfits/{id} ---
+      const outfitStage2Res = await fetch(`${API_BASE}/outfits/${newOutfitId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: title.trim(),
+          description: description.trim(),
+          tags: tags.split(/[,\s]+/).filter(t => t).join(','),
+          is_public: syncToPost,
+          is_complete: true,
+        }),
+      });
+
+      if (!outfitStage2Res.ok) {
+        // (🔴 同樣的錯誤處理邏輯)
+        try {
+          const errorBody = await outfitStage2Res.json();
+          const errorDetail = errorBody.detail || JSON.stringify(errorBody);
+          console.error('後端驗證失敗 (Stage 2):', errorDetail);
+          throw new Error(`保存詳情失敗 (2/2): ${errorDetail}`);
+        } catch (e) {
+          const errorText = await outfitStage2Res.text();
+          console.error('伺服器錯誤 (Stage 2):', errorText);
+          throw new Error(`伺服器錯誤 (2/2): ${outfitStage2Res.status} ${errorText}`);
+        }
+      }
+
+      // ... (同步到貼文的邏輯) ...
+      // 這裡也應該要有錯誤處理，但我們先簡化
       if (syncToPost) {
         const postRes = await fetch(`${API_BASE}/posts`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title: title.trim(),
-            content: description.trim(),
-            tags: tags.split(/[,\s]+/).filter(t => t).join(','),
-            clothing_ids: selectedItems.map(item => item.id),
-            image_url: generatedImageUrl,
-          }),
+           // ... (您的貼文 fetch 內容) ...
         });
-
         if (postRes.ok) {
-          alert('穿搭已保存並發布到貼文！');
+           alert('穿搭已保存並發布到貼文！');
         } else {
-          alert('穿搭已保存，但發布到貼文時出現問題');
+           alert('穿搭已保存，但發布到貼文時出現問題');
         }
       } else {
         alert('穿搭已保存！');
       }
 
-      // 清理並返回
+      // 清理並導航
       localStorage.removeItem('virtual_fitting_items');
-      navigate('/wardrobe');
-    } catch (err) {
+      navigate('/wardrobe?tab=穿搭');
+
+    } catch (err) { // (🔴 4. 這是我們的 catch 區塊)
       console.error('保存穿搭失敗:', err);
-      alert('保存失敗，請檢查網路連線');
+      
+      // (🔴 5. 顯示從 try 區塊拋出的*具體*錯誤訊息)
+      // 而不是 "請檢查網路連線"
+      if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
+        alert('保存失敗：無法連接到伺服器。\n請檢查您的 ngrok 服務是否正在運行，或是否有 CORS 錯誤。');
+      } else {
+        alert(err.message); // 🔴 這裡會顯示詳細的錯誤，例如 "保存圖片失敗 (1/2): ......"
+      }
     }
   };
 
