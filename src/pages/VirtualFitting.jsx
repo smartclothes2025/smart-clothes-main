@@ -1,4 +1,3 @@
-// src/pages/VirtualFitting.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -9,6 +8,9 @@ export default function VirtualFitting({ theme, setTheme }) {
   const navigate = useNavigate();
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // (🔴 1. 新增 state 來控制頁面步驟 🔴)
+  const [step, setStep] = useState(1);
 
   // 表單數據
   const [title, setTitle] = useState("");
@@ -33,8 +35,6 @@ export default function VirtualFitting({ theme, setTheme }) {
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [usedPrompt, setUsedPrompt] = useState("");
 
   useEffect(() => {
     // 從 localStorage 載入選中的單品
@@ -115,7 +115,6 @@ export default function VirtualFitting({ theme, setTheme }) {
         const result = await res.json();
         if (result.type === 'image' && result.url) {
           setGeneratedImageUrl(result.url);
-          setUsedPrompt(result.prompt_used || '');
         } else {
           setGenerationError(result.text || '請配置 AI 圖片生成服務');
         }
@@ -187,189 +186,190 @@ export default function VirtualFitting({ theme, setTheme }) {
           {loading ? (
             <div className="text-center py-8">載入中...</div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
-                {/* 用戶照片上傳 */}
-                <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📸 上傳您的照片</h3>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    id="photo-upload"
-                  />
-                  <label
-                    htmlFor="photo-upload"
-                    className="block w-full text-center bg-white border-2 border-dashed border-pink-300 rounded-lg px-4 py-3 cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-colors"
-                  >
-                    {userPhotoPreview ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <img src={userPhotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
-                        <span className="text-sm text-gray-600">點擊更換照片</span>
+            // (🔴 2. 移除 grid 佈局，改為使用 <> 和 step 判斷 🔴)
+            <div className="lg:max-w-3xl lg:mx-auto"> {/* (🔴 3. 新增 wrapper 讓單一頁面置中並限制寬度 🔴) */}
+              
+              {/* (🔴 4. 顯示頁面一：圖片生成 🔴) */}
+              {step === 1 && (
+                <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
+                  {/* 用戶照片上傳 */}
+                  <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">📸 上傳您的照片</h3>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      id="photo-upload"
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      className="block w-full text-center bg-white border-2 border-dashed border-pink-300 rounded-lg px-4 py-3 cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-colors"
+                    >
+                      {userPhotoPreview ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <img src={userPhotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
+                          <span className="text-sm text-gray-600">點擊更換照片</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-2xl mb-1">📷</div>
+                          <div className="text-sm text-gray-600">點擊上傳您的照片</div>
+                          <div className="text-xs text-gray-400 mt-1">AI 會根據您的外貌生成更真實的試穿效果</div>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-4 sm:p-8 min-h-[400px] h-[60vh] max-h-[700px] flex items-center justify-center overflow-hidden">
+
+                    {generating ? (
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                        <p className="text-gray-600 font-medium">AI 正在生成逼真穿搭圖...</p>
+                        <p className="text-xs text-gray-500 mt-2">這可能需要 10-30 秒</p>
+                      </div>
+                    ) : generationError ? (
+                      <div className="text-center max-w-md">
+                        <div className="text-4xl mb-4">⚠️</div>
+                        <p className="text-gray-700 font-medium mb-2">AI 生成服務未配置</p>
+                        <div className="text-xs text-left bg-white p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
+                          {generationError}
+                        </div>
+                        <button
+                          onClick={handleRegenerate}
+                          className="mt-4 text-sm bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                        >
+                          重試
+                        </button>
+                      </div>
+                    ) : generatedImageUrl ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <img
+                          src={generatedImageUrl}
+                          alt="AI 生成的穿搭圖"
+                          className="w-full h-full object-contain rounded-lg shadow-lg"
+                        />
                       </div>
                     ) : (
-                      <div>
-                        <div className="text-2xl mb-1">📷</div>
-                        <div className="text-sm text-gray-600">點擊上傳您的照片</div>
-                        <div className="text-xs text-gray-400 mt-1">AI 會根據您的外貌生成更真實的試穿效果</div>
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">📸</div>
+                        <p className="text-gray-600 font-medium">請上傳您的照片</p>
+                        <p className="text-sm text-gray-500 mt-2">AI 將根據您的照片生成專業試穿效果</p>
                       </div>
                     )}
-                  </label>
-                </div>
-
-                <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-4 sm:p-8 min-h-[400px] h-[60vh] max-h-[700px] flex items-center justify-center overflow-hidden">
-
-                  {generating ? (
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                      <p className="text-gray-600 font-medium">AI 正在生成逼真穿搭圖...</p>
-                      <p className="text-xs text-gray-500 mt-2">這可能需要 10-30 秒</p>
-                    </div>
-                  ) : generationError ? (
-                    <div className="text-center max-w-md">
-                      <div className="text-4xl mb-4">⚠️</div>
-                      <p className="text-gray-700 font-medium mb-2">AI 生成服務未配置</p>
-                      <div className="text-xs text-left bg-white p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
-                        {generationError}
-                      </div>
-                      <button
-                        onClick={handleRegenerate}
-                        className="mt-4 text-sm bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-                      >
-                        重試
-                      </button>
-                    </div>
-                  ) : generatedImageUrl ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center">
-                      <img
-                        src={generatedImageUrl}
-                        alt="AI 生成的穿搭圖"
-                        className="w-full h-full object-contain rounded-lg shadow-lg"
-                      />
-                      <div className="mt-4 text-center">
-                        <p className="text-sm text-gray-600 font-medium">✨ AI 生成的專業時尚穿搭圖</p>
-                        {usedPrompt && (
-                          <button
-                            onClick={() => setShowPrompt(!showPrompt)}
-                            className="text-xs text-indigo-600 hover:underline mt-1"
-                          >
-                            {showPrompt ? '隱藏' : '查看'} 生成提示詞
-                          </button>
-                        )}
-                        {generatedImageUrl && (
-                          <button
-                            onClick={handleRegenerate}
-                            className="text-sm bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full hover:bg-indigo-200 transition-colors font-medium" // 按鈕改成 full-rounded
-                          >
-                            🔄 重新生成
-                          </button>
-                        )}
-                        {showPrompt && usedPrompt && (
-                          <div className="mt-2 text-xs text-left bg-white p-3 rounded border border-gray-200 max-w-md max-h-32 overflow-y-auto">
-                            {usedPrompt}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="text-6xl mb-4">📸</div>
-                      <p className="text-gray-600 font-medium">請上傳您的照片</p>
-                      <p className="text-sm text-gray-500 mt-2">AI 將根據您的照片生成專業試穿效果</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4">
-                  <h3 className="font-semibold mb-2">已選擇的衣物</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedItems.map(item => (
-                      <div key={item.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
-                        <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded" />
-                        <span className="text-sm">{item.name}</span>
-                      </div>
-                    ))}
                   </div>
+
+                  <div className="mt-4">
+                    <h3 className="font-semibold mb-2">已選擇的衣物</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedItems.map(item => (
+                        <div key={item.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+                          <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded" />
+                          <span className="text-sm">{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* (🔴 5. 在圖片生成後，於頁面一最下方新增「下一頁」按鈕 🔴) */}
+                  {generatedImageUrl && !generating && (
+                    <button
+                      onClick={() => setStep(2)}
+                      className="w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium mt-6"
+                    >
+                      下一頁
+                    </button>
+                  )}
+                  {/* (🔴 變更結束 🔴) */}
                 </div>
-              </div>
+              )}
 
-              {/* 右側：表單區域 */}
-              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6"> {/* 統一 shadow 和 padding */}
-                <h2 className="text-xl font-bold mb-4">穿搭資訊</h2>
+              {/* (🔴 6. 顯示頁面二：表單填寫 🔴) */}
+              {step === 2 && (
+                <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
+                  <h2 className="text-xl font-bold mb-4">穿搭資訊</h2>
 
-                {/* 標題 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">標題 (必填)</label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="為您的穿搭下個標題吧"
-                    className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-
-                {/* 描述 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">想要分享什麼？</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="分享您的穿搭心得、單品故事..."
-                    rows={6}
-                    className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-
-                {/* 標籤 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2"># 標籤</label>
-                  <input
-                    type="text"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    placeholder="例如：OOTD 帽子 藍色穿搭"
-                    className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">用空格或逗號分隔不同標籤</p>
-                </div>
-
-                {/* 同步到貼文選項 */}
-                <div className="mb-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  {/* 標題 */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">標題 (必填)</label>
                     <input
-                      type="checkbox"
-                      checked={syncToPost}
-                      onChange={(e) => setSyncToPost(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="為您的穿搭下個標題吧"
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                     />
-                    <span className="text-sm font-medium">同步發到貼文中</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-6">
-                    勾選後，這個穿搭會自動發布到您的貼文動態
-                  </p>
-                </div>
+                  </div>
 
-                {/* 操作按鈕 */}
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSaveOutfit}
-                    className="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-                  >
-                    保存穿搭
-                  </button>
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem('virtual_fitting_items');
-                      navigate('/wardrobe');
-                    }}
-                    className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                  >
-                    取消
-                  </button>
+                  {/* 描述 */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">想要分享什麼？</label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="分享您的穿搭心得、單品故事..."
+                      rows={6}
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </div>
+
+                  {/* 標籤 */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2"># 標籤</label>
+                    <input
+                      type="text"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      placeholder="例如：OOTD 帽子 藍色穿搭"
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">用空格或逗號分隔不同標籤</p>
+                  </div>
+
+                  {/* 同步到貼文選項 */}
+                  <div className="mb-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={syncToPost}
+                        onChange={(e) => setSyncToPost(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium">同步發到貼文中</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      勾選後，這個穿搭會自動發布到您的貼文動態
+                    </p>
+                  </div>
+
+                  {/* (🔴 7. 修改操作按鈕：新增「返回」按鈕，並調整佈局 🔴) */}
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="order-2 sm:order-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      返回
+                    </button>
+                    <button
+                      onClick={handleSaveOutfit}
+                      className="order-1 sm:order-2 flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                    >
+                      保存穿搭
+                    </button>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('virtual_fitting_items');
+                        navigate('/wardrobe');
+                      }}
+                      className="order-3 w-full sm:w-auto bg-red-100 text-red-700 py-3 px-6 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                    >
+                      取消
+                    </button>
+                  </div>
+                  {/* (🔴 變更結束 🔴) */}
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
