@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { useToast } from '../components/ToastProvider';
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
@@ -73,9 +74,12 @@ export default function PostDetail({ theme, setTheme }) {
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const { addToast } = useToast();
+
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [liking, setLiking] = useState(false); // 避免連點
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -183,6 +187,65 @@ export default function PostDetail({ theme, setTheme }) {
         fetchPost();
         return () => controller.abort();
     }, [id]);
+
+        const handleLike = async () => {
+        if (!post) return;
+        if (liking) return; // 正在送出就不要重複按
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+            addToast({
+                type: "error",
+                title: "按讚失敗",
+                message: "請先登入後再按讚。",
+                autoDismiss: 4000,
+            });
+            return;
+        }
+
+        setLiking(true);
+        try {
+            const res = await fetch(`${API_BASE}/posts/${post.id}/like`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/json",
+                },
+            });
+
+            const rawText = await res.text();
+            console.log("like response raw:", res.status, rawText);
+            let data = {};
+            try {
+                data = JSON.parse(rawText || "{}");
+            } catch {}
+
+            if (!res.ok) {
+                throw new Error(data.detail || `HTTP ${res.status}`);
+            }
+
+            // 依照後端回傳的 like_count 更新
+            const newLikeCount =
+                typeof data.like_count === "number"
+                    ? data.like_count
+                    : (post.likes ?? 0) + 1;
+
+            setPost((prev) => ({
+                ...prev,
+                likes: newLikeCount,
+            }));
+        } catch (err) {
+            console.error("like error:", err);
+            addToast({
+                type: "error",
+                title: "按讚失敗",
+                message: err.message || "請稍後再試。",
+                autoDismiss: 4000,
+            });
+        } finally {
+            setLiking(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -329,7 +392,13 @@ export default function PostDetail({ theme, setTheme }) {
                         {/* 互動按鈕 */}
                         <div className="flex items-center gap-8 justify-center">
                             {/* 點讚按鈕 */}
-                            <button className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition group">
+                            <button
+                            type="button"
+                            onClick={handleLike}
+                            disabled={liking}
+                            className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition group disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+
                                 <svg
                                     className="w-6 h-6 group-hover:scale-110 transition duration-150"
                                     fill="none"

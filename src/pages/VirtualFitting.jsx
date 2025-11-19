@@ -143,7 +143,6 @@ export default function VirtualFitting({ theme, setTheme }) {
       alert('請填寫標題');
       return;
     }
-    alert('正在保存穿搭...');
 
     try { // (1. 這是我們的 try 區塊)
       const token = localStorage.getItem('token');
@@ -173,6 +172,7 @@ export default function VirtualFitting({ theme, setTheme }) {
 
       // (🔴 2. 這是最關鍵的錯誤處理)
       if (!outfitStage1Res.ok) {
+        const resClone = outfitStage1Res.clone();
         // 嘗試從後端獲取詳細的 JSON 錯誤訊息 (例如 422 錯誤)
         try {
           const errorBody = await outfitStage1Res.json();
@@ -209,6 +209,7 @@ export default function VirtualFitting({ theme, setTheme }) {
       });
 
       if (!outfitStage2Res.ok) {
+        const resClone2 = outfitStage2Res.clone();
         // (🔴 同樣的錯誤處理邏輯)
         try {
           const errorBody = await outfitStage2Res.json();
@@ -353,7 +354,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                       onClick={() => setStep(2)}
                       className="w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium mt-6"
                     >
-                      下一頁
+                      下一步
                     </button>
                   )}
                   {/* (🔴 變更結束 🔴) */}
