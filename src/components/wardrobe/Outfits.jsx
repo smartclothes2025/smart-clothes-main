@@ -364,9 +364,35 @@ export default function Outfits() {
 
               <time
 
-              // ... (您的日期角標邏輯不變) ...
+                dateTime={dateKey}
+                className={`absolute top-2 left-2 md:top-3 md:left-3 z-10 
 
-              ></time>
+                  font-bold text-sm md:text-lg 
+
+                  ${outfit
+
+                    ? 'text-white drop-shadow-md' // 有穿搭圖片時用白色
+
+                    : isToday 
+
+                      ? 'text-white bg-indigo-500 rounded-full px-2 py-1 leading-none' // 今天且無圖
+
+                      : inMonth 
+
+                        ? 'text-slate-800' // 當月且無圖
+
+                        : 'text-slate-400' // 非當月
+
+                  }
+
+                `}
+
+              >
+
+                {/* 🎯 核心：這裡才是顯示日期的數字 */}
+
+                {format(d, 'd', { locale: zhTW })}
+              </time>
 
 
 

@@ -7,6 +7,7 @@ import Analysis from "../components/wardrobe/Analysis";
 import Brand from "../components/wardrobe/Brand";
 import Layout from "../components/Layout";
 
+
 const mainTabs = ["衣物總覽", "合作品牌", "穿搭", "分析"];
 
 export default function Wardrobe({ theme, setTheme }) {
