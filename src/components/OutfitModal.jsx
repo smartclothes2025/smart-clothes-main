@@ -87,12 +87,15 @@ export default function OutfitModal({ date, outfit, onClose }) {
           },
           body: JSON.stringify({
             worn_date: fmt(date),
-            image_url: null, // (🔴 這裡我們假設 Modal 中不處理上傳)
+            image_url: null, // ( 這裡我們假設 Modal 中不處理上傳)
             is_ai_generated: false,
           }),
         });
         
-        if (!stage1Res.ok) throw new Error('創建穿搭紀錄失敗');
+        if (!stage1Res.ok) {
+          const errorData = await stage1Res.json().catch(() => ({}));
+          throw new Error(`創建穿搭紀錄失敗: ${errorData.detail || stage1Res.statusText}`);
+        }
         const newOutfit = await stage1Res.json();
         outfitId = newOutfit.id;
 
@@ -112,11 +115,14 @@ export default function OutfitModal({ date, outfit, onClose }) {
           }),
         });
         
-        if (!stage2Res.ok) throw new Error('保存穿搭詳情失敗');
+        if (!stage2Res.ok) {
+          const errorData = await stage2Res.json().catch(() => ({}));
+          throw new Error(`保存穿搭詳情失敗: ${errorData.detail || stage2Res.statusText}`);
+        }
       }
 
       setIsSaving(false);
-      // (🔴 5. 回傳 true，通知父組件 (日曆) 刷新)
+      // ( 5. 回傳 true，通知父組件 (日曆) 刷新)
       setShow(false);
       setTimeout(() => onClose(true), 300);
 

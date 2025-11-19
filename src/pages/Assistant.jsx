@@ -375,10 +375,9 @@ export default function Assistant({ theme, setTheme }) {
   }
 
   const quickPrompts = [
-    "推薦今日穿搭",
-    "正式場合穿搭建議",
-    "雨天防水穿搭",
-    "運動休閒穿搭",
+    "隨機推薦今日穿搭",
+    "根據今天的天氣推薦穿搭",
+    "給我適合約會的穿搭",
   ];
 
   return (
