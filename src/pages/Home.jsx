@@ -14,7 +14,7 @@ export default function Home({ theme, setTheme }) {
             <WeatherCard />
             <section className="mt-6 max-h-[60vh] overflow-y-auto">
               <h2 className="text-lg font-semibold mb-3">今日推薦</h2>
-              <RecommendInactive days={90} showTitle={false} />
+              <RecommendInactive days={30} showTitle={false} />
             </section>
             <section>
               <h2 className="text-lg font-semibold mb-3">公開貼文</h2>

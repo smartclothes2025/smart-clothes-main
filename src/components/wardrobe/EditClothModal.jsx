@@ -50,12 +50,16 @@ export default function EditClothModal({ open, item, onClose, onSaved, apiBase }
         if (open) {
             const timer = setTimeout(() => setShow(true), 10);
             if (item) {
+                // 從 item 對象讀取所有欄位
+                // attributes 中可能包含 material 和 size
+                const attributes = item.attributes || {};
                 setFormData({
                     name: item.name || '',
                     category: item.category || '',
-                    material: item.material || '',
+                    color: item.color || '',
+                    material: attributes.material || item.material || '',
                     style: item.style || '',
-                    size: item.size || '',
+                    size: attributes.size || item.size || '',
                     brand: item.brand || '',
                     // tags stored as comma-separated string in the form
                     tags: Array.isArray(item.tags) ? item.tags.join(', ') : (item.tags || ''),
@@ -218,13 +222,14 @@ export default function EditClothModal({ open, item, onClose, onSaved, apiBase }
                             <h3 className="text-sm font-bold text-indigo-600 border-b-2 border-indigo-200 pb-2 mb-4">基本資訊</h3>
                             <div className="mb-4">
                                 <FormField
-                                    label="衣物名稱 (必填)"
+                                    label="名稱 (必填)"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
+                                    placeholder="例：白色T恤"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 mb-4">
                                 <div>
                                     <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-1">類別</label>
                                     <div>
@@ -243,27 +248,46 @@ export default function EditClothModal({ open, item, onClose, onSaved, apiBase }
                                     </div>
                                 </div>
                                 <FormField
-                                    label="品牌"
-                                    name="brand"
-                                    value={formData.brand}
+                                    label="顏色"
+                                    name="color"
+                                    value={formData.color}
                                     onChange={handleChange}
+                                    placeholder="顏色"
                                 />
                             </div>
                         </div>
                         <div>
                             <div className="grid grid-cols-2 gap-3 mb-4">
                                 <FormField
-                                    label="顏色"
-                                    name="color"
-                                    value={formData.color}
+                                    label="材質"
+                                    name="material"
+                                    value={formData.material}
                                     onChange={handleChange}
+                                    placeholder="材質"
                                 />
                                 <FormField
                                     label="風格"
                                     name="style"
                                     value={formData.style}
                                     onChange={handleChange}
+                                    placeholder="風格"
                                 />    
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                <FormField
+                                    label="尺寸"
+                                    name="size"
+                                    value={formData.size}
+                                    onChange={handleChange}
+                                    placeholder="尺寸"
+                                />
+                                <FormField
+                                    label="品牌"
+                                    name="brand"
+                                    value={formData.brand}
+                                    onChange={handleChange}
+                                    placeholder="品牌"
+                                />
                             </div>
                         </div>
 

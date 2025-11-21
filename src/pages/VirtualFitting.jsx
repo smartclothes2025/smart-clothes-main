@@ -1,11 +1,12 @@
-// src/pages/VirtualFitting.jsx
+// src/pages/VirtualFitting.jsx 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import { format } from 'date-fns';
+import { format } from "date-fns";
 
-const API_BASE = import.meta.env?.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev";
-const OUTFITS_STORAGE_KEY = 'wardrobe_outfits';
+const API_BASE =
+  import.meta.env?.VITE_API_BASE ||
+  "https://cometical-kyphotic-deborah.ngrok-free.dev";
 
 export default function VirtualFitting({ theme, setTheme }) {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function VirtualFitting({ theme, setTheme }) {
   const [userPhoto, setUserPhoto] = useState(null);
   const [userPhotoPreview, setUserPhotoPreview] = useState(null);
 
-  // 衣物位置映射（簡化版，實際可以更複雜）
+  // 衣物位置映射（目前沒特別用到，但保留）
   const [clothingPositions, setClothingPositions] = useState({
     hat: null,
     top: null,
@@ -31,33 +32,41 @@ export default function VirtualFitting({ theme, setTheme }) {
     accessory: null,
   });
 
-
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
 
   useEffect(() => {
     // 從 localStorage 載入選中的單品
-    const items = JSON.parse(localStorage.getItem('virtual_fitting_items') || '[]');
+    const items = JSON.parse(
+      localStorage.getItem("virtual_fitting_items") || "[]"
+    );
     if (items.length === 0) {
-      alert('請先選擇衣物單品');
-      navigate('');
+      alert("請先選擇衣物單品");
+      navigate("");
       return;
     }
     setSelectedItems(items);
 
     // 自動分配衣物到對應位置
-    const positions = { hat: null, top: null, bottom: null, shoes: null, accessory: null };
-    items.forEach(item => {
+    const positions = {
+      hat: null,
+      top: null,
+      bottom: null,
+      shoes: null,
+      accessory: null,
+    };
+    items.forEach((item) => {
       const category = item.category;
-      if (category === '帽子') positions.hat = item;
-      else if (category === '上衣' || category === '外套' || category === '洋裝') positions.top = item;
-      else if (category === '褲子' || category === '裙子') positions.bottom = item;
-      else if (category === '鞋子') positions.shoes = item;
+      if (category === "帽子") positions.hat = item;
+      else if (category === "上衣" || category === "外套" || category === "洋裝")
+        positions.top = item;
+      else if (category === "褲子" || category === "裙子") positions.bottom = item;
+      else if (category === "鞋子") positions.shoes = item;
       else positions.accessory = item;
     });
-    setClothingPositions(positions);
 
+    setClothingPositions(positions);
     setLoading(false);
     autoGenerateImage(items);
   }, [navigate]);
@@ -81,21 +90,22 @@ export default function VirtualFitting({ theme, setTheme }) {
     if (!items || items.length === 0) {
       return;
     }
+
     setGenerating(true);
     setGeneratedImageUrl(null);
     setGenerationError(null);
-    try {
-      const token = localStorage.getItem('token');
 
+    try {
+      const token = localStorage.getItem("token");
       const payload = {
         user_input: photoBase64
           ? "根據我的照片和選中的衣物，生成一套適合我的時尚穿搭"
           : "專業時尚模特兒展示，高質感穿搭攝影，自然光線，簡約背景",
-        selected_items: items.map(item => ({
+        selected_items: items.map((item) => ({
           id: item.id,
           name: item.name,
-          category: item.category
-        }))
+          category: item.category,
+        })),
       };
 
       if (photoBase64) {
@@ -103,27 +113,27 @@ export default function VirtualFitting({ theme, setTheme }) {
       }
 
       const res = await fetch(`${API_BASE}/fitting/generate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const result = await res.json();
-        if (result.type === 'image' && result.url) {
+        if (result.type === "image" && result.url) {
           setGeneratedImageUrl(result.url);
         } else {
-          setGenerationError(result.text || '請配置 AI 圖片生成服務');
+          setGenerationError(result.text || "請配置 AI 圖片生成服務");
         }
       } else {
         const errorText = await res.text();
         setGenerationError(`生成失敗: ${errorText}`);
       }
     } catch (err) {
-      console.error('生成圖片失敗:', err);
+      console.error("生成圖片失敗:", err);
       setGenerationError(`錯誤: ${err.message}`);
     } finally {
       setGenerating(false);
@@ -135,86 +145,76 @@ export default function VirtualFitting({ theme, setTheme }) {
     autoGenerateImage(selectedItems, userPhotoPreview);
   };
 
+  // ✅ 合併為「一支 API」：儲存虛擬穿搭 +（選擇性）發文
   const handleSaveOutfit = async () => {
     if (!title.trim()) {
-      alert('請填寫標題');
+      alert("請填寫標題");
       return;
     }
 
-    // [!!] 檢查是否有 AI 生成的圖片
     if (!generatedImageUrl) {
-        alert('尚未生成穿搭圖片，無法保存');
-        return;
+      alert("尚未生成穿搭圖片，無法保存");
+      return;
     }
 
-    // [!!] 步驟 1: 準備要儲存到日曆的資料
-    // 這邊我們將標題和描述合併到 'note' 欄位，以符合 OutfitModal.jsx 的格式
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("請先登入，再保存穿搭");
+      return;
+    }
+
     const today = new Date();
-    const formattedDate = format(today, 'yyyy-MM-dd'); // 格式： '2025-11-17'
-    const calendarNote = `${title.trim()}\n\n${description.trim()}`;
-    
-    const newCalendarOutfit = {
-        date: formattedDate,
-        img: generatedImageUrl, // AI 生成的圖片 URL
-        note: calendarNote,
-        // 您也可以儲存標題，如果 Outfits.jsx 需要的話
-        // title: title.trim(), 
+    const wornDate = format(today, "yyyy-MM-dd"); // YYYY-MM-DD
+
+    const tagString = tags
+      .split(/[,\s]+/)
+      .filter((t) => t)
+      .join(",");
+
+    const payload = {
+      worn_date: wornDate,
+      title: title.trim(),
+      description: description.trim(),
+      tags: tagString,
+      image_url: generatedImageUrl,
+      sync_to_post: syncToPost,
+      item_ids: selectedItems
+        .map((item) => Number(item.id))
+        .filter((id) => !Number.isNaN(id)),
     };
-    // [!!] 步驟 2: 更新 localStorage 中的日曆資料
+
     try {
-        const existingOutfitsRaw = localStorage.getItem(OUTFITS_STORAGE_KEY);
-        const existingOutfits = existingOutfitsRaw ? JSON.parse(existingOutfitsRaw) : [];
+      const res = await fetch(`${API_BASE}/fitting/save-outfit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-        // 步驟 3: 過濾掉今天已有的穿搭 (如果有的話)，用新的取代
-        const otherOutfits = existingOutfits.filter(o => o.date !== formattedDate);
-        
-        // 步驟 4: 新增今天的穿搭
-        const updatedOutfits = [...otherOutfits, newCalendarOutfit];
-
-        // 步驟 5: 存回 localStorage
-        localStorage.setItem(OUTFITS_STORAGE_KEY, JSON.stringify(updatedOutfits));
-
-    } catch (storageError) {
-        console.error("無法儲存穿搭到 localStorage:", storageError);
-        // 即使日曆儲存失敗，也可能繼續嘗試發布貼文
-    }
-
-    // [!!] 步驟 3: 處理原有的 "同步到貼文" 邏輯
-    try {
-      const token = localStorage.getItem('token');
-
-      // 如果選擇同步到貼文
-      if (syncToPost) {
-        const postRes = await fetch(`${API_BASE}/posts`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title: title.trim(),
-            content: description.trim(),
-            tags: tags.split(/[,\s]+/).filter(t => t).join(','),
-            clothing_ids: selectedItems.map(item => item.id),
-            image_url: generatedImageUrl,
-          }),
-        });
-
-        if (postRes.ok) {
-          alert('穿搭已保存並發布到貼文！');
-        } else {
-          alert('穿搭已保存，但發布到貼文時出現問題');
-        }
-      } else {
-        alert('穿搭已保存！');
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("儲存虛擬穿搭失敗:", errText);
+        alert("儲存穿搭到資料庫失敗，請稍後再試");
+        return;
       }
 
-      // 清理並返回
-      localStorage.removeItem('virtual_fitting_items');
-      navigate('/wardrobe');
+      const data = await res.json();
+      console.log("虛擬穿搭儲存成功:", data);
+
+      if (syncToPost) {
+        alert("穿搭已保存並發布到貼文！");
+      } else {
+        alert("穿搭已保存！");
+      }
+
+      // 收尾：清掉暫存的選擇衣物，回衣櫃
+      localStorage.removeItem("virtual_fitting_items");
+      navigate("/wardrobe");
     } catch (err) {
-      console.error('保存穿搭失敗:', err);
-      alert('保存失敗，請檢查網路連線');
+      console.error("呼叫 /fitting/save-outfit 發生錯誤:", err);
+      alert("儲存穿搭到資料庫時發生錯誤，請檢查網路連線");
     }
   };
 
@@ -229,7 +229,9 @@ export default function VirtualFitting({ theme, setTheme }) {
               <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
                 {/* 用戶照片上傳 */}
                 <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📸 上傳您的照片</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    📸 上傳您的照片
+                  </h3>
                   <input
                     type="file"
                     accept="image/*"
@@ -243,31 +245,46 @@ export default function VirtualFitting({ theme, setTheme }) {
                   >
                     {userPhotoPreview ? (
                       <div className="flex items-center justify-center gap-3">
-                        <img src={userPhotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
-                        <span className="text-sm text-gray-600">點擊更換照片</span>
+                        <img
+                          src={userPhotoPreview}
+                          alt="Preview"
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                        <span className="text-sm text-gray-600">
+                          點擊更換照片
+                        </span>
                       </div>
                     ) : (
                       <div>
                         <div className="text-2xl mb-1">📷</div>
-                        <div className="text-sm text-gray-600">點擊上傳您的照片</div>
-                        <div className="text-xs text-gray-400 mt-1">AI 會根據您的外貌生成更真實的試穿效果</div>
+                        <div className="text-sm text-gray-600">
+                          點擊上傳您的照片
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          AI 會根據您的外貌生成更真實的試穿效果
+                        </div>
                       </div>
                     )}
                   </label>
                 </div>
 
                 <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-4 sm:p-8 min-h-[400px] h-[60vh] max-h-[700px] flex items-center justify-center overflow-hidden">
-
                   {generating ? (
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                      <p className="text-gray-600 font-medium">AI 正在生成逼真穿搭圖...</p>
-                      <p className="text-xs text-gray-500 mt-2">這可能需要 10-30 秒</p>
+                      <p className="text-gray-600 font-medium">
+                        AI 正在生成逼真穿搭圖...
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        這可能需要 10-30 秒
+                      </p>
                     </div>
                   ) : generationError ? (
                     <div className="text-center max-w-md">
                       <div className="text-4xl mb-4">⚠️</div>
-                      <p className="text-gray-700 font-medium mb-2">AI 生成服務未配置</p>
+                      <p className="text-gray-700 font-medium mb-2">
+                        AI 生成服務未配置
+                      </p>
                       <div className="text-xs text-left bg-white p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
                         {generationError}
                       </div>
@@ -289,8 +306,12 @@ export default function VirtualFitting({ theme, setTheme }) {
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">📸</div>
-                      <p className="text-gray-600 font-medium">請上傳您的照片</p>
-                      <p className="text-sm text-gray-500 mt-2">AI 將根據您的照片生成專業試穿效果</p>
+                      <p className="text-gray-600 font-medium">
+                        請上傳您的照片
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        AI 將根據您的照片生成專業試穿效果
+                      </p>
                     </div>
                   )}
                 </div>
@@ -298,9 +319,16 @@ export default function VirtualFitting({ theme, setTheme }) {
                 <div className="mt-4">
                   <h3 className="font-semibold mb-2">已選擇的衣物</h3>
                   <div className="flex flex-wrap gap-2">
-                    {selectedItems.map(item => (
-                      <div key={item.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
-                        <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded" />
+                    {selectedItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2"
+                      >
+                        <img
+                          src={item.img}
+                          alt={item.name}
+                          className="w-8 h-8 object-cover rounded"
+                        />
                         <span className="text-sm">{item.name}</span>
                       </div>
                     ))}
@@ -309,12 +337,13 @@ export default function VirtualFitting({ theme, setTheme }) {
               </div>
 
               {/* 右側：表單區域 */}
-              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6"> {/* 統一 shadow 和 padding */}
+              <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
                 <h2 className="text-xl font-bold mb-4">穿搭資訊</h2>
-
                 {/* 標題 */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">標題 (必填)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    標題 (必填)
+                  </label>
                   <input
                     type="text"
                     value={title}
@@ -326,7 +355,9 @@ export default function VirtualFitting({ theme, setTheme }) {
 
                 {/* 描述 */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">想要分享什麼？</label>
+                  <label className="block text-sm font-medium mb-2">
+                    想要分享什麼？
+                  </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -338,7 +369,9 @@ export default function VirtualFitting({ theme, setTheme }) {
 
                 {/* 標籤 */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2"># 標籤</label>
+                  <label className="block text-sm font-medium mb-2">
+                    # 標籤
+                  </label>
                   <input
                     type="text"
                     value={tags}
@@ -346,7 +379,9 @@ export default function VirtualFitting({ theme, setTheme }) {
                     placeholder="例如：OOTD 帽子 藍色穿搭"
                     className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
-                  <p className="text-xs text-gray-500 mt-1">用空格或逗號分隔不同標籤</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    用空格或逗號分隔不同標籤
+                  </p>
                 </div>
 
                 {/* 同步到貼文選項 */}
@@ -358,7 +393,9 @@ export default function VirtualFitting({ theme, setTheme }) {
                       onChange={(e) => setSyncToPost(e.target.checked)}
                       className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                     />
-                    <span className="text-sm font-medium">同步發到貼文中</span>
+                    <span className="text-sm font-medium">
+                      同步發到貼文中
+                    </span>
                   </label>
                   <p className="text-xs text-gray-500 mt-1 ml-6">
                     勾選後，這個穿搭會自動發布到您的貼文動態
@@ -375,8 +412,8 @@ export default function VirtualFitting({ theme, setTheme }) {
                   </button>
                   <button
                     onClick={() => {
-                      localStorage.removeItem('virtual_fitting_items');
-                      navigate('/wardrobe');
+                      localStorage.removeItem("virtual_fitting_items");
+                      navigate("/wardrobe");
                     }}
                     className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                   >

@@ -5,7 +5,7 @@ import { Icon } from '@iconify/react';
 import inactiveMock from '../mock/inactiveMock';
 import { resolveGcsUrl, getImageUrl } from '../lib/imageUtils'; // 引入共用的圖片處理函數
 
-export default function RecommendInactive({ days = 90, showTitle = true }) {
+export default function RecommendInactive({ days = 30, showTitle = true }) {
   const { data, error, isLoading, mutate } = useSWR(
     `/api/v1/recommendations/inactive?days=${days}`,
     fetchJSON,
