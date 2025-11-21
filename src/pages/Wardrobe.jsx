@@ -44,10 +44,10 @@ export default function Wardrobe({ theme, setTheme }) {
             ))}
           </div>
           <div>
-            {activeTab === "衣物" && <WardrobeOverview />}
+            {activeTab === "我的衣櫥" && <WardrobeOverview />}
             {activeTab === "穿搭提案" && <OutfitProposal />}
-            {activeTab === "穿搭" && <Outfits />}
-            {activeTab === "分析" && <Analysis />}
+            {activeTab === "穿搭日記" && <Outfits />}
+            {activeTab === "身材分析" && <Analysis />}
           </div>
         </div>
       </div>
