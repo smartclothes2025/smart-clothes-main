@@ -1,5 +1,5 @@
 import WeatherCard from "../components/WeatherCard";
-import RecommendInactive from "../components/RecommendInactive";
+import TodayRecommend from "../components/TodayRecommend";
 import Search from "../components/Search";
 import Layout from "../components/Layout";
 import HomePost from "../components/HomePost";
@@ -12,10 +12,10 @@ export default function Home({ theme, setTheme }) {
           <main className="space-y-8 pt-4">
             <Search />
             <WeatherCard />
-            <section className="mt-6 max-h-[60vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold mb-3">今日推薦</h2>
-              <RecommendInactive days={30} showTitle={false} />
-            </section>
+            {/* ✨ 今日推薦：顯示本日主打色的 3 套穿搭 */}
+            <div className="mt-6 max-h-[60vh] overflow-y-auto">
+              <TodayRecommend showTitle={true} />
+            </div>
             <section>
               <h2 className="text-lg font-semibold mb-3">公開貼文</h2>
               <HomePost />

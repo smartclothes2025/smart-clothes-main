@@ -4,6 +4,7 @@ import fetchJSON from '../lib/api';
 import { Icon } from '@iconify/react';
 import inactiveMock from '../mock/inactiveMock';
 import { resolveGcsUrl, getImageUrl } from '../lib/imageUtils'; // 引入共用的圖片處理函數
+import { ShoppingBag, Sparkles } from 'lucide-react';
 
 export default function RecommendInactive({ days = 30, showTitle = true }) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -147,27 +148,50 @@ export default function RecommendInactive({ days = 30, showTitle = true }) {
                   {/* 推薦項目：橫向滑、縮圖加大 */}
                   <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
                     {Array.isArray(suggestions) && suggestions.length ? (
-                      suggestions.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={() => goToMix(item.id, s.id)}
-                          // 改為直列：圖片上、文字下；寬度與衣物總覽一致 (w-24 => 96px)
-                          className="shrink-0 inline-flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 hover:bg-gray-100"
-                          title={`用「${item.name}」+「${s.name}」建立穿搭`}
-                        >
-                          <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
-                            <img
-                              src={getImageUrl(s) || 'https://via.placeholder.com/96'}
-                              alt={s.name}
-                              width="96"
-                              height="96"
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
+                      suggestions.map(s => {
+                        const isStore = s.source === 'store';
+                        const hasPurchaseUrl = s.purchaseUrl;
+                        
+                        return (
+                          <div key={s.id} className="shrink-0 relative">
+                            <button
+                              onClick={() => isStore && hasPurchaseUrl ? window.open(hasPurchaseUrl, '_blank') : goToMix(item.id, s.id)}
+                              className="inline-flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 hover:bg-gray-100 relative"
+                              title={isStore ? `前往 Style Shop 購買「${s.name}」` : `用「${item.name}」+「${s.name}」建立穿搭`}
+                            >
+                              {/* 來源標示 */}
+                              <div className="absolute top-1 right-1 z-10">
+                                {isStore ? (
+                                  <div className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                    <ShoppingBag className="w-3 h-3" />
+                                    Shop
+                                  </div>
+                                ) : (
+                                  <div className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                    <Sparkles className="w-3 h-3" />
+                                    衣櫃
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100">
+                                <img
+                                  src={getImageUrl(s) || 'https://via.placeholder.com/96'}
+                                  alt={s.name}
+                                  width="96"
+                                  height="96"
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <span className="text-sm text-center mt-1 truncate w-24">{s.name}</span>
+                              {isStore && s.price && (
+                                <span className="text-xs text-indigo-600 font-semibold">NT$ {s.price}</span>
+                              )}
+                            </button>
                           </div>
-                          <span className="text-sm text-center mt-1 truncate w-24">{s.name}</span>
-                        </button>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="text-gray-400 text-sm">沒有共現資料，先給你一般規則的推薦</div>
                     )}

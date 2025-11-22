@@ -1,66 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, ShoppingBag, Palette } from 'lucide-react';
+import { Heart, ShoppingBag, Palette, Loader2, Sparkles } from 'lucide-react';
+import useSWR from 'swr';
+import fetchJSON from '../../lib/api';
+import { getImageUrl } from '../../lib/imageUtils';
+import { useWeather } from '../../hooks/useWeather';
 
 const API_BASE = import.meta.env?.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev";
 
-// 色系配置
+// 色系配置（與後端三色系對應：neutral / earth / cool）
 const COLOR_PALETTES = {
   neutral: {
-    name: '中性',
+    name: '中性色系',
     colors: ['#F5F5F5', '#D3D3D3', '#808080', '#2F4F4F'],
-    description: '簡約優雅的中性色系'
+    description: '簡約百搭的中性與基礎色'
   },
-  khaki: {
-    name: '卡其棕',
-    colors: ['#F0E68C', '#DAA520', '#CD853F', '#8B4513'],
-    description: '溫暖舒適的大地色系'
+  earth: {
+    name: '大地暖色系',
+    colors: ['#F5DEB3', '#D2B48C', '#C19A6B', '#8B4513'],
+    description: '卡其、咖啡、米色等溫暖大地色'
   },
-  blue: {
-    name: '藍',
-    colors: ['#87CEEB', '#4169E1', '#00008B', '#000080'],
-    description: '清爽沉靜的藍色系'
+  cool: {
+    name: '清爽冷色系',
+    colors: ['#87CEEB', '#4169E1', '#32CD32', '#006400'],
+    description: '藍、綠與藍綠系的清爽配色'
   },
-  pink: {
-    name: '紅粉',
-    colors: ['#FFB6C1', '#FF69B4', '#FF1493', '#C71585'],
-    description: '溫柔浪漫的粉紅系'
-  },
-  green: {
-    name: '綠',
-    colors: ['#90EE90', '#32CD32', '#228B22', '#006400'],
-    description: '清新自然的綠色系'
-  }
 };
 
 const GENDERS = ['女生', '男生'];
 
 export default function OutfitProposal() {
-  const [selectedColor, setSelectedColor] = useState('neutral');
   const [selectedGender, setSelectedGender] = useState('女生');
   const [wishlist, setWishlist] = useState(new Set());
+  
+  // 統一的天氣 Hook：與首頁 WeatherCard 共用，依使用者所在位置變動
+  const { weather } = useWeather();
+  
+  // 呼叫本日主打色 API（三色系各自聚合推薦）
+  // ✨ 不傳 gender，後端自動從 current_user.gender 判斷
+  const { data: dailyData, error: dailyError, isLoading: dailyLoading } = useSWR(
+    `/api/v1/recommendations/daily-color-outfits`,
+    fetchJSON,
+    { revalidateOnFocus: false }
+  );
 
-  // 預設使用者性別
+  const families = dailyData?.families || [];
+  const mainColorFamily = dailyData?.mainColorFamily || families.find(f => f.isMain)?.key || 'neutral';
+  const mainColorName = dailyData?.mainColorName || COLOR_PALETTES[mainColorFamily]?.name || '中性色系';
+  const mainColorPalette = dailyData?.mainColorPalette || COLOR_PALETTES[mainColorFamily]?.colors || [];
+  
+  // 預設選中今日主色
+  const [selectedColor, setSelectedColor] = useState(mainColorFamily);
+  
+  // 當 mainColorFamily 更新時，同步 selectedColor
   useEffect(() => {
-    const fetchUserGender = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+    if (mainColorFamily) {
+      setSelectedColor(mainColorFamily);
+    }
+  }, [mainColorFamily]);
 
-        const res = await fetch(`${API_BASE}/users/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setSelectedGender(data.gender || '女生');
-        }
-      } catch (err) {
-        console.error('獲取用戶性別失敗:', err);
-      }
-    };
-
-    fetchUserGender();
-  }, []);
+  // ✨ 從 API 回傳中自動取得性別，不再手動查詢
+  useEffect(() => {
+    if (dailyData?.gender) {
+      const genderMap = { 'women': '女生', 'men': '男生' };
+      setSelectedGender(genderMap[dailyData.gender] || '女生');
+    }
+  }, [dailyData]);
 
   // 切換願望清單
   const toggleWishlist = (itemId) => {
@@ -78,57 +82,79 @@ export default function OutfitProposal() {
     window.open(`https://styleshop-delta.vercel.app/women.html?search=${encodeURIComponent(itemName)}`, '_blank');
   };
 
-  // 設置為主色
-  const setAsMainColor = (colorKey) => {
-    console.log(`設置 ${COLOR_PALETTES[colorKey].name} 為主色`);
-    // 可以在這裡添加保存到後端的邏輯
-  };
+  // ✨ 已移除「以此為主色」功能，由系統自動選擇
 
   return (
     <div className="w-full space-y-6">
 
-      {/* 性別切換 */}
-      <div className="flex justify-center gap-3">
-        {GENDERS.map(gender => (
-          <button
-            key={gender}
-            onClick={() => setSelectedGender(gender)}
-            className={`px-6 py-2 rounded-full font-medium transition-all ${
-              selectedGender === gender
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {gender}
-          </button>
-        ))}
-      </div>
+      {/* ✨ 性別由後端自動判斷，移除切換按鈕 */}
+      {dailyData?.gender && (
+        <div className="text-center text-sm text-gray-500">
+          當前性別：{selectedGender}
+        </div>
+      )}
 
-      {/* 色系選擇 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {Object.entries(COLOR_PALETTES).map(([key, palette]) => (
-          <button
-            key={key}
-            onClick={() => setSelectedColor(key)}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              selectedColor === key
-                ? 'border-indigo-600 shadow-lg'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex gap-1 mb-3">
-              {palette.colors.map((color, idx) => (
-                <div
-                  key={idx}
-                  className="flex-1 h-8 rounded"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-            <p className="font-semibold text-gray-800 text-sm">{palette.name}</p>
-            <p className="text-xs text-gray-600 mt-1">{palette.description}</p>
-          </button>
-        ))}
+      {/* 今日主色提示 */}
+      {!dailyLoading && mainColorFamily && (
+        <div className="mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border-l-4 border-indigo-600">
+          <div className="flex items-center gap-2">
+            <Palette className="w-5 h-5 text-indigo-600" />
+            <span className="font-semibold text-gray-800">今日推薦主色：</span>
+            <span className="text-indigo-600 font-bold">
+              {mainColorName}
+            </span>
+          </div>
+          {weather && (
+            <p className="text-sm text-gray-600 mt-2">
+              🌤️ {weather.city} {Math.round(weather.temperature)}°C · {weather.description}
+            </p>
+          )}
+        </div>
+      )}
+      
+      {/* 色系選擇（三色系：neutral / earth / cool） */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+        {families.map((family) => {
+          const palette = COLOR_PALETTES[family.key] || {};
+          const isTodayColor = family.isMain;
+          const outfitCount = family.outfits?.length || 0;
+          
+          return (
+            <button
+              key={family.key}
+              onClick={() => setSelectedColor(family.key)}
+              className={`p-4 rounded-lg border-2 transition-all relative ${
+                selectedColor === family.key
+                  ? 'border-indigo-600 shadow-lg'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {/* 今日推薦標籤 */}
+              {isTodayColor && (
+                <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full shadow-md">
+                  今日推薦
+                </div>
+              )}
+              
+              <div className="flex gap-1 mb-3">
+                {(family.colors || palette.colors || []).map((color, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-1 h-8 rounded"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+              <p className="font-semibold text-gray-800 text-sm">{family.name || palette.name}</p>
+              <p className="text-xs text-gray-600 mt-1">{palette.description}</p>
+              {!dailyLoading && outfitCount > 0 && (
+                <p className="text-xs text-indigo-600 font-semibold mt-2">
+                  {outfitCount} 套穿搭
+                </p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* 選中色系的詳細展示 */}
@@ -136,12 +162,12 @@ export default function OutfitProposal() {
         <div className="flex items-center gap-3 mb-4">
           <Palette className="w-6 h-6 text-indigo-600" />
           <h3 className="text-xl font-bold text-gray-800">
-            {COLOR_PALETTES[selectedColor].name}色系搭配建議
+            {(COLOR_PALETTES[selectedColor]?.name || '色系')}搭配建議
           </h3>
         </div>
 
         <div className="grid grid-cols-4 gap-3 mb-6">
-          {COLOR_PALETTES[selectedColor].colors.map((color, idx) => (
+          {(COLOR_PALETTES[selectedColor]?.colors || mainColorPalette).map((color, idx) => (
             <div key={idx} className="text-center">
               <div
                 className="w-full h-24 rounded-lg shadow-md mb-2"
@@ -152,9 +178,9 @@ export default function OutfitProposal() {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 mb-6">
           <button
-            onClick={() => goToShop(COLOR_PALETTES[selectedColor].name)}
+            onClick={() => goToShop(COLOR_PALETTES[selectedColor]?.name || selectedColor)}
             className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-all shadow-md"
           >
             <ShoppingBag className="w-5 h-5" />
@@ -171,13 +197,98 @@ export default function OutfitProposal() {
             <Heart className={`w-5 h-5 ${wishlist.has(selectedColor) ? 'fill-current' : ''}`} />
             {wishlist.has(selectedColor) ? '已加入願望清單' : '加入願望清單'}
           </button>
-          <button
-            onClick={() => setAsMainColor(selectedColor)}
-            className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-all shadow-md"
-          >
-            <Palette className="w-5 h-5" />
-            以此為主色
-          </button>
+          {/* ✨ 已移除「以此為主色」按鈕 */}
+        </div>
+
+        {/* 本色系穿搭推薦 (3套) */}
+        <div className="mt-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Palette className="w-5 h-5 text-indigo-600" />
+            {COLOR_PALETTES[selectedColor].name}色系穿搭推薦
+          </h4>
+          
+          {dailyLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+              <span className="ml-3 text-gray-600">載入中...</span>
+            </div>
+          ) : dailyError ? (
+            <div className="p-4 rounded-lg bg-red-50 text-red-600">
+              載入失敗：{String(dailyError.message)}
+            </div>
+          ) : (() => {
+              const currentFamily = families.find(f => f.key === selectedColor);
+              const outfits = currentFamily?.outfits || [];
+              
+              if (outfits.length === 0) {
+                return (
+                  <div className="p-4 rounded-lg bg-gray-50 text-gray-600">
+                    此色系目前沒有穿搭推薦
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {outfits.map((outfit, idx) => (
+                    <div key={outfit.id || idx} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+                      <h5 className="font-semibold text-gray-800 mb-2">{outfit.title}</h5>
+                      <p className="text-xs text-gray-500 mb-4">{outfit.reason}</p>
+                      
+                      {/* 穿搭商品列表 */}
+                      <div className="space-y-3">
+                        {outfit.items?.map((item, itemIdx) => {
+                          const isStore = item.source === 'store';
+                          return (
+                            <div key={itemIdx} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
+                              {/* 商品圖片 */}
+                              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                <img
+                                  src={item.imageUrl || 'https://via.placeholder.com/64'}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              
+                              {/* 商品資訊 */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                                  {isStore ? (
+                                    <span className="flex-shrink-0 bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <ShoppingBag className="w-3 h-3" />
+                                      Shop
+                                    </span>
+                                  ) : (
+                                    <span className="flex-shrink-0 bg-green-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Sparkles className="w-3 h-3" />
+                                      衣櫃
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">{item.category}</p>
+                              </div>
+                              
+                              {/* 店家商品購買按鈕 */}
+                              {isStore && item.purchaseUrl && (
+                                <button
+                                  onClick={() => window.open(item.purchaseUrl, '_blank')}
+                                  className="flex-shrink-0 px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors"
+                                >
+                                  購買
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
+          }
         </div>
       </div>
     </div>
