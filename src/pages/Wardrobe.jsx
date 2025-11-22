@@ -8,7 +8,7 @@ import OutfitProposal from "../components/wardrobe/OutfitProposal";
 import Layout from "../components/Layout";
 
 
-const mainTabs = ["我的衣櫥", "穿搭提案", "穿搭日記", "身材分析"];
+const mainTabs = ["我的衣櫥", "本日主打色", "穿搭日記", "身材分析"];
 
 export default function Wardrobe({ theme, setTheme }) {
   const [activeTab, setActiveTab] = useState(mainTabs[0]);
@@ -45,7 +45,7 @@ export default function Wardrobe({ theme, setTheme }) {
           </div>
           <div>
             {activeTab === "我的衣櫥" && <WardrobeOverview />}
-            {activeTab === "穿搭提案" && <OutfitProposal />}
+            {activeTab === "本日主打色" && <OutfitProposal />}
             {activeTab === "穿搭日記" && <Outfits />}
             {activeTab === "身材分析" && <Analysis />}
           </div>

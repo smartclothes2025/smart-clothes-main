@@ -13,7 +13,9 @@ export default function RecommendInactive({ days = 30, showTitle = true }) {
   );
 
   const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-  const list = useMock ? inactiveMock : (Array.isArray(data) ? data : []);
+  const list = useMock
+    ? inactiveMock
+    : (Array.isArray(data) ? data : (data?.recommendations ?? []));
 
   const [hiddenIds, setHiddenIds] = useState(new Set());
   const visibleList = list.filter(entry => !hiddenIds.has(entry.item.id));
