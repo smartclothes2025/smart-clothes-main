@@ -266,21 +266,25 @@ export default function PostDetailModal({ postId, onClose }) {
     setPost(p => ({ ...p, likes: nextCount }));
 
     try {
-      const res = await fetch(`${API_BASE}/posts/${postId}/likes/toggle`, {
+      const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      // 以後端資料為準，避免競態
-      setIsLiked(!!data.liked);
-      setPost(p => ({ ...p, likes: (typeof data.like_count === 'number') ? data.like_count : p.likes }));
+
+      // 以後端資料為準
+      setIsLiked(true); // 後端目前都 +1（沒有 toggle）
+      setPost(p => ({
+        ...p,
+        likes: typeof data.like_count === "number" ? data.like_count : p.likes,
+      }));
     } catch (e) {
       // 回滾
       setIsLiked(prevLiked);
       setPost(p => ({ ...p, likes: prevCount }));
-      addToast({ type: 'error', title: '按讚失敗', message: '請稍後再試', autoDismiss: 3000 });
     }
+
   }
 
   // 留言送出
