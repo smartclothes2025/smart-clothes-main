@@ -1,8 +1,14 @@
-// src/components/OutfitModal.jsx
-import React, { useEffect } from "react";
+// src/components/OutfitModal.jsx 
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { SparklesIcon, TagIcon, PencilSquareIcon } from "@heroicons/react/20/solid";
+import {
+  SparklesIcon,
+  TagIcon,
+  PencilSquareIcon,
+  UserCircleIcon,
+} from "@heroicons/react/20/solid";
 
 function resolveImageUrl(url) {
   if (!url) return null;
@@ -15,10 +21,24 @@ function resolveImageUrl(url) {
   return url;
 }
 
-export default function OutfitModal({ date, outfit, onClose }) {
+/**
+ * props:
+ *  - date: Date 或可被 new Date() 的字串
+ *  - outfit: { img / image_url / name / description / tags ... }
+ *  - onClose: function()
+ *  - onUploadUserImage?: (file) => void   // 可選：如果你要在父層把實穿照上傳到後端，可以用這個
+ */
+export default function OutfitModal({
+  date,
+  outfit,
+  onClose,
+  onUploadUserImage,
+}) {
+  const navigate = useNavigate();
+
   if (!date) return null;
 
-  // 日期
+  // 日期 label
   const dateLabel = new Date(date).toLocaleDateString("zh-TW", {
     year: "numeric",
     month: "long",
@@ -30,6 +50,10 @@ export default function OutfitModal({ date, outfit, onClose }) {
   const tags = outfit?.tags
     ? outfit.tags.split(/[,\s]+/).filter(Boolean)
     : [];
+
+  // 使用者自行上傳的實穿照片（僅在這個 modal 內預覽）
+  const [userPhotoFile, setUserPhotoFile] = useState(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState(null);
 
   useEffect(() => {
     const y = window.scrollY;
@@ -62,16 +86,34 @@ export default function OutfitModal({ date, outfit, onClose }) {
     if (e.target === e.currentTarget) onClose();
   };
 
+  const handleUserPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUserPhotoFile(file);
+    const url = URL.createObjectURL(file);
+    setUserPhotoPreview(url);
+
+    if (typeof onUploadUserImage === "function") {
+      onUploadUserImage(file);
+    }
+  };
+
+  const handleGoNewOutfit = () => {
+    // 關閉當前 Modal 再跳轉
+    onClose(false);
+    navigate("/outfit/upload");
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={handleBackdropClick}
     >
-
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-slate-200 z-10 flex items-center justify-between shadow-sm">
           <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-             {dateLabel} 穿搭
+            {dateLabel} 穿搭
           </h2>
           <button
             onClick={() => onClose(false)}
@@ -82,10 +124,10 @@ export default function OutfitModal({ date, outfit, onClose }) {
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 py-4">
-
-          {/* 圖片區 */}
-          <div className="w-full aspect-[3/4] bg-slate-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden shadow border border-slate-100">
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+          {/* 原本的穿搭圖片區 */}
+          <div className="w-full aspect-[3/4] bg-slate-50 rounded-2xl mb-2 flex items-center justify-center overflow-hidden shadow border border-slate-100">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -104,7 +146,8 @@ export default function OutfitModal({ date, outfit, onClose }) {
               </div>
             )}
           </div>
-
+          
+          {/* 文本資訊 */}
           <div className="space-y-3 text-sm">
             <InfoCard
               title="穿搭標題"
@@ -146,7 +189,14 @@ export default function OutfitModal({ date, outfit, onClose }) {
           </div>
         </div>
 
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end rounded-b-2xl">
+        {/* Footer */}
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-3 rounded-b-2xl">
+          <button
+            onClick={handleGoNewOutfit}
+            className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+          >
+            新增穿搭
+          </button>
           <button
             onClick={() => onClose(false)}
             className="px-5 py-2 rounded-xl text-sm font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 shadow-sm"
@@ -154,7 +204,6 @@ export default function OutfitModal({ date, outfit, onClose }) {
             關閉視窗
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -181,7 +230,8 @@ InfoCard.propTypes = {
 };
 
 OutfitModal.propTypes = {
-  date: PropTypes.instanceOf(Date),
+  date: PropTypes.oneOfType([PropTypes.instanceOf(Date), PropTypes.string]),
   outfit: PropTypes.object,
   onClose: PropTypes.func.isRequired,
+  onUploadUserImage: PropTypes.func,
 };

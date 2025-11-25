@@ -3,13 +3,17 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import PostCard from "../components/PostCard";
-import { useToast } from "../components/ToastProvider";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
+/** 將 gs:// 轉成可瀏覽網址，若已經是 http(s) 就直接回傳 */
 function resolveGcsUrl(gsOrHttp) {
   if (!gsOrHttp) return null;
-  if (gsOrHttp.startsWith("http://") || gsOrHttp.startsWith("https://")) return gsOrHttp;
+  if (gsOrHttp.startsWith("http://") || gsOrHttp.startsWith("https://")) {
+    return gsOrHttp;
+  }
   if (gsOrHttp.startsWith("gs://")) {
     const without = gsOrHttp.replace("gs://", "");
     const slash = without.indexOf("/");
@@ -22,9 +26,29 @@ function resolveGcsUrl(gsOrHttp) {
   return gsOrHttp;
 }
 
+/** 統一處理頭貼網址（gs:// / 一般 URL） */
+function normalizeAvatarUrl(raw) {
+  if (!raw) return null;
+
+  if (typeof raw === "string" && raw.startsWith("gs://")) {
+    return resolveGcsUrl(raw);
+  }
+
+  if (
+    typeof raw === "string" &&
+    (raw.startsWith("http://") || raw.startsWith("https://"))
+  ) {
+    return raw;
+  }
+
+  return resolveGcsUrl(raw);
+}
+
+/** 從 media 陣列挑出封面圖 */
 function pickCoverUrl(media) {
   if (!Array.isArray(media) || media.length === 0) return null;
   const cover = media.find((m) => m?.is_cover) || media[0];
+
   const raw =
     cover?._view ||
     cover?.authenticated_url ||
@@ -34,160 +58,232 @@ function pickCoverUrl(media) {
     cover?.gcs_uri ||
     cover?.gcsUrl ||
     null;
+
   return resolveGcsUrl(raw);
 }
 
-export default function UserProfile({ theme, setTheme }) {
+export default function UserProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToast } = useToast();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [user, setUser] = useState({
-    displayName: "載入中...",
+    displayName: "",
     bio: "",
     picture: null,
   });
   const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!id) return;
+
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
-      setError(null);
+      setError("");
+
       try {
-        const res = await fetch(`${API_BASE}/posts/user/${id}`);
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `讀取使用者貼文失敗 (${res.status})`);
+        // 一次讀貼文 + app_users（含 picture）
+        const [postRes, usersRes] = await Promise.all([
+          fetch(`${API_BASE}/posts/user/${id}`),
+          fetch(`${API_BASE}/users?limit=200`),
+        ]);
+
+        if (!postRes.ok) {
+          throw new Error(`讀取使用者貼文失敗 (${postRes.status})`);
         }
-        const data = await res.json();
+        if (!usersRes.ok) {
+          throw new Error(`讀取使用者清單失敗 (${usersRes.status})`);
+        }
+
+        const postData = await postRes.json();
+        const usersData = await usersRes.json();
+
         if (cancelled) return;
 
-        const arr = Array.isArray(data) ? data : [];
+        const arr = Array.isArray(postData) ? postData : [];
         setPosts(arr);
 
+        // 先從貼文裡抓暱稱 / 自介
+        let displayName = "";
+        let bio = "";
         if (arr.length > 0) {
           const first = arr[0];
-          const displayName = first.display_name || first.author || "用戶";
-          const bio = first.interformation || "";
-          const pictureRaw = first.avatar_url || first.picture || null;
-          const picture = resolveGcsUrl(pictureRaw);
-          setUser({ displayName, bio, picture });
-        } else {
-          setUser({
-            displayName: "這位使用者尚未發佈貼文",
-            bio: "",
-            picture: null,
-          });
+          displayName = first.display_name || first.author || "";
+          bio = first.interformation || "";
         }
-      } catch (err) {
-        console.error("讀取使用者資訊失敗", err);
-        if (!cancelled) {
-          setError(err.message || "讀取使用者資訊失敗");
+
+        // 再從 app_users 找到對應 user（有 picture）
+        const userList = Array.isArray(usersData) ? usersData : [];
+        const targetUser = userList.find(
+          (u) => String(u.id) === String(id)
+        );
+
+        let picture = null;
+
+        if (targetUser) {
+          if (!displayName) {
+            displayName =
+              targetUser.display_name ||
+              targetUser.name ||
+              targetUser.email ||
+              "";
+          }
+          if (!bio) {
+            bio = targetUser.interformation || "";
+          }
+
+          const rawPicture = targetUser.picture || null;
+          picture = normalizeAvatarUrl(rawPicture);
         }
+
+        setUser({
+          displayName: displayName || "用戶",
+          bio,
+          picture,
+        });
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setError(e.message || "讀取使用者資訊失敗");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     load();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/home");
-    }
-  };
+  const avatarChar =
+    user.displayName?.trim().charAt(0)?.toUpperCase() || "用戶";
 
   return (
-    <Layout theme={theme} setTheme={setTheme}>
-      <div className="page-wrapper h-full overflow-y-auto py-8 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="mb-6 flex items-center text-indigo-600 hover:text-indigo-800 font-medium transition"
-          >
-            <svg
-              className="w-5 h-5 mr-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            返回
-          </button>
+    <Layout title="用戶貼文">
+      <div className="page-wrapper">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* 上方列：返回鍵 + 路徑 */}
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 shadow-sm hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                <span>返回</span>
+              </button>
+              <span className="text-slate-300">/</span>
+              <span className="truncate max-w-[180px]">
+                {user.displayName || "用戶"}
+              </span>
+            </div>
+          </div>
 
-          {loading ? (
-            <div className="text-center text-gray-500">載入中...</div>
-          ) : error ? (
-            <div className="text-center text-red-600 font-medium">{error}</div>
-          ) : (
-            <>
-              {/* 頭像與簡介 */}
-              <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col sm:flex-row items-center gap-6 mb-8">
-                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-md flex-shrink-0">
-                  {user.picture ? (
-                    <img src={user.picture} alt={user.displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-3xl font-semibold text-gray-500">
-                      {user.displayName?.charAt(0)?.toUpperCase() || "?"}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 text-center sm:text-left">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-1">{user.displayName}</h1>
-                  {user.bio && <p className="text-gray-600 text-sm">{user.bio}</p>}
-                </div>
-              </div>
-
-              {/* 貼文列表 */}
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">公開貼文</h2>
-                {posts.length === 0 ? (
-                  <div className="text-center text-gray-500 bg-white rounded-xl py-6 shadow-sm">
-                    目前沒有公開貼文
-                  </div>
+          {/* 使用者卡片 */}
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+            <div className="h-1 bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400" />
+            <div className="p-6 sm:p-7 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              {/* 頭貼 */}
+              <div className="w-24 h-24 bg-slate-200 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden">
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.displayName}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {posts.map((p) => {
-                      let mediaArr = [];
-                      try {
-                        mediaArr = Array.isArray(p.media) ? p.media : JSON.parse(p.media || "[]");
-                      } catch {
-                        mediaArr = [];
-                      }
-                      const cover = pickCoverUrl(mediaArr) || "/default-outfit.png";
-                      return (
-                        <PostCard
-                          key={p.id}
-                          imageUrl={cover}
-                          alt={p.title || "貼文"}
-                          likes={p.like_count ?? 0}
-                          onClick={() => {
-                            navigate(`/posts/${p.id}`);
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
+                  <span className="text-4xl font-semibold text-slate-500">
+                    {avatarChar}
+                  </span>
                 )}
               </div>
-            </>
-          )}
+
+              {/* 名稱＋自我介紹 */}
+              <div className="flex-1 text-center sm:text-left">
+                <h1 className="text-2xl font-bold text-slate-800">
+                  {user.displayName}
+                </h1>
+                {user.bio ? (
+                  <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">
+                    {user.bio}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-400">
+                    尚未填寫個人簡介。
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* 公開貼文區塊 */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold text-slate-800">
+                公開貼文
+              </h2>
+              {!loading && !error && (
+                <span className="text-xs text-slate-400">
+                  共 {posts.length} 則
+                </span>
+              )}
+            </div>
+            <div className="h-px bg-slate-200 mb-4" />
+
+            {loading ? (
+              <div className="text-center text-slate-500 py-8">
+                載入中...
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-8">{error}</div>
+            ) : posts.length === 0 ? (
+              <div className="text-center text-slate-500 bg-white rounded-xl py-8 shadow-sm">
+                目前沒有公開貼文
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {posts.map((p) => {
+                  let mediaArr = [];
+                  try {
+                    mediaArr = Array.isArray(p.media)
+                      ? p.media
+                      : JSON.parse(p.media || "[]");
+                  } catch {
+                    mediaArr = [];
+                  }
+                  const cover =
+                    pickCoverUrl(mediaArr) || "/default-outfit.png";
+
+                  return (
+                    <PostCard
+                      key={p.id}
+                      imageUrl={cover}
+                      alt={p.title || "貼文"}
+                      likes={p.like_count ?? 0}
+                      onClick={() => navigate(`/posts/${p.id}`)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </Layout>
