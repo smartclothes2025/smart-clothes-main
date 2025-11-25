@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, ShoppingBag, Palette, Loader2, Sparkles } from 'lucide-react';
+import { ShoppingBag, Palette, Loader2, Sparkles } from 'lucide-react';
 import useSWR from 'swr';
 import fetchJSON from '../../lib/api';
 import { getImageUrl } from '../../lib/imageUtils';
@@ -30,7 +30,6 @@ const GENDERS = ['女生', '男生'];
 
 export default function OutfitProposal() {
   const [selectedGender, setSelectedGender] = useState('女生');
-  const [wishlist, setWishlist] = useState(new Set());
   
   // 統一的天氣 Hook：與首頁 WeatherCard 共用，依使用者所在位置變動
   const { weather } = useWeather();
@@ -66,17 +65,6 @@ export default function OutfitProposal() {
     }
   }, [dailyData]);
 
-  // 切換願望清單
-  const toggleWishlist = (itemId) => {
-    const newWishlist = new Set(wishlist);
-    if (newWishlist.has(itemId)) {
-      newWishlist.delete(itemId);
-    } else {
-      newWishlist.add(itemId);
-    }
-    setWishlist(newWishlist);
-  };
-
   // 跳轉到購買
   const goToShop = (itemName) => {
     window.open(`https://styleshop-delta.vercel.app/women.html?search=${encodeURIComponent(itemName)}`, '_blank');
@@ -106,7 +94,7 @@ export default function OutfitProposal() {
           </div>
           {weather && (
             <p className="text-sm text-gray-600 mt-2">
-              🌤️ {weather.city} {Math.round(weather.temperature)}°C · {weather.description}
+              🌤️ {Math.round(weather.temperature)}°C · {weather.description}
             </p>
           )}
         </div>
@@ -185,17 +173,6 @@ export default function OutfitProposal() {
           >
             <ShoppingBag className="w-5 h-5" />
             去 Style Shop 看同款
-          </button>
-          <button
-            onClick={() => toggleWishlist(selectedColor)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-              wishlist.has(selectedColor)
-                ? 'bg-red-100 text-red-600 border border-red-300'
-                : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-            }`}
-          >
-            <Heart className={`w-5 h-5 ${wishlist.has(selectedColor) ? 'fill-current' : ''}`} />
-            {wishlist.has(selectedColor) ? '已加入願望清單' : '加入願望清單'}
           </button>
           {/* ✨ 已移除「以此為主色」按鈕 */}
         </div>

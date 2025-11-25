@@ -190,8 +190,18 @@ export default function PostDetailModal({ postId, onClose }) {
           } catch { /* ignore */ }
         }
 
-        // 是否已按讚（若後端有 liked_by_me）
-        setIsLiked(!!data.liked_by_me);
+        const likedList = (() => {
+          try {
+            return JSON.parse(localStorage.getItem('likedPosts') || '[]');
+          } catch {
+            return [];
+          }
+        })();
+
+        const alreadyLiked = Array.isArray(likedList) && likedList.includes(data.id);
+
+        // 是否已按讚（綜合後端狀態與 localStorage）
+        setIsLiked(!!data.liked_by_me || alreadyLiked);
 
         setPost({
           id: data.id,
@@ -247,7 +257,7 @@ export default function PostDetailModal({ postId, onClose }) {
     return () => controller.abort();
   }, [postId]);
 
-  // 點讚切換（樂觀更新）
+  // 點讚切換（toggle，可收回愛心）
   async function handleToggleLike() {
     if (!post) return;
     const token = localStorage.getItem("token");
@@ -258,31 +268,52 @@ export default function PostDetailModal({ postId, onClose }) {
 
     const prevLiked = isLiked;
     const prevCount = post.likes;
-    const nextLiked = !prevLiked;
-    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
 
-    // 樂觀更新
-    setIsLiked(nextLiked);
-    setPost(p => ({ ...p, likes: nextCount }));
+    // 樂觀更新：先在前端切換狀態
+    const optimisticLiked = !prevLiked;
+    setIsLiked(optimisticLiked);
+    setPost(p => ({ ...p, likes: Math.max((p.likes ?? 0) + (optimisticLiked ? 1 : -1), 0) }));
 
     try {
       const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const rawText = await res.text();
+      let data = {};
+      try { data = JSON.parse(rawText || "{}"); } catch {}
+      if (!res.ok) throw new Error(data.detail || rawText || `HTTP ${res.status}`);
 
-      // 以後端資料為準
-      setIsLiked(true); // 後端目前都 +1（沒有 toggle）
-      setPost(p => ({
-        ...p,
-        likes: typeof data.like_count === "number" ? data.like_count : p.likes,
-      }));
+      const serverCount = typeof data.like_count === "number" ? data.like_count : null;
+      const serverLiked = typeof data.liked === "boolean" ? data.liked : null;
+
+      const finalLiked = serverLiked !== null ? serverLiked : optimisticLiked;
+      const delta = finalLiked === prevLiked ? 0 : (finalLiked ? 1 : -1);
+      const newLikeCount = serverCount !== null
+        ? serverCount
+        : Math.max((prevCount ?? 0) + delta, 0);
+
+      setIsLiked(finalLiked);
+      setPost(p => ({ ...p, likes: newLikeCount }));
+
+      try {
+        let likedList = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+        if (!Array.isArray(likedList)) likedList = [];
+        if (finalLiked) {
+          if (!likedList.includes(post.id)) {
+            likedList.push(post.id);
+          }
+        } else {
+          likedList = likedList.filter((pid) => pid !== post.id);
+        }
+        localStorage.setItem('likedPosts', JSON.stringify(likedList));
+      } catch {}
     } catch (e) {
       // 回滾
       setIsLiked(prevLiked);
       setPost(p => ({ ...p, likes: prevCount }));
+      console.error('like toggle failed:', e);
+      addToast({ type: 'error', title: '按讚失敗', message: e.message || '請稍後再試', autoDismiss: 3000 });
     }
 
   }

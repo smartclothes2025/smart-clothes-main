@@ -392,62 +392,11 @@ const BodyMetrics = () => {
   );
 };
 
-// 我的衣櫥分析元件 (保持不變)
-
-const WardrobeAnalysis = () => {
-  const items = [
-    { name: "牛仔褲", wearCount: 25 }, { name: "白色 T 恤", wearCount: 15 },
-    { name: "風衣外套", wearCount: 8 }, { name: "黑色洋裝", wearCount: 3 },
-    { name: "A字裙", wearCount: 1 },
-  ];
-  const frequentlyWorn = items.filter(item => item.wearCount > 10);
-  const infrequentlyWorn = items.filter(item => item.wearCount <= 10);
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold mb-4">我的衣櫥</h3>
-      <div className="space-y-4">
-        <section>
-          <h4 className="font-semibold text-green-700">常穿衣物</h4>
-          <ul className="list-disc list-inside mt-2 text-gray-600">
-            {frequentlyWorn.map(item => <li key={item.name}>{item.name} ({item.wearCount} 次)</li>)}
-          </ul>
-        </section>
-        <section>
-          <h4 className="font-semibold text-amber-700">不常穿衣物</h4>
-          <ul className="list-disc list-inside mt-2 text-gray-600">
-            {infrequentlyWorn.map(item => <li key={item.name}>{item.name} ({item.wearCount} 次)</li>)}
-          </ul>
-        </section>
-      </div>
-    </div>
-  );
-};
-
-
-const analysisTabs = ["身體數據", "我的衣櫥"];
-
-// 👇 確保這裡是 `export default`
+// 👇 只保留身體數據分析，不再顯示「我的衣櫥」分頁
 export default function Analysis() {
-  const [activeSubTab, setActiveSubTab] = useState(analysisTabs[0]);
-
   return (
     <div>
-      <div className="flex gap-4 mb-4 border-b border-gray-200">
-        {analysisTabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveSubTab(tab)}
-            className={`pb-2 font-medium -mb-px ${activeSubTab === tab ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-      <div>
-        {activeSubTab === "身體數據" && <BodyMetrics />}
-        {activeSubTab === "我的衣櫥" && <WardrobeAnalysis />}
-      </div>
+      <BodyMetrics />
     </div>
   );
 }

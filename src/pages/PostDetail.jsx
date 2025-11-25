@@ -80,6 +80,7 @@ export default function PostDetail({ theme, setTheme }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [liking, setLiking] = useState(false); // 避免連點
+    const [isLiked, setIsLiked] = useState(false); // 本地是否已按讚
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -160,6 +161,16 @@ export default function PostDetail({ theme, setTheme }) {
                 // 格式化時間
                 const createdTime = data.created_at ? new Date(data.created_at).toLocaleString('zh-TW') : '';
 
+                const likedList = (() => {
+                    try {
+                        return JSON.parse(localStorage.getItem('likedPosts') || '[]');
+                    } catch {
+                        return [];
+                    }
+                })();
+
+                const alreadyLiked = Array.isArray(likedList) && likedList.includes(data.id);
+
                 setPost({
                     id: data.id,
                     title: data.title || '無標題貼文',
@@ -174,6 +185,8 @@ export default function PostDetail({ theme, setTheme }) {
                     tags: data.tag || '',
                     visibility: data.visibility || 'public',
                 });
+
+                setIsLiked(!!alreadyLiked);
             } catch (err) {
                 if (err?.name !== "AbortError") {
                     console.error('獲取貼文失敗:', err);
@@ -190,7 +203,7 @@ export default function PostDetail({ theme, setTheme }) {
 
         const handleLike = async () => {
         if (!post) return;
-        if (liking) return; // 正在送出就不要重複按
+        if (liking) return; // 避免連點
 
         const token = localStorage.getItem("token");
         if (!token) {
@@ -224,16 +237,34 @@ export default function PostDetail({ theme, setTheme }) {
                 throw new Error(data.detail || `HTTP ${res.status}`);
             }
 
-            // 依照後端回傳的 like_count 更新
-            const newLikeCount =
-                typeof data.like_count === "number"
-                    ? data.like_count
-                    : (post.likes ?? 0) + 1;
+            const serverCount = typeof data.like_count === "number" ? data.like_count : null;
+            const serverLiked = typeof data.liked === "boolean" ? data.liked : null;
+
+            const nextLiked = serverLiked !== null ? serverLiked : !isLiked;
+            const delta = nextLiked === isLiked ? 0 : (nextLiked ? 1 : -1);
+            const newLikeCount = serverCount !== null
+                ? serverCount
+                : Math.max((post.likes ?? 0) + delta, 0);
 
             setPost((prev) => ({
                 ...prev,
                 likes: newLikeCount,
             }));
+
+            setIsLiked(nextLiked);
+
+            try {
+                let likedList = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+                if (!Array.isArray(likedList)) likedList = [];
+                if (nextLiked) {
+                    if (!likedList.includes(post.id)) {
+                        likedList.push(post.id);
+                    }
+                } else {
+                    likedList = likedList.filter((pid) => pid !== post.id);
+                }
+                localStorage.setItem('likedPosts', JSON.stringify(likedList));
+            } catch {}
         } catch (err) {
             console.error("like error:", err);
             addToast({
@@ -396,7 +427,9 @@ export default function PostDetail({ theme, setTheme }) {
                             type="button"
                             onClick={handleLike}
                             disabled={liking}
-                            className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition group disabled:opacity-60 disabled:cursor-not-allowed"
+                            className={`flex items-center gap-2 transition group disabled:opacity-60 disabled:cursor-not-allowed ${
+                                isLiked ? 'text-red-600' : 'text-gray-600 hover:text-red-600'
+                            }`}
                             >
 
                                 <svg

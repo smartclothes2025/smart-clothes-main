@@ -93,7 +93,7 @@ export default function DailyColors() {
           </div>
           {weather && (
             <p className="text-sm text-gray-600 mt-2">
-              🌤️ {weather.city} {weather.temperature}°C · {weather.weather_description}
+              🌤️ {weather.temperature}°C · {weather.weather_description}
             </p>
           )}
         </div>
