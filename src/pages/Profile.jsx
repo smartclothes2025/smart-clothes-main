@@ -152,6 +152,13 @@ export default function Profile() {
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
 
+  // ✅ 收藏貼文與追蹤/粉絲列表
+  const [favoritePosts, setFavoritePosts] = useState([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState([]);
+  const [followers, setFollowers] = useState([]);
+  const [loadingFollows, setLoadingFollows] = useState(false);
+
   const [metricsOpen, setMetricsOpen] = useState(() => {
     try {
       const v = localStorage.getItem("profile_metrics_open");
@@ -311,6 +318,77 @@ useEffect(() => {
     window.removeEventListener("post-deleted", handlePostDeleted);
   };
 }, []);
+
+  // 讀取收藏貼文與追蹤/粉絲列表
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const controller = new AbortController();
+
+    const fetchExtra = async () => {
+      setLoadingFavorites(true);
+      setLoadingFollows(true);
+      try {
+        const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+
+        const [favRes, followingRes, followersRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/posts/favorites/me?limit=50`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE}/me/following`, { headers, signal: controller.signal }),
+          fetch(`${API_BASE}/me/followers`, { headers, signal: controller.signal }),
+        ]);
+
+        // 收藏貼文
+        if (favRes.status === "fulfilled" && favRes.value.ok) {
+          const data = await favRes.value.json();
+          const prelim = (data || []).map((it) => {
+            let mediaArr = [];
+            try {
+              mediaArr = Array.isArray(it.media) ? it.media : JSON.parse(it.media || "[]");
+            } catch {
+              mediaArr = [];
+            }
+            return { ...it, _mediaArr: mediaArr };
+          });
+
+          const hydrated = [];
+          for (const it of prelim) {
+            const resolved = await resolveMediaArray(it._mediaArr, token);
+            hydrated.push({ ...it, _mediaArr: resolved });
+          }
+          setFavoritePosts(hydrated);
+        } else {
+          setFavoritePosts([]);
+        }
+
+        // 追蹤中
+        if (followingRes.status === "fulfilled" && followingRes.value.ok) {
+          const data = await followingRes.value.json();
+          setFollowingUsers(Array.isArray(data) ? data : []);
+        } else {
+          setFollowingUsers([]);
+        }
+
+        // 粉絲
+        if (followersRes.status === "fulfilled" && followersRes.value.ok) {
+          const data = await followersRes.value.json();
+          setFollowers(Array.isArray(data) ? data : []);
+        } else {
+          setFollowers([]);
+        }
+      } catch (e) {
+        if (e?.name !== "AbortError") console.warn("載入收藏/追蹤資料失敗", e);
+        setFavoritePosts([]);
+        setFollowingUsers([]);
+        setFollowers([]);
+      } finally {
+        setLoadingFavorites(false);
+        setLoadingFollows(false);
+      }
+    };
+
+    fetchExtra();
+    return () => controller.abort();
+  }, []);
 
   // 儲存個資
   const handleSaveProfile = async (updatedData) => {
@@ -594,6 +672,121 @@ useEffect(() => {
                     </div>
                   )}
                 </>
+              )}
+
+              {tab === "collections" && (
+                <>
+                  {loadingFavorites ? (
+                    <div className="text-center text-slate-500">載入收藏中...</div>
+                  ) : favoritePosts.length === 0 ? (
+                    <div className="text-center text-slate-500">尚未收藏任何貼文</div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {favoritePosts.map((p) => {
+                        const url = pickCoverUrl(p._mediaArr) || "/default-outfit.png";
+                        return (
+                          <PostCard
+                            key={p.id}
+                            imageUrl={url}
+                            alt={p.title || "貼文"}
+                            likes={p.like_count ?? 0}
+                            onClick={() => setSelectedPostId(p.id)}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {tab === "followers" && (
+                <div className="space-y-8">
+                  {loadingFollows ? (
+                    <div className="text-center text-slate-500">載入追蹤與粉絲中...</div>
+                  ) : (
+                    <>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-600 mb-3">追蹤中</h3>
+                        {followingUsers.length === 0 ? (
+                          <div className="text-center text-slate-500 text-sm bg-white rounded-xl py-4 shadow-sm">
+                            目前尚未追蹤任何人
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {followingUsers.map((u) => (
+                              <div
+                                key={u.id}
+                                className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 shadow-sm border border-slate-100"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  {u.picture ? (
+                                    <img
+                                      src={resolveGcsUrl(u.picture)}
+                                      alt={u.display_name || "使用者"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="text-sm font-semibold text-slate-600">
+                                      {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-semibold text-slate-800 truncate">
+                                    {u.display_name || u.email || "使用者"}
+                                  </div>
+                                  {u.interformation && (
+                                    <div className="text-xs text-slate-500 truncate">{u.interformation}</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-600 mb-3">粉絲</h3>
+                        {followers.length === 0 ? (
+                          <div className="text-center text-slate-500 text-sm bg-white rounded-xl py-4 shadow-sm">
+                            目前還沒有粉絲
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {followers.map((u) => (
+                              <div
+                                key={u.id}
+                                className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 shadow-sm border border-slate-100"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  {u.picture ? (
+                                    <img
+                                      src={resolveGcsUrl(u.picture)}
+                                      alt={u.display_name || "使用者"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="text-sm font-semibold text-slate-600">
+                                      {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-semibold text-slate-800 truncate">
+                                    {u.display_name || u.email || "使用者"}
+                                  </div>
+                                  {u.interformation && (
+                                    <div className="text-xs text-slate-500 truncate">{u.interformation}</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>

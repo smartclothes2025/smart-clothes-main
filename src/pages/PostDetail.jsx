@@ -82,6 +82,11 @@ export default function PostDetail({ theme, setTheme }) {
     const [liking, setLiking] = useState(false); // 避免連點
     const [isLiked, setIsLiked] = useState(false); // 本地是否已按讚
 
+    const [comments, setComments] = useState([]);
+    const [commentLoading, setCommentLoading] = useState(false);
+    const [commentInput, setCommentInput] = useState('');
+    const [postingComment, setPostingComment] = useState(false);
+
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -185,8 +190,7 @@ export default function PostDetail({ theme, setTheme }) {
                     tags: data.tag || '',
                     visibility: data.visibility || 'public',
                 });
-
-                setIsLiked(!!alreadyLiked);
+                setIsLiked(!!data.liked_by_me || alreadyLiked);
             } catch (err) {
                 if (err?.name !== "AbortError") {
                     console.error('獲取貼文失敗:', err);
@@ -197,7 +201,37 @@ export default function PostDetail({ theme, setTheme }) {
             }
         };
 
+        const fetchComments = async () => {
+            try {
+                setCommentLoading(true);
+                const res = await fetch(`${API_BASE}/posts/${id}/comments`, {
+                    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error('評論載入失敗');
+                const data = await res.json();
+                const normalized = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+                setComments(
+                    normalized.map((c) => ({
+                        id: c.id,
+                        author: c.user?.display_name || c.user?.name || c.author || '訪客',
+                        avatar: resolveGcsUrl(c.user?.picture || null),
+                        content: c.content || '',
+                        createdAt: c.created_at
+                            ? new Date(c.created_at).toLocaleString('zh-TW')
+                            : '',
+                    }))
+                );
+            } catch (err) {
+                console.error('評論載入失敗:', err);
+                setComments([]);
+            } finally {
+                setCommentLoading(false);
+            }
+        };
+
         fetchPost();
+        fetchComments();
         return () => controller.abort();
     }, [id]);
 
@@ -275,6 +309,65 @@ export default function PostDetail({ theme, setTheme }) {
             });
         } finally {
             setLiking(false);
+        }
+    };
+
+    const handleCommentSubmit = async (e) => {
+        e?.preventDefault?.();
+        const trimmed = commentInput.trim();
+        if (!trimmed || postingComment) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            addToast({
+                type: 'error',
+                title: '請先登入',
+                message: '登入後才可以留言',
+                autoDismiss: 3000,
+            });
+            return;
+        }
+
+        try {
+            setPostingComment(true);
+            const res = await fetch(`${API_BASE}/posts/${id}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ content: trimmed }),
+            });
+            if (!res.ok) throw new Error('留言失敗，請稍後再試');
+
+            const data = await res.json();
+            const newComment = {
+                id: data.id,
+                author: data.user?.display_name || data.user?.name || '我',
+                avatar: resolveGcsUrl(data.user?.picture || null),
+                content: data.content || trimmed,
+                createdAt: data.created_at
+                    ? new Date(data.created_at).toLocaleString('zh-TW')
+                    : new Date().toLocaleString('zh-TW'),
+            };
+
+            setComments((prev) => [newComment, ...prev]);
+            setCommentInput('');
+            setPost((p) => ({ ...p, comments: (p?.comments ?? 0) + 1 }));
+
+            addToast({
+                type: 'success',
+                title: '留言成功',
+                message: '你的留言已送出',
+                autoDismiss: 2000,
+            });
+        } catch (err) {
+            console.error('留言失敗:', err);
+            addToast({
+                type: 'error',
+                title: '留言失敗',
+                message: err.message || '請稍後再試',
+                autoDismiss: 3000,
+            });
+        } finally {
+            setPostingComment(false);
         }
     };
 
@@ -469,11 +562,66 @@ export default function PostDetail({ theme, setTheme }) {
 
                         {/* 評論區 */}
                         <div className="mt-8 pt-6 border-t border-gray-200 text-left">
-                            <h4 className="text-xl font-bold text-gray-800 mb-4">評論區 (Comments)</h4>
-                            <div className="bg-gray-50 text-gray-500 text-center py-6 rounded-lg border border-dashed border-gray-300">
-                                <p className="font-medium">尚無評論或評論功能未實作</p>
-                                <p className="text-sm mt-1">（待加入評論輸入框和列表）</p>
-                            </div>
+                            <h4 className="text-xl font-bold text-gray-800 mb-4">評論區</h4>
+
+                            <form onSubmit={handleCommentSubmit} className="mb-6 space-y-3">
+                                <textarea
+                                    value={commentInput}
+                                    onChange={(e) => setCommentInput(e.target.value)}
+                                    placeholder="分享你的看法..."
+                                    className="w-full min-h-[100px] rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 bg-white px-4 py-3 text-gray-700 placeholder-gray-400 transition-all"
+                                />
+                                <div className="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        disabled={!commentInput.trim() || postingComment}
+                                        className="px-5 py-2 rounded-full bg-indigo-600 text-white font-medium shadow hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {postingComment ? '送出中...' : '送出留言'}
+                                    </button>
+                                </div>
+                            </form>
+
+                            {commentLoading ? (
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
+                                    載入評論中...
+                                </div>
+                            ) : comments.length === 0 ? (
+                                <div className="bg-gray-50 text-gray-500 text-center py-6 rounded-lg border border-dashed border-gray-300">
+                                    <p className="font-medium">尚無留言，成為第一個分享想法的人吧！</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {comments.map((comment) => (
+                                        <div
+                                            key={comment.id}
+                                            className="flex items-start gap-3 bg-white rounded-lg border border-gray-100 px-4 py-3 shadow-sm"
+                                        >
+                                            {comment.avatar ? (
+                                                <img
+                                                    src={comment.avatar}
+                                                    alt={comment.author}
+                                                    className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                                                    {comment.author?.charAt(0)?.toUpperCase() || '訪'}
+                                                </div>
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-semibold text-gray-800">{comment.author}</span>
+                                                    <span className="text-sm text-gray-400">{comment.createdAt}</span>
+                                                </div>
+                                                <p className="mt-1 text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
+                                                    {comment.content}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

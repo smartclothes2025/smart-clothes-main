@@ -9,6 +9,7 @@ import UploadSelect from './pages/UploadSelect';
 import UploadEdit from './pages/UploadEdit';
 import Assistant from './pages/Assistant';
 import Profile from './pages/Profile';
+import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
 import Post from './pages/Post';
 import PostDetail from './pages/PostDetail';
@@ -95,6 +96,7 @@ export default function App() {
  
             <Route path="/assistant" element={<Assistant theme={theme} setTheme={setTheme} />} />
             <Route path="/profile" element={<Profile theme={theme} setTheme={setTheme} />} />
+            <Route path="/user/:id" element={<UserProfile theme={theme} setTheme={setTheme} />} />
             <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
             <Route path="/virtual-fitting" element={<VirtualFitting theme={theme} setTheme={setTheme} />} />
             <Route path="/contact" element={<Contact theme={theme} setTheme={setTheme} />} />

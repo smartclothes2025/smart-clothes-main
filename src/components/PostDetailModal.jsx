@@ -1,5 +1,6 @@
 // src/components/PostDetailModal.jsx
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Trash2, Edit3, UserPlus, UserCheck, Share2 } from 'lucide-react';
 import AskModal from './AskModal';
 import { useToast } from './ToastProvider';
@@ -70,6 +71,8 @@ async function resolveMediaArray(mediaArr, token) {
 }
 
 export default function PostDetailModal({ postId, onClose }) {
+  const navigate = useNavigate();
+
   const [post, setPost] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,6 +84,8 @@ export default function PostDetailModal({ postId, onClose }) {
   const [followLoading, setFollowLoading] = useState(false);
 
   const [isLiked, setIsLiked] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   const [comments, setComments] = useState([]);
   const [commentLoading, setCommentLoading] = useState(false);
@@ -88,6 +93,12 @@ export default function PostDetailModal({ postId, onClose }) {
   const [postingComment, setPostingComment] = useState(false);
 
   const { addToast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editTag, setEditTag] = useState('');
+  const [editVisibility, setEditVisibility] = useState('public');
 
   // ESC 關閉
   useEffect(() => {
@@ -198,10 +209,20 @@ export default function PostDetailModal({ postId, onClose }) {
           }
         })();
 
-        const alreadyLiked = Array.isArray(likedList) && likedList.includes(data.id);
+        const favoriteList = (() => {
+          try {
+            return JSON.parse(localStorage.getItem('favoritePosts') || '[]');
+          } catch {
+            return [];
+          }
+        })();
 
-        // 是否已按讚（綜合後端狀態與 localStorage）
+        const alreadyLiked = Array.isArray(likedList) && likedList.includes(data.id);
+        const alreadyFavorited = Array.isArray(favoriteList) && favoriteList.includes(data.id);
+
+        // 是否已按讚/收藏（綜合後端狀態與 localStorage）
         setIsLiked(!!data.liked_by_me || alreadyLiked);
+        setIsFavorited(!!alreadyFavorited);
 
         setPost({
           id: data.id,
@@ -386,33 +407,134 @@ export default function PostDetailModal({ postId, onClose }) {
     }
   };
 
-  // 追蹤/取消追蹤（localStorage 模擬）
+  // 追蹤/取消追蹤（呼叫後端，並同步 localStorage）
   const handleFollowToggle = async () => {
     if (!post?.user_id) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      addToast({ type: 'error', title: '請先登入', message: '登入後才可以追蹤其他使用者', autoDismiss: 3000 });
+      return;
+    }
+
+    const prevFollowing = isFollowing;
+    const optimisticFollowing = !prevFollowing;
+    setIsFollowing(optimisticFollowing);
     setFollowLoading(true);
+
     try {
-      const followList = JSON.parse(localStorage.getItem('followingUsers') || '[]');
-      let newFollowList, message;
-      if (isFollowing) {
-        newFollowList = followList.filter(id => id !== post.user_id);
-        message = `已取消追蹤 ${post.author}`;
-      } else {
-        newFollowList = [...followList, post.user_id];
-        message = `已追蹤 ${post.author}`;
+      const res = await fetch(`${API_BASE}/users/${post.user_id}/follow`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      const rawText = await res.text();
+      let data = {};
+      try { data = JSON.parse(rawText || '{}'); } catch { }
+      if (!res.ok) {
+        throw new Error(data.detail || rawText || `HTTP ${res.status}`);
       }
-      localStorage.setItem('followingUsers', JSON.stringify(newFollowList));
-      setIsFollowing(!isFollowing);
-      addToast({ type: 'success', title: isFollowing ? '取消追蹤成功' : '追蹤成功', message, autoDismiss: 2000 });
+
+      const serverFollowing = typeof data.following === 'boolean' ? data.following : null;
+      const finalFollowing = serverFollowing !== null ? serverFollowing : optimisticFollowing;
+      setIsFollowing(finalFollowing);
+
+      try {
+        let followList = JSON.parse(localStorage.getItem('followingUsers') || '[]');
+        if (!Array.isArray(followList)) followList = [];
+        if (finalFollowing) {
+          if (!followList.includes(post.user_id)) followList.push(post.user_id);
+        } else {
+          followList = followList.filter((id) => id !== post.user_id);
+        }
+        localStorage.setItem('followingUsers', JSON.stringify(followList));
+      } catch { }
+
+      const message = finalFollowing ? `已追蹤 ${post.author}` : `已取消追蹤 ${post.author}`;
+      addToast({
+        type: 'success',
+        title: finalFollowing ? '追蹤成功' : '取消追蹤成功',
+        message,
+        autoDismiss: 2000,
+      });
     } catch (err) {
       console.error('追蹤操作失敗:', err);
+      setIsFollowing(prevFollowing);
       addToast({ type: 'error', title: '操作失敗', message: err.message || '未知錯誤', autoDismiss: 3000 });
     } finally {
       setFollowLoading(false);
     }
   };
 
+  // 收藏/取消收藏（呼叫後端，並同步 localStorage）
+  const handleFavoriteToggle = async () => {
+    if (!post) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      addToast({ type: 'error', title: '請先登入', message: '登入後才可以收藏貼文', autoDismiss: 3000 });
+      return;
+    }
+
+    const prevFavorited = isFavorited;
+    const optimisticFavorited = !prevFavorited;
+    setIsFavorited(optimisticFavorited);
+    setFavoriteLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}/favorite`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      const rawText = await res.text();
+      let data = {};
+      try { data = JSON.parse(rawText || '{}'); } catch { }
+      if (!res.ok) {
+        throw new Error(data.detail || rawText || `HTTP ${res.status}`);
+      }
+
+      const serverFavorited = typeof data.favorited === 'boolean' ? data.favorited : null;
+      const finalFavorited = serverFavorited !== null ? serverFavorited : optimisticFavorited;
+      setIsFavorited(finalFavorited);
+
+      try {
+        let favoriteList = JSON.parse(localStorage.getItem('favoritePosts') || '[]');
+        if (!Array.isArray(favoriteList)) favoriteList = [];
+        if (finalFavorited) {
+          if (!favoriteList.includes(post.id)) favoriteList.push(post.id);
+        } else {
+          favoriteList = favoriteList.filter((pid) => pid !== post.id);
+        }
+        localStorage.setItem('favoritePosts', JSON.stringify(favoriteList));
+      } catch { }
+
+      addToast({
+        type: 'success',
+        title: finalFavorited ? '已加入收藏' : '已取消收藏',
+        message: finalFavorited ? '這篇貼文已加入收藏列表' : '已從收藏列表移除',
+        autoDismiss: 2000,
+      });
+    } catch (err) {
+      console.error('favorite toggle failed:', err);
+      setIsFavorited(prevFavorited);
+      addToast({ type: 'error', title: '收藏失敗', message: err.message || '請稍後再試', autoDismiss: 3000 });
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
   const handleEdit = () => {
-    addToast({ type: 'info', title: '功能開發中', message: '編輯功能尚在開發中，敬請期待！', autoDismiss: 3000 });
+    if (!post) return;
+    setEditTitle(post.title || '');
+    setEditContent(post.content || '');
+    setEditTag(post.tags || '');
+    setEditVisibility(post.visibility || 'public');
+    setIsEditing(true);
   };
 
   const handleShare = async () => {
@@ -547,22 +669,51 @@ export default function PostDetailModal({ postId, onClose }) {
 
             {/* 作者 */}
             <div className="flex items-center mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
-              {post.avatar ? (
-                <img src={post.avatar} alt={post.author} className="w-12 h-12 rounded-full mr-3 object-cover border-2 border-white shadow-md" />
-              ) : (
-                <div className="w-12 h-12 rounded-full mr-3 bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center border-2 border-white shadow-md">
-                  <span className="text-white font-bold text-lg">{post.author?.charAt(0)?.toUpperCase() || '?'}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!post?.user_id) return;
+                  let currentUserId = null;
+                  try {
+                    const token = localStorage.getItem('token') || '';
+                    if (token.startsWith('user-') && token.endsWith('-token')) {
+                      currentUserId = token.slice(5, -6);
+                    }
+                  } catch {}
+                  if (!currentUserId) {
+                    try {
+                      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+                      currentUserId = localUser.id;
+                    } catch {}
+                  }
+                  if (currentUserId && String(currentUserId) === String(post.user_id)) {
+                    navigate('/profile');
+                  } else {
+                    navigate(`/user/${post.user_id}`);
+                  }
+                  if (typeof onClose === 'function') {
+                    onClose();
+                  }
+                }}
+                className="flex items-center flex-1 text-left focus:outline-none"
+              >
+                {post.avatar ? (
+                  <img src={post.avatar} alt={post.author} className="w-12 h-12 rounded-full mr-3 object-cover border-2 border-white shadow-md" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full mr-3 bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center border-2 border-white shadow-md">
+                    <span className="text-white font-bold text-lg">{post.author?.charAt(0)?.toUpperCase() || '?'}</span>
+                  </div>
+                )}
+                <div className="text-left">
+                  <h3 className="font-bold text-gray-900 leading-tight">{post.author}</h3>
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {post.time}
+                  </div>
                 </div>
-              )}
-              <div className="text-left flex-1">
-                <h3 className="font-bold text-gray-900 leading-tight">{post.author}</h3>
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {post.time}
-                </div>
-              </div>
+              </button>
               {!isOwner && (
                 <button
                   onClick={handleFollowToggle}
@@ -590,6 +741,109 @@ export default function PostDetailModal({ postId, onClose }) {
             {post.content && (
               <div className="mb-6 text-left">
                 <p className="text-lg text-gray-700 whitespace-pre-wrap leading-relaxed break-words">{post.content}</p>
+              </div>
+            )}
+
+            {isEditing && (
+              <div className="mb-6 text-left border border-indigo-100 rounded-2xl p-4 bg-indigo-50/40">
+                <h3 className="text-base font-semibold text-gray-800 mb-3">編輯貼文內容</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">標題</label>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">內容</label>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full min-h-[120px] rounded-lg border border-gray-200 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">標籤（以逗號分隔）</label>
+                    <input
+                      type="text"
+                      value={editTag}
+                      onChange={(e) => setEditTag(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">可見範圍</label>
+                    <select
+                      value={editVisibility}
+                      onChange={(e) => setEditVisibility(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    >
+                      <option value="public">公開</option>
+                      <option value="friends">好友</option>
+                      <option value="private">私人</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="px-4 py-2 rounded-full border border-gray-300 text-gray-600 text-sm hover:bg-gray-100"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!post) return;
+                        const token = localStorage.getItem('token');
+                        if (!token) {
+                          addToast({ type: 'error', title: '無法編輯', message: '請先登入後再編輯貼文', autoDismiss: 3000 });
+                          return;
+                        }
+                        try {
+                          const res = await fetch(`${API_BASE}/posts/${postId}`, {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`,
+                              Accept: 'application/json',
+                            },
+                            body: JSON.stringify({
+                              title: editTitle,
+                              content: editContent,
+                              tag: editTag,
+                              visibility: editVisibility,
+                            }),
+                          });
+                          const rawText = await res.text();
+                          let data = {};
+                          try { data = JSON.parse(rawText || '{}'); } catch {}
+                          if (!res.ok) {
+                            throw new Error(data.detail || rawText || `HTTP ${res.status}`);
+                          }
+                          setPost((prev) => ({
+                            ...prev,
+                            title: data.title ?? editTitle,
+                            content: data.content ?? editContent,
+                            tags: data.tag ?? editTag,
+                            visibility: data.visibility ?? editVisibility,
+                          }));
+                          setIsEditing(false);
+                          addToast({ type: 'success', title: '已更新貼文', message: '貼文內容已儲存', autoDismiss: 2000 });
+                        } catch (e) {
+                          console.error('update post failed:', e);
+                          addToast({ type: 'error', title: '編輯失敗', message: e.message || '請稍後再試', autoDismiss: 3000 });
+                        }
+                      }}
+                      className="px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                    >
+                      儲存變更
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -638,7 +892,7 @@ export default function PostDetailModal({ postId, onClose }) {
 
             {/* 互動列 */}
             <div className="pt-6 border-t-2 border-gray-100">
-              <div className="flex items-center gap-4 justify-center">
+              <div className="flex items-center gap-4 justify-center flex-wrap">
                 {/* 讚 */}
                 <button
                   onClick={handleToggleLike}
@@ -669,6 +923,32 @@ export default function PostDetailModal({ postId, onClose }) {
                   </svg>
                   <span className="font-bold">{post.comments}</span>
                   <span className="font-medium">評論</span>
+                </button>
+
+                {/* 收藏 */}
+                <button
+                  onClick={handleFavoriteToggle}
+                  disabled={favoriteLoading}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-200 group shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed
+                    ${isFavorited
+                      ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                      : 'bg-gradient-to-r from-amber-50 to-yellow-50 hover:from-amber-100 hover:to-yellow-100 text-gray-700 hover:text-yellow-700'
+                    }`}
+                >
+                  <svg
+                    className={`w-6 h-6 transition-all duration-200 ${isFavorited ? 'fill-yellow-500' : 'group-hover:scale-110'}`}
+                    fill={isFavorited ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 4a2 2 0 012-2h10a2 2 0 012 2v17l-7-4-7 4V4z"
+                    />
+                  </svg>
+                  <span className="font-medium">{isFavorited ? '已收藏' : '收藏'}</span>
                 </button>
               </div>
 
