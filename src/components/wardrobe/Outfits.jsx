@@ -47,7 +47,6 @@ export default function Outfits() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 從 API 載入當月穿搭（以 created_at 放入日曆）
   const fetchOutfits = useCallback(async (month) => {
     setLoading(true);
 
@@ -68,28 +67,25 @@ export default function Outfits() {
       if (!res.ok) throw new Error('無法載入穿搭資料');
       const data = await res.json();
 
-      /** 🔥 同一天只能顯示最新的一筆
-       * key: dateStr → 只保留 created_at 較晚的
-       */
       const map = {};
 
       for (const o of data) {
-        // ① 先抓 created_at
+        // ① 先抓 worn_date（以穿搭日期為主要來源）
         let dateStr = null;
         let createdTime = 0;
 
-        if (o.created_at) {
+        if (o.worn_date) {
           try {
-            const c = parseISO(o.created_at);
+            const c = parseISO(o.worn_date);
             dateStr = fmt(c);
             createdTime = c.getTime();
           } catch {}
         }
 
-        // ② created_at 不行才 fallback worn_date
-        if (!dateStr && o.worn_date) {
+        // ② worn_date 不行才 fallback 到 created_at
+        if (!dateStr && o.created_at) {
           try {
-            const w = parseISO(o.worn_date);
+            const w = parseISO(o.created_at);
             dateStr = fmt(w);
             createdTime = w.getTime();
           } catch {}

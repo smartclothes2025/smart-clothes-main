@@ -65,27 +65,12 @@ export default function Settings({ theme, setTheme, setIsLoggedIn, setUser, onLo
             通知
           </Row>
 
-          <Row onClick={() => {}}>
-            收藏的穿搭
-          </Row>
-
-          <Row onClick={() => {}}>
+          <Row onClick={() => nav('/profile?tab=collections')}>
             收藏的貼文
-          </Row>
-
-          <Row onClick={() => {}}>
-            帳號設定
           </Row>
 
           <Row onClick={() => nav('/contact')}>
             聯絡我們
-          </Row>
-
-          <Row onClick={() => {}}>
-            <div className="w-full flex items-center justify-between gap-3">
-              <span>切換主題</span>
-              <ThemeSelect theme={theme} setTheme={setTheme} />
-            </div>
           </Row>
 
           <Row onClick={handleLogout} disabled={loading}>

@@ -376,6 +376,7 @@ export default function Assistant({ theme, setTheme }) {
 
   const quickPrompts = [
     "隨機推薦今日穿搭",
+    "今天天氣如何?",
     "今天天氣適合穿什麼?",
   ];
 

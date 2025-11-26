@@ -5,7 +5,9 @@ import { X, Trash2, Edit3, UserPlus, UserCheck, Share2 } from 'lucide-react';
 import AskModal from './AskModal';
 import { useToast } from './ToastProvider';
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1";
 
 /** gs:// → https 可公開網址；http(s) 直接回傳 */
 function resolveGcsUrl(gsOrHttp) {
@@ -58,10 +60,16 @@ async function resolveMediaArray(mediaArr, token) {
   const out = [];
   for (const m of mediaArr || []) {
     const direct = m?.authenticated_url || m?.url || m?.image_url;
-    if (direct) { out.push({ ...m, _view: direct }); continue; }
+    if (direct) {
+      out.push({ ...m, _view: direct });
+      continue;
+    }
 
     const gcs = m?.gcs_uri || m?.image || null;
-    if (!gcs) { out.push(m); continue; }
+    if (!gcs) {
+      out.push(m);
+      continue;
+    }
 
     let signed = await trySign(gcs);
     if (!signed) signed = resolveGcsUrl(gcs);
@@ -161,18 +169,39 @@ export default function PostDetailModal({ postId, onClose }) {
         } catch { mediaArr = []; }
         const resolvedMedia = await resolveMediaArray(mediaArr, token);
 
-        // 作者資訊
+        // 作者資訊：強化頭貼來源（user / author / 根層的 picture / avatar_url）
         let authorName = "使用者";
         let authorAvatar = null;
         if (data.user) {
-          authorName = data.user.display_name || data.user.name || "使用者";
-          authorAvatar = resolveGcsUrl(data.user.picture || null);
+          authorName =
+            data.user.display_name ||
+            data.user.name ||
+            data.display_name ||
+            "使用者";
+          const rawAvatar =
+            data.user.picture ||
+            data.user.avatar_url ||
+            data.avatar_url ||
+            data.picture ||
+            null;
+          authorAvatar = resolveGcsUrl(rawAvatar);
         } else if (data.author) {
-          authorName = data.author.display_name || data.author.name || "使用者";
-          authorAvatar = resolveGcsUrl(data.author.picture || null);
-        } else if (data.display_name) {
-          authorName = data.display_name;
-          authorAvatar = resolveGcsUrl(data.picture || null);
+          authorName =
+            data.author.display_name ||
+            data.author.name ||
+            data.display_name ||
+            "使用者";
+          const rawAvatar =
+            data.author.picture ||
+            data.author.avatar_url ||
+            data.avatar_url ||
+            data.picture ||
+            null;
+          authorAvatar = resolveGcsUrl(rawAvatar);
+        } else {
+          authorName = data.display_name || data.author || "使用者";
+          const rawAvatar = data.avatar_url || data.picture || null;
+          authorAvatar = resolveGcsUrl(rawAvatar);
         }
 
         // 時間
@@ -258,13 +287,21 @@ export default function PostDetailModal({ postId, onClose }) {
         if (!res.ok) throw new Error('評論載入失敗');
         const data = await res.json();
         const normalized = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
-        setComments(normalized.map((c) => ({
-          id: c.id,
-          author: c.user?.display_name || c.user?.name || c.author || '訪客',
-          avatar: resolveGcsUrl(c.user?.picture || null),
-          content: c.content || '',
-          createdAt: c.created_at ? new Date(c.created_at).toLocaleString('zh-TW') : '',
-        })));
+        setComments(normalized.map((c) => {
+          const rawAvatar =
+            c.user?.picture ||
+            c.user?.avatar_url ||
+            c.picture ||
+            c.avatar_url ||
+            null;
+          return {
+            id: c.id,
+            author: c.user?.display_name || c.user?.name || c.author || '訪客',
+            avatar: resolveGcsUrl(rawAvatar),
+            content: c.content || '',
+            createdAt: c.created_at ? new Date(c.created_at).toLocaleString('zh-TW') : '',
+          };
+        }));
       } catch (err) {
         console.error('評論載入失敗:', err);
         setComments([]);
@@ -302,7 +339,7 @@ export default function PostDetailModal({ postId, onClose }) {
       });
       const rawText = await res.text();
       let data = {};
-      try { data = JSON.parse(rawText || "{}"); } catch {}
+      try { data = JSON.parse(rawText || "{}"); } catch { }
       if (!res.ok) throw new Error(data.detail || rawText || `HTTP ${res.status}`);
 
       const serverCount = typeof data.like_count === "number" ? data.like_count : null;
@@ -328,7 +365,7 @@ export default function PostDetailModal({ postId, onClose }) {
           likedList = likedList.filter((pid) => pid !== post.id);
         }
         localStorage.setItem('likedPosts', JSON.stringify(likedList));
-      } catch {}
+      } catch { }
     } catch (e) {
       // 回滾
       setIsLiked(prevLiked);
@@ -361,10 +398,15 @@ export default function PostDetailModal({ postId, onClose }) {
       if (!res.ok) throw new Error('留言失敗，請稍後再試');
 
       const data = await res.json();
+      const rawAvatar =
+        data.user?.picture ||
+        data.user?.avatar_url ||
+        null;
+
       const newComment = {
         id: data.id,
         author: data.user?.display_name || data.user?.name || '我',
-        avatar: resolveGcsUrl(data.user?.picture || null),
+        avatar: resolveGcsUrl(rawAvatar),
         content: data.content || trimmed,
         createdAt: data.created_at ? new Date(data.created_at).toLocaleString('zh-TW') : new Date().toLocaleString('zh-TW'),
       };
@@ -679,12 +721,12 @@ export default function PostDetailModal({ postId, onClose }) {
                     if (token.startsWith('user-') && token.endsWith('-token')) {
                       currentUserId = token.slice(5, -6);
                     }
-                  } catch {}
+                  } catch { }
                   if (!currentUserId) {
                     try {
                       const localUser = JSON.parse(localStorage.getItem('user') || '{}');
                       currentUserId = localUser.id;
-                    } catch {}
+                    } catch { }
                   }
                   if (currentUserId && String(currentUserId) === String(post.user_id)) {
                     navigate('/profile');
@@ -744,6 +786,7 @@ export default function PostDetailModal({ postId, onClose }) {
               </div>
             )}
 
+            {/* 編輯區 */}
             {isEditing && (
               <div className="mb-6 text-left border border-indigo-100 rounded-2xl p-4 bg-indigo-50/40">
                 <h3 className="text-base font-semibold text-gray-800 mb-3">編輯貼文內容</h3>
@@ -820,7 +863,7 @@ export default function PostDetailModal({ postId, onClose }) {
                           });
                           const rawText = await res.text();
                           let data = {};
-                          try { data = JSON.parse(rawText || '{}'); } catch {}
+                          try { data = JSON.parse(rawText || '{}'); } catch { }
                           if (!res.ok) {
                             throw new Error(data.detail || rawText || `HTTP ${res.status}`);
                           }

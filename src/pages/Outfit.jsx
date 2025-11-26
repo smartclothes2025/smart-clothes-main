@@ -1,6 +1,7 @@
-// src/pages/Outfit.jsx 
+// src/pages/Outfit.jsx
 import React, { useState } from "react";
 import { format } from "date-fns";
+import { useLocation } from 'react-router-dom';
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useToast } from "../components/ToastProvider";
@@ -12,6 +13,7 @@ const API_BASE =
 
 export default function Outfit({ theme, setTheme }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   // 表單欄位
@@ -19,14 +21,16 @@ export default function Outfit({ theme, setTheme }) {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [syncToPost, setSyncToPost] = useState(false);
-  const [wornDate, setWornDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  // 若從日曆 Modal 跳轉過來，會夾帶 location.state.wornDate
+  const initialWornDate = (location && location.state && location.state.wornDate) || format(new Date(), "yyyy-MM-dd");
+  const [wornDate, setWornDate] = useState(initialWornDate);
 
   // 上傳穿搭照片
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  // 狀態
-  const [saving, setSaving] = useState(false);
+  // 狀態 (使用 uploading 來表示整個儲存過程)
+  const [uploading, setUploading] = useState(false);
   const [askCancel, setAskCancel] = useState(false);
 
   // 處理照片上傳（前端預覽）
@@ -35,73 +39,21 @@ export default function Outfit({ theme, setTheme }) {
     if (!f) return;
 
     setFile(f);
+    // 每次選擇新照片時，清除舊的 URL，讓垃圾回收機制釋放記憶體
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl); 
+    }
     const url = URL.createObjectURL(f);
     setPreviewUrl(url);
   };
 
-  // 上傳圖片到後端，取得 image_url
-  const uploadOutfitImage = async (token) => {
-    if (!file) {
-      toast.addToast({
-        type: "error",
-        title: "尚未選擇照片",
-        message: "請先上傳一張穿搭照片",
-      });
-      return null;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      // TODO: 🔧 如果你的後端路徑不同，在這裡改
-      const res = await fetch(`${API_BASE}/uploads/outfit-image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const t = await res.text();
-        console.error("上傳穿搭圖片失敗：", t);
-        toast.addToast({
-          type: "error",
-          title: "圖片上傳失敗",
-          message: "無法上傳穿搭照片，請稍後再試",
-        });
-        return null;
-      }
-
-      const data = await res.json();
-      if (!data.url) {
-        toast.addToast({
-          type: "error",
-          title: "圖片上傳錯誤",
-          message: "伺服器沒有回傳圖片網址",
-        });
-        return null;
-      }
-
-      return data.url;
-    } catch (err) {
-      console.error("uploadOutfitImage error:", err);
-      toast.addToast({
-        type: "error",
-        title: "網路錯誤",
-        message: "上傳圖片時發生錯誤：" + err.message,
-      });
-      return null;
-    }
-  };
-
+  // 儲存穿搭：前端轉成 base64，呼叫 /fitting/save-outfit
   const handleSave = async () => {
     if (!title.trim()) {
       toast.addToast({
         type: "error",
         title: "缺少標題",
-        message: "請為這套穿搭取一個標題 ✨",
+        message: "請為這套穿搭取一個標題",
       });
       return;
     }
@@ -125,30 +77,33 @@ export default function Outfit({ theme, setTheme }) {
       return;
     }
 
-    setSaving(true);
+    setUploading(true); 
 
     try {
-      // 1️⃣ 先上傳圖片，取得 image_url
-      const imageUrl = await uploadOutfitImage(token);
-      if (!imageUrl) {
-        setSaving(false);
-        return;
-      }
+      const fileToRead = file;
+      const readerResult = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(fileToRead);
+      });
 
-      // 2️⃣ 呼叫 /fitting/save-outfit 儲存穿搭記錄
+      const imageDataUrl = typeof readerResult === "string" ? readerResult : "";
+
       const tagString = tags
-        .split(/[,\s]+/)
+        .split(/[,"\s]+/)
         .filter(Boolean)
         .join(",");
 
       const payload = {
-        worn_date: wornDate, // 使用表單選的日期
+  // 將穿搭日期傳給後端，同時把 created_at 設為同一天（時分秒設為 00:00:00），以便後端在以 created_at 做排序/顯示時跟著這個日期
+  worn_date: wornDate,
+  created_at: `${wornDate}T00:00:00`,
         title: title.trim(),
         description: description.trim(),
         tags: tagString,
-        image_url: imageUrl,
+        image_data: imageDataUrl,
         sync_to_post: syncToPost,
-        // 純上傳穿搭照片，因此給空陣列
         item_ids: [],
       };
 
@@ -164,12 +119,16 @@ export default function Outfit({ theme, setTheme }) {
       if (!res.ok) {
         const t = await res.text();
         console.error("save-outfit error:", t);
+        let detail = t;
+        try {
+          detail = JSON.parse(t).detail || t;
+        } catch (e) {}
         toast.addToast({
           type: "error",
           title: "儲存失敗",
-          message: "儲存穿搭時發生錯誤，請稍後再試",
+          message: `儲存穿搭失敗：${detail}`,
         });
-        setSaving(false);
+        setUploading(false);
         return;
       }
 
@@ -178,22 +137,23 @@ export default function Outfit({ theme, setTheme }) {
         title: syncToPost ? "已保存並發布" : "穿搭已保存",
         message: syncToPost
           ? "穿搭已保存並同步發布到貼文！"
-          : "穿搭已成功保存 🎉",
+          : "穿搭已成功保存",
       });
 
-      setSaving(false);
-      navigate("/wardrobe");
+      // 釋放前端預覽 URL 佔用的記憶體
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  navigate("/wardrobe?tab=穿搭日記");
     } catch (err) {
       console.error("handleSave error:", err);
       toast.addToast({
         type: "error",
         title: "網路錯誤",
-        message: "儲存穿搭時發生錯誤：" + err.message,
+        message: "儲存穿搭時發生錯誤，請檢查網路連線",
       });
-      setSaving(false);
+    } finally {
+      setUploading(false);
     }
   };
-
   return (
     <Layout title="上傳穿搭" theme={theme} setTheme={setTheme}>
       <div className="page-wrapper">
@@ -201,12 +161,8 @@ export default function Outfit({ theme, setTheme }) {
           <div className="mb-4">
             <h1 className="text-xl font-bold text-slate-800">上傳今日穿搭</h1>
           </div>
-
-          {/* 🔥 左右兩欄：左邊上傳＋預覽，右邊表單 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 左側：上傳 & 預覽 */}
             <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
-              {/* 上傳區：粉紅框，風格跟虛擬試衣一樣 */}
               <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">
                   📸 上傳您的照片
@@ -247,7 +203,6 @@ export default function Outfit({ theme, setTheme }) {
                 </label>
               </div>
 
-              {/* 大圖預覽區：仿 VirtualFitting 下半部 */}
               <div className="relative bg-gradient-to-b from-blue-50 to-gray-50 rounded-lg p-4 sm:p-8 min-h-[400px] h-[60vh] max-h-[700px] flex items-center justify-center overflow-hidden">
                 {previewUrl ? (
                   <div className="w-full h-full flex items-center justify-center">
@@ -267,7 +222,6 @@ export default function Outfit({ theme, setTheme }) {
               </div>
             </div>
 
-            {/* 右側：表單區域 */}
             <div className="bg-white rounded-xl shadow-xl p-4 md:p-6">
               <h2 className="text-xl font-bold mb-4">穿搭資訊</h2>
 
@@ -347,10 +301,10 @@ export default function Outfit({ theme, setTheme }) {
               <div className="flex gap-3">
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={uploading}
                   className="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium"
                 >
-                  {saving ? "儲存中..." : "保存穿搭"}
+                  {uploading ? "儲存中..." : "保存穿搭"}
                 </button>
                 <button
                   type="button"
@@ -365,7 +319,6 @@ export default function Outfit({ theme, setTheme }) {
         </div>
       </div>
 
-      {/* 取消確認 */}
       <AskModal
         open={askCancel}
         title="取消上傳穿搭？"
@@ -375,7 +328,8 @@ export default function Outfit({ theme, setTheme }) {
         destructive
         onConfirm={() => {
           setAskCancel(false);
-          navigate("/wardrobe");
+          if (previewUrl) URL.revokeObjectURL(previewUrl); 
+          navigate("/wardrobe?tab=穿搭日記");
         }}
         onCancel={() => setAskCancel(false)}
       />

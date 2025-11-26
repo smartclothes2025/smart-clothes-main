@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { useToast } from "../components/ToastProvider";
 import AskModal from "../components/AskModal";
 
@@ -212,8 +212,9 @@ export default function VirtualFitting({ theme, setTheme }) {
       return;
     }
 
-    const today = new Date();
-    const wornDate = format(today, "yyyy-MM-dd"); // YYYY-MM-DD
+  const today = new Date();
+  const createdDate = format(today, "yyyy-MM-dd"); // YYYY-MM-DD
+  const wornDateMinusOne = format(subDays(today, 1), "yyyy-MM-dd"); // yesterday
 
     const tagString = tags
       .split(/[,\s]+/)
@@ -221,7 +222,8 @@ export default function VirtualFitting({ theme, setTheme }) {
       .join(",");
 
     const payload = {
-      worn_date: wornDate,
+      worn_date: `${wornDateMinusOne}T00:00:00`,
+      created_at: `${createdDate}T00:00:00`,
       title: title.trim(),
       description: description.trim(),
       tags: tagString,
