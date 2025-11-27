@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Layout from "../components/Layout";
-import { ArrowUpCircleIcon } from "@heroicons/react/24/outline";
+import { ArrowUpCircleIcon, ChevronRightIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 
 const STORAGE_PREFIX = "assistant:messages";
@@ -14,7 +14,7 @@ const DEFAULT_MESSAGES = Object.freeze([
     id: 1,
     role: "assistant",
     kind: "text",
-    text: "嗨！我是你的穿搭小助手，有什麼穿搭建議都歡迎詢問我喔～",
+    text: "嗨！我是你的穿搭小助手，除了幫你想穿搭，也可以帶你逛 STYLESHOP 導購，有任何穿搭或功能相關的問題都可以問我～",
   },
 ]);
 
@@ -101,6 +101,7 @@ export default function Assistant({ theme, setTheme }) {
   const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
+  const [geo, setGeo] = useState({ lat: null, lon: null, city: "" });
 
 
   const [cardHeightPx, setCardHeightPx] = useState(null);
@@ -173,6 +174,21 @@ export default function Assistant({ theme, setTheme }) {
     );
     return () => cancelAnimationFrame(id);
   }, [messages, isTyping]);
+
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGeo((prev) => ({ ...prev, lat: latitude, lon: longitude }));
+      },
+      (err) => {
+        console.warn("取得定位失敗：", err);
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  }, []);
 
 
   useEffect(() => {
@@ -284,6 +300,8 @@ export default function Assistant({ theme, setTheme }) {
 
       const payload = {
         user_input: txt || "穿搭",  
+        lat: geo.lat,
+        lon: geo.lon,
       };
 
       console.log('📤 發送請求:', {
@@ -332,10 +350,60 @@ export default function Assistant({ theme, setTheme }) {
   }
 
 
+  const [showMoreFeatures, setShowMoreFeatures] = useState(false);
+
+  // 預設快速問題（原本 3 個 + 新增 2 個 App 操作問題）
   const quickPrompts = [
     "隨機推薦今日穿搭",
     "今天天氣如何?",
     "今天天氣適合穿什麼?",
+    "如何上傳衣服到衣櫃?",
+    "如何使用虛擬試衣功能?",
+  ];
+
+  // 分類功能選單
+  const featureCategories = [
+    {
+      title: "穿搭建議",
+      items: [
+        "根據天氣推薦穿搭",
+        "推薦約會穿搭",
+        "推薦運動穿搭",
+      ],
+    },
+    {
+      title: "衣櫃管理",
+      items: [
+        "如何查看我的衣櫃?",
+        "如何編輯衣物資訊?",
+        "如何刪除衣物?",
+      ],
+    },
+    {
+      title: "虛擬試衣",
+      items: [
+        "虛擬試衣可以上傳幾件衣服?",
+        "如何保存虛擬試衣結果?",
+        "如何分享虛擬試衣到貼文?",
+      ],
+    },
+    {
+      title: "STYLESHOP 導購",
+      items: [
+        "什麼是 STYLESHOP 導購?",
+        "如何使用 STYLESHOP 找到適合我的單品?",
+        "如何透過 STYLESHOP 直接購買?",
+      ],
+    },
+    {
+      title: "貼文與社交",
+      items: [
+        "如何發布穿搭貼文?",
+        "如何查看其他人的貼文?",
+        "如何按讚和留言?",
+        "如何查看通知?",
+      ],
+    },
   ];
 
 
@@ -356,20 +424,28 @@ export default function Assistant({ theme, setTheme }) {
             style={cardHeightPx ? { height: `${cardHeightPx}px` } : undefined}
           >
             <div
-              className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur flex flex-wrap gap-2 sticky top-0 z-10"
+              className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white/80 backdrop-blur sticky top-0 z-10"
             >
-              {quickPrompts.map((q) => (
+              <div className="flex flex-wrap gap-2">
+                {quickPrompts.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => {
+                      setInput(q);
+                      setTimeout(() => handleSend(null), 0);
+                    }}
+                    className="px-4 py-2 rounded-full text-sm border border-slate-200 text-slate-700 bg-green-50 hover:bg-green-100 transition-colors font-medium"
+                  >
+                    {q}
+                  </button>
+                ))}
                 <button
-                  key={q}
-                  onClick={() => {
-                    setInput(q);
-                    setTimeout(() => handleSend(null), 0);
-                  }}
-                  className="px-3 py-1 rounded-full text-sm border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  onClick={() => setShowMoreFeatures(true)}
+                  className="px-4 py-2 rounded-full text-sm border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors font-medium"
                 >
-                  {q}
+                  查看更多功能
                 </button>
-              ))}
+              </div>
             </div>
 
 
@@ -462,6 +538,51 @@ export default function Assistant({ theme, setTheme }) {
             </div>
           </div>
         </div>
+
+        {/* 更多功能 Modal */}
+        {showMoreFeatures && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center md:justify-center">
+            <div className="bg-white w-full md:max-w-2xl md:rounded-t-3xl rounded-t-3xl max-h-[80vh] overflow-y-auto">
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-800">常見問題</h3>
+                <button
+                  onClick={() => setShowMoreFeatures(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6 text-slate-600" />
+                </button>
+              </div>
+
+              {/* Categories */}
+              <div className="p-6 space-y-6">
+                {featureCategories.map((category) => (
+                  <div key={category.title}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-base font-semibold text-slate-800">{category.title}</h4>
+                      <ChevronRightIcon className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {category.items.map((item) => (
+                        <button
+                          key={item}
+                          onClick={() => {
+                            setInput(item);
+                            setShowMoreFeatures(false);
+                            setTimeout(() => handleSend(null), 100);
+                          }}
+                          className="px-4 py-2 rounded-full text-sm border border-slate-200 text-slate-700 bg-green-50 hover:bg-green-100 transition-colors font-medium"
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
