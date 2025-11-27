@@ -88,27 +88,27 @@ export default function PostCard({
       onClick={handleClick}
       className="group relative block w-full rounded-xl overflow-hidden bg-slate-200 ring-1 ring-slate-200 hover:ring-indigo-300 transition"
       aria-label={alt}
-      style={{ maxHeight: "300px" }}
     >
-      {loading ? (
-        <div className="w-full h-48 flex items-center justify-center bg-slate-100">
-          <span className="text-slate-400 text-sm">載入中…</span>
-        </div>
-      ) : resolvedSrc ? (
-        <img
-          src={resolvedSrc}
-          alt={alt}
-          className="w-full h-auto object-contain"
-          style={{ maxHeight: "300px" }}
-          loading="lazy"
-          decoding="async"
-          onError={handleImgError}
-        />
-      ) : (
-        <div className="w-full h-48 flex items-center justify-center bg-slate-200">
-          <span className="text-slate-400 text-sm">無圖片</span>
-        </div>
-      )}
+      <div className="w-full aspect-square bg-slate-100">
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center bg-slate-100">
+            <span className="text-slate-400 text-sm">載入中…</span>
+          </div>
+        ) : resolvedSrc ? (
+          <img
+            src={resolvedSrc}
+            alt={alt}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={handleImgError}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-200">
+            <span className="text-slate-400 text-sm">無圖片</span>
+          </div>
+        )}
+      </div>
 
       <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
