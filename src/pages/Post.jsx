@@ -104,13 +104,17 @@ export default function CreatePost() {
     });
   }
 
-  // 封裝本篇文章欄位 → 每張圖共用
-  function buildFormData(file) {
+  // 封裝本篇文章欄位，支援多張圖片
+  function buildFormData() {
     const fd = new FormData();
     let vis = (visibility || "public").toString();
     if (!ALLOWED_VISIBILITY.includes(vis)) vis = "public";
 
-    fd.append("file", file, file.name);
+    // 將所有圖片加入 FormData（使用 files 欄位名）
+    files.forEach((file) => {
+      fd.append("files", file, file.name);
+    });
+
     fd.append("title", (title || "").toString());
     fd.append("content", (content || "").toString());
     fd.append("visibility", vis);
@@ -118,7 +122,7 @@ export default function CreatePost() {
     return fd;
   }
 
-  async function performSingleUpload(fd) {
+  async function performUpload(fd) {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const res = await fetch(`${API_BASE}/posts/`, {
@@ -146,21 +150,21 @@ export default function CreatePost() {
 
     setUploading(true);
     try {
-      for (let i = 0; i < files.length; i++) {
-        const fd = buildFormData(files[i]);
-        const res = await performSingleUpload(fd);
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          let parsed = null;
-          try { parsed = JSON.parse(text); } catch { }
-          const errMsg = parsed?.detail || text || `${res.status} ${res.statusText}`;
-          throw new Error(`第 ${i + 1} 張上傳失敗：${errMsg}`);
-        }
+      // 一次性上傳所有圖片到同一篇貼文
+      const fd = buildFormData();
+      const res = await performUpload(fd);
+      
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let parsed = null;
+        try { parsed = JSON.parse(text); } catch { }
+        const errMsg = parsed?.detail || text || `${res.status} ${res.statusText}`;
+        throw new Error(`上傳失敗：${errMsg}`);
       }
 
       // 成功提示
       const toastTitle = "發佈完成";
-      const toastMessage = `已成功發佈（共 ${files.length} 張）。`;
+      const toastMessage = `已成功發佈貼文（共 ${files.length} 張照片）。`;
       addToast({ type: "success", title: toastTitle, message: toastMessage, autoDismiss: 3000 });
       // 同步到通知中心（若有用到）
       window.dispatchEvent(new CustomEvent("toast-fired", {
@@ -168,7 +172,7 @@ export default function CreatePost() {
       }));
 
       // 讓 Profile 重新抓清單
-      window.dispatchEvent(new CustomEvent("post-created", { detail: { count: files.length } }));
+      window.dispatchEvent(new CustomEvent("post-created", { detail: { count: 1 } }));
 
       // 清空表單
       setFiles([]);
