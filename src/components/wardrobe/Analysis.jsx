@@ -22,111 +22,207 @@ const N = (v) => {
   return Number.isFinite(num) ? num : NaN;
 };
 
-// ➊ 女性身材比例判斷 (保留您原有的邏輯)
+// 計算 BMI 和判斷
+function calculateBMI({ height, weight }) {
+  const H = N(height) / 100; // 轉換為公尺
+  const W = N(weight);
+  
+  if (!Number.isFinite(H) || !Number.isFinite(W) || H <= 0 || W <= 0) {
+    return { bmi: null, category: '資料不足', info: '請輸入身高和體重' };
+  }
+  
+  const bmi = W / (H * H);
+  let category = '';
+  let info = '';
+  
+  if (bmi < 18.5) {
+    category = '體重過輕';
+    info = 'BMI 低於 18.5，建議增加營養攝取';
+  } else if (bmi >= 18.5 && bmi < 24) {
+    category = '正常範圍';
+    info = 'BMI 在健康範圍內，請保持良好習慣';
+  } else if (bmi >= 24 && bmi < 27) {
+    category = '過重';
+    info = 'BMI 介於 24-27，建議注意飲食和運動';
+  } else if (bmi >= 27 && bmi < 30) {
+    category = '輕度肥胖';
+    info = 'BMI 介於 27-30，建議諮詢營養師';
+  } else if (bmi >= 30 && bmi < 35) {
+    category = '中度肥胖';
+    info = 'BMI 介於 30-35，建議尋求專業協助';
+  } else {
+    category = '重度肥胖';
+    info = 'BMI 超過 35，強烈建議就醫諮詢';
+  }
+  
+  return { bmi: bmi.toFixed(1), category, info };
+}
+
+// 女性身材比例判斷（使用新標準）
 function getFemaleBodyType({ bust, waist, hips, shoulder }) {
-  const B = N(bust), W = N(waist), H = N(hips), S2 = N(shoulder) * 2;
-  const isAllValid = [B, W, H, S2].every(Number.isFinite);
+  const B = N(bust), W = N(waist), H = N(hips), S = N(shoulder);
+  const S2 = S * 2; // 肩寬 × 2
+  const isAllValid = [B, W, H, S].every(Number.isFinite);
 
   if (!isAllValid) return { type: null, info: '請先完整輸入：肩寬、胸圍、腰圍、臀圍' };
 
   // 判斷依據數值
-  const diffBH = Math.abs(S2 - H); // 肩寬x2 vs 臀圍差
-  const diffBW = B - W;           // 胸圍 vs 腰圍差
-  const diffHW = H - W;           // 臀圍 vs 腰圍差
+  const diffBW = B - W;  // 胸圍 - 腰圍
+  const diffHW = H - W;  // 臀圍 - 腰圍
+  const diffHS = H - S2; // 臀圍 - 肩寬×2
+  const diffSH = S2 - H; // 肩寬×2 - 臀圍
+  const diffBH = Math.abs(B - H); // 胸圍與臀圍差異
 
-  // 沙漏：胸-腰 18~20 且 臀-腰 23~25（含臨界）
-  const condHourglass = (diffBW >= 18 && diffBW <= 20) && (diffHW >= 23 && diffHW <= 25);
-  if (condHourglass) return { type: '沙漏型身材', info: `胸-腰 ${diffBW.toFixed(1)} cm，臀-腰 ${diffHW.toFixed(1)} cm，符合沙漏條件。` };
+  // 除錯日誌
+  console.log('🔍 身材判斷數據:', {
+    胸圍: B, 腰圍: W, 臀圍: H, 肩寬: S, 肩寬x2: S2.toFixed(1),
+    '胸圍-腰圍': diffBW.toFixed(1),
+    '臀圍-腰圍': diffHW.toFixed(1),
+    '臀圍-肩寬x2': diffHS.toFixed(1),
+    '肩寬x2-臀圍': diffSH.toFixed(1),
+    '胸臀差': diffBH.toFixed(1)
+  });
 
-  // 蘋果：腰圍 > 臀圍
-  if (W > H) return { type: '蘋果型身材', info: `腰圍 (${W} cm) 大於 臀圍 (${H} cm)。` };
+  // 1. 沙漏型身材（最優先判斷）：胸圍與臀圍接近，腰明顯較細
+  // 再放寬標準：胸圍-腰圍 12-28 cm，臀圍-腰圍 15-33 cm，胸臀差 ≤ 7 cm
+  const isHourglassRelaxed = (diffBW >= 12 && diffBW <= 28) && 
+                              (diffHW >= 15 && diffHW <= 33) && 
+                              (diffBH <= 7);
+  
+  if (isHourglassRelaxed) {
+    console.log('✅ 判定為沙漏型');
+    return { 
+      type: '沙漏型身材', 
+      info: `胸圍-腰圍 ${diffBW.toFixed(1)} cm，臀圍-腰圍 ${diffHW.toFixed(1)} cm，胸臀比例均衡，曲線優美。` 
+    };
+  }
 
-  // 倒三角：肩寬×2 - 臀圍 > 3
-  if (S2 - H > 3) return { type: '倒三角身材', info: `肩寬×2 (${S2.toFixed(1)} cm) 明顯大於 臀圍 (${H} cm)，差值 ${ (S2 - H).toFixed(1) } cm。` };
+  // 2. 倒三角身材：肩寬×2 - 臀圍 > 5 公分
+  if (diffSH > 5) {
+    console.log('✅ 判定為倒三角');
+    return { 
+      type: '倒三角身材', 
+      info: `肩寬×2 (${S2.toFixed(1)} cm) 明顯大於 臀圍 (${H} cm)，差值 ${diffSH.toFixed(1)} cm。上半身較寬。` 
+    };
+  }
 
-  // 梨型：臀圍 - 肩寬×2 > 3
-  if (H - S2 > 3) return { type: '梨型身材（酪梨身材）', info: `臀圍 (${H} cm) 明顯大於 肩寬×2 (${S2.toFixed(1)} cm)，差值 ${(H - S2).toFixed(1)} cm。` };
+  // 3. 梨型身材（酪梨身材）：臀圍明顯大於胸圍和肩寬
+  // 條件：臀圍 - 肩寬×2 > 5 公分 且 臀圍 > 胸圍 + 3
+  if (diffHS > 5 && H > B + 3) {
+    console.log('✅ 判定為梨型');
+    return { 
+      type: '梨型身材（酪梨身材）', 
+      info: `臀圍 (${H} cm) 明顯大於胸圍 (${B} cm) 和肩寬×2 (${S2.toFixed(1)} cm)，下半身較為豐滿。` 
+    };
+  }
 
-  // H 型：肩寬×2 與 臀圍差 < 3
-  if (Math.abs(S2 - H) < 3) return { type: 'H 型身材（矩形身材）', info: `肩寬×2 (${S2.toFixed(1)} cm) 與 臀圍 (${H} cm) 差異在 3 cm 以內。` };
+  // 4. H 型身材（矩形身材）：腰圍與胸臀差異小
+  // 條件：胸圍-腰圍 < 15 或 臀圍-腰圍 < 20
+  if (diffBW < 15 || diffHW < 20) {
+    console.log('✅ 判定為 H 型');
+    return { 
+      type: 'H 型身材（矩形身材）', 
+      info: `腰部曲線不明顯，胸圍-腰圍 ${diffBW.toFixed(1)} cm，臀圍-腰圍 ${diffHW.toFixed(1)} cm，身形較為平直。` 
+    };
+  }
 
+  // 5. 蘋果型身材：腰圍 > 臀圍
+  if (W > H) {
+    console.log('✅ 判定為蘋果型');
+    return { 
+      type: '蘋果型身材', 
+      info: `腰圍 (${W} cm) 大於 臀圍 (${H} cm)，腰部較為豐滿。` 
+    };
+  }
+
+  console.log('⚠️ 未分類');
   return { type: '未分類', info: '數據介於臨界值，建議再量一次或屬於不常見類型。' };
 }
 
-// ➋ 新增：男性身材比例判斷
+// 男性身材比例判斷（使用新標準）
 function getMaleBodyType({ shoulder, waist, hips }) {
     const S = N(shoulder), W = N(waist), H = N(hips);
+    const S2 = S * 2; // 肩寬 × 2
     const isAllValid = [S, W, H].every(Number.isFinite);
 
     if (!isAllValid) return { type: null, info: '請先完整輸入：肩寬、腰圍、臀圍' };
 
     // 判斷依據數值
-    const diffSH = S - H; // 肩寬 vs 臀圍差
-    const diffSW = S - W; // 肩寬 vs 腰圍差
-    const diffWH = Math.abs(W - H); // 腰圍 vs 臀圍差
+    const diffHS = H - S2; // 臀圍 - 肩寬×2
+    const diffSH = S2 - H; // 肩寬×2 - 臀圍
 
-    // 倒三角 (V-shape): 肩膀明顯寬於臀部 (S > H, 且差值 > 5cm)
-    if (diffSH > 5) {
+    // 1. 蘋果型身材：腰圍 > 臀圍
+    if (W > H) {
         return {
-            type: '倒三角型身材（V 型）',
-            info: `肩寬 (${S} cm) 明顯大於 臀圍 (${H} cm)，差值 ${(diffSH).toFixed(1)} cm。`,
-        };
-    }
-    
-    // 橢圓/蘋果 (Oval/Apple): 腰圍是最大或接近最大的部位 (W > H 且 W > S)
-    if (W > H && W > S && W - S > 3) {
-        return {
-            type: '橢圓型身材（蘋果型）',
-            info: `腰圍 (${W} cm) 大於臀圍 (${H} cm) 和肩寬 (${S} cm)。`,
+            type: '蘋果型身材',
+            info: `腰圍 (${W} cm) 大於 臀圍 (${H} cm)，腰部較為豐滿。`,
         };
     }
 
-    // 三角 (Triangle/Pear): 臀部明顯寬於肩膀 (H > S, 且差值 > 3cm)
-    if (H - S > 3) {
+    // 2. 梨型身材（酪梨身材）：臀圍 - 肩寬×2 > 3 公分
+    if (diffHS > 3) {
         return {
-            type: '三角型身材',
-            info: `臀圍 (${H} cm) 明顯大於 肩寬 (${S} cm)，差值 ${(H - S).toFixed(1)} cm。`,
+            type: '梨型身材（酪梨身材）',
+            info: `臀圍 (${H} cm) 明顯大於 肩寬×2 (${S2.toFixed(1)} cm)，差值 ${diffHS.toFixed(1)} cm。下半身較為豐滿。`,
         };
     }
 
-    // 矩形 (Rectangle/H-shape): 肩、腰、臀三者尺寸差異小 (e.g., within 5cm)
-    if (Math.abs(diffSH) <= 5 && diffWH <= 5 && Math.abs(diffSW) <= 5) {
+    // 3. 倒三角身材：肩寬×2 - 臀圍 > 3 公分
+    if (diffSH > 3) {
         return {
-            type: '矩形型身材（H 型）',
-            info: `肩寬、腰圍、臀圍差異皆在 5 cm 內。`,
+            type: '倒三角身材',
+            info: `肩寬×2 (${S2.toFixed(1)} cm) 明顯大於 臀圍 (${H} cm)，差值 ${diffSH.toFixed(1)} cm。上半身較寬。`,
+        };
+    }
+
+    // 4. H 型身材（矩形身材）：肩寬×2 - 臀圍 < 3 公分
+    if (Math.abs(diffSH) < 3) {
+        return {
+            type: 'H 型身材（矩形身材）',
+            info: `肩寬×2 (${S2.toFixed(1)} cm) 與 臀圍 (${H} cm) 差異在 3 cm 以內，身形較為平直。`,
         };
     }
 
     return { type: '未分類', info: '數據介於臨界值，建議再量一次或屬於不常見類型。' };
 }
 
-
-// ➌ 統一的身體分析函式 (根據性別切換邏輯)
+// 統一的身體分析函式 (根據性別切換邏輯)
 function analyseBodyShape(metrics) {
     const { sex } = metrics; // 使用 sex
+    
+    // 計算 BMI
+    const bmiResult = calculateBMI(metrics);
     
     if (sex === '女') {
         const result = getFemaleBodyType(metrics);
         return {
             type: result.type,
             details: result.info,
-            analysisModel: '女性身體比例模型 ',
+            analysisModel: '女性身體比例模型',
+            bmi: bmiResult.bmi,
+            bmiCategory: bmiResult.category,
+            bmiInfo: bmiResult.info,
         };
     } else if (sex === '男') {
         const result = getMaleBodyType(metrics);
         return {
             type: result.type,
             details: result.info,
-            analysisModel: '男性身體比例模型 ',
+            analysisModel: '男性身體比例模型',
+            bmi: bmiResult.bmi,
+            bmiCategory: bmiResult.category,
+            bmiInfo: bmiResult.info,
         };
     }
     return {
         type: '無效性別',
         details: '請選擇性別以進行身材分析。',
         analysisModel: 'N/A',
+        bmi: bmiResult.bmi,
+        bmiCategory: bmiResult.category,
+        bmiInfo: bmiResult.info,
     };
 }
-
 
 // 身體數據元件
 const BodyMetrics = () => {
@@ -152,7 +248,6 @@ const BodyMetrics = () => {
     // 從後端 body_metrics 支援 sex 欄位
     sex: data.sex != null ? String(data.sex) : '',
   });
-
 
   // 載入使用者資料和身體數據 (包含性別)
   useEffect(() => {
@@ -302,7 +397,6 @@ const BodyMetrics = () => {
     }
   };
 
-
   // 渲染單個數據項 
   const renderMetricItem = (key, label) => (
     <div className="flex items-center justify-between py-2 border-b last:border-b-0">
@@ -353,11 +447,40 @@ const BodyMetrics = () => {
           </div>
         </div>
 
+        {/* BMI 分析區塊 */}
+        <div className="p-4 rounded-xl border-2 border-emerald-200 bg-emerald-50/50 mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <div className="text-lg font-bold text-emerald-800">BMI 分析</div>
+          </div>
 
-        {/* ➌ 性別與分析結果區塊 (版面調整重點) */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-base font-semibold text-gray-700">BMI 值</span>
+            <span className="text-2xl font-bold text-emerald-600">
+              {analysisResult.bmi || '—'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-base font-semibold text-gray-700">分類</span>
+            <span className={`text-base font-bold ${
+              analysisResult.bmiCategory === '正常範圍' ? 'text-green-600' :
+              analysisResult.bmiCategory === '體重過輕' ? 'text-yellow-600' :
+              analysisResult.bmiCategory === '過重' ? 'text-orange-600' :
+              'text-red-600'
+            }`}>
+              {analysisResult.bmiCategory || '資料不足'}
+            </span>
+          </div>
+
+          <div className="mt-2 text-sm text-gray-600">
+            <span className="font-medium">建議：</span>{analysisResult.bmiInfo}
+          </div>
+        </div>
+
+        {/* 性別與身形分析結果區塊 */}
         <div className="p-4 rounded-xl border-2 border-indigo-200 bg-indigo-50/50">
           <div className="flex justify-between items-center mb-4">
-            <div className="text-lg font-bold text-indigo-800">分析結果</div>
+            <div className="text-lg font-bold text-indigo-800">身形分析</div>
             <div className="text-sm text-gray-500">{analysisResult.analysisModel}</div>
           </div>
 
@@ -365,8 +488,8 @@ const BodyMetrics = () => {
             <span className="text-base font-semibold text-gray-700">性別</span>
             <span className="text-base font-medium text-indigo-600">
               {metrics.sex || '未設定'}
-              {metrics.sex === '女'}
-              {metrics.sex === '男'}
+              {metrics.sex === '女' && ' 👩'}
+              {metrics.sex === '男' && ' 👨'}
             </span>
           </div>
 

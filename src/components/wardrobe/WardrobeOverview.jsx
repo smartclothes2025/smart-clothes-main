@@ -53,7 +53,6 @@ const filters = [
   "帽子",
   "包包",
   "配件",
-  "襪子",
 ];
 
 const API_BASE =
@@ -224,12 +223,12 @@ export default function WardrobeOverview() {
     }
 
     // 超過 3 件 → 提醒但允許
-    if (selectedIds.length >= 3) {
+    if (selectedIds.length >= 2) {
       addToast({
         type: "warning",
         title: "選取衣物較多",
         message:
-          "選擇超過 3 件衣物時，智慧助理比較容易出現臉部判斷錯誤，建議減少單次選取數量。",
+          "選擇超過 2 件衣物時，比較容易出現臉部判斷錯誤，建議減少單次選取數量。",
       });
     }
 

@@ -250,7 +250,34 @@ export default function OutfitProposal() {
                               {/* 店家商品購買按鈕 */}
                               {isStore && item.purchaseUrl && (
                                 <button
-                                  onClick={() => window.open(item.purchaseUrl, '_blank')}
+                                  onClick={async () => {
+                                    // 1. 跳轉到外部連結
+                                    window.open(item.purchaseUrl, '_blank');
+                                    
+                                    // 2. 同時加入衣櫥
+                                    try {
+                                      const token = localStorage.getItem('token');
+                                      if (!token) return;
+                                      
+                                      const productId = item.itemId || item.id || item.productId;
+                                      const response = await fetch(
+                                        `https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/store/items/${productId}/add-to-wardrobe`,
+                                        {
+                                          method: 'POST',
+                                          headers: {
+                                            'Authorization': `Bearer ${token}`,
+                                          },
+                                        }
+                                      );
+                                      
+                                      if (response.ok) {
+                                        const result = await response.json();
+                                        console.log('✅ 已加入衣櫥:', result);
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ 加入衣櫥失敗:', error);
+                                    }
+                                  }}
                                   className="flex-shrink-0 px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors"
                                 >
                                   購買

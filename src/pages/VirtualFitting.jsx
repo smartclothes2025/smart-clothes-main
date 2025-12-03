@@ -45,6 +45,7 @@ export default function VirtualFitting({ theme, setTheme }) {
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+  const [generationInfo, setGenerationInfo] = useState(null);
 
   // ------------------------------
   // 初始化：載入選中的單品 / 自動生成
@@ -130,6 +131,7 @@ export default function VirtualFitting({ theme, setTheme }) {
     setGenerating(true);
     setGeneratedImageUrl(null);
     setGenerationError(null);
+    setGenerationInfo(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -161,6 +163,10 @@ export default function VirtualFitting({ theme, setTheme }) {
         const result = await res.json();
         if (result.type === "image" && result.url) {
           setGeneratedImageUrl(result.url);
+          // 保存生成資訊（包含身形、BMI 等）
+          if (result.text) {
+            setGenerationInfo(result.text);
+          }
         } else {
           setGenerationError(result.text || "請配置 AI 圖片生成服務");
         }
@@ -289,7 +295,7 @@ export default function VirtualFitting({ theme, setTheme }) {
                 {/* 用戶照片上傳 */}
                 <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                    📸 上傳您的照片
+                    📸 上傳您的全身照
                   </h3>
                   <input
                     type="file"

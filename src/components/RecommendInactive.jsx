@@ -155,9 +155,40 @@ export default function RecommendInactive({ days = 30, showTitle = true }) {
                         return (
                           <div key={s.id} className="shrink-0 relative">
                             <button
-                              onClick={() => isStore && hasPurchaseUrl ? window.open(hasPurchaseUrl, '_blank') : goToMix(item.id, s.id)}
+                              onClick={async () => {
+                                if (isStore && hasPurchaseUrl) {
+                                  // 1. 跳轉到外部連結
+                                  window.open(hasPurchaseUrl, '_blank');
+                                  
+                                  // 2. 同時加入衣櫥
+                                  try {
+                                    const token = localStorage.getItem('token');
+                                    if (!token) return;
+                                    
+                                    const productId = s.itemId || s.id || s.productId;
+                                    const response = await fetch(
+                                      `https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/store/items/${productId}/add-to-wardrobe`,
+                                      {
+                                        method: 'POST',
+                                        headers: {
+                                          'Authorization': `Bearer ${token}`,
+                                        },
+                                      }
+                                    );
+                                    
+                                    if (response.ok) {
+                                      const result = await response.json();
+                                      console.log('✅ 已加入衣櫥:', result);
+                                    }
+                                  } catch (error) {
+                                    console.error('❌ 加入衣櫥失敗:', error);
+                                  }
+                                } else {
+                                  goToMix(item.id, s.id);
+                                }
+                              }}
                               className="inline-flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2 hover:bg-gray-100 relative"
-                              title={isStore ? `前往 Style Shop 購買「${s.name}」` : `用「${item.name}」+「${s.name}」建立穿搭`}
+                              title={isStore ? `購買並加入衣櫥「${s.name}」` : `用「${item.name}」+「${s.name}」建立穿搭`}
                             >
                               {/* 來源標示 */}
                               <div className="absolute top-1 right-1 z-10">

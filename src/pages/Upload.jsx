@@ -81,7 +81,6 @@ export default function Upload({ theme, setTheme }) {
           "shoes": "鞋子",
           "bags": "包包",
           "hats": "帽子",
-          "socks": "襪子",
           "jewelry": "配件",
           "special": "特殊",
           "bottoms": "下身",
@@ -406,7 +405,6 @@ export default function Upload({ theme, setTheme }) {
                     <option>帽子</option>
                     <option>包包</option>
                     <option>配件</option>
-                    <option>襪子</option>
                   </select>
 
                   <label className="text-sm text-gray-600">顏色</label>

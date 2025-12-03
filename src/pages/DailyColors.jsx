@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import fetchJSON from '../lib/api';
 import { Palette, ShoppingBag, Sparkles, Loader2, AlertCircle } from 'lucide-react';
@@ -35,6 +36,7 @@ const COLOR_PALETTES = {
 
 export default function DailyColors() {
   const [selectedColor, setSelectedColor] = useState('neutral');
+  const navigate = useNavigate();
 
   // 呼叫本日主打色 API
   const { data, error, isLoading } = useSWR(
@@ -208,12 +210,59 @@ export default function DailyColors() {
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {storeItems.map(item => (
-                      <a
+                      <div
                         key={item.id}
-                        href={item.purchaseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow group"
+                        className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          
+                          try {
+                            const token = localStorage.getItem('token');
+                            if (!token) {
+                              alert('請先登入');
+                              return;
+                            }
+                            
+                            // 1. 先加入衣櫥
+                            const productId = item.itemId || item.id || item.productId;
+                            console.log('🛒 開始加入衣櫥，商品 ID:', productId);
+                            
+                            const response = await fetch(
+                              `https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/store/items/${productId}/add-to-wardrobe`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`,
+                                  'Content-Type': 'application/json',
+                                },
+                              }
+                            );
+                            
+                            if (!response.ok) {
+                              const errorData = await response.json().catch(() => ({}));
+                              console.error('❌ API 回應錯誤:', response.status, errorData);
+                              alert(`加入衣櫥失敗: ${errorData.detail || response.statusText}`);
+                              return;
+                            }
+                            
+                            const result = await response.json();
+                            console.log('✅ 成功加入衣櫥:', result);
+                            
+                            // 2. 開啟新分頁到外部購物網站
+                            if (item.purchaseUrl) {
+                              window.open(item.purchaseUrl, '_blank', 'noopener,noreferrer');
+                            }
+                            
+                            // 3. 跳轉到衣櫥頁面
+                            setTimeout(() => {
+                              navigate('/wardrobe');
+                            }, 300);
+                            
+                          } catch (error) {
+                            console.error('❌ 加入衣櫥失敗:', error);
+                            alert('加入衣櫥時發生錯誤，請稍後再試');
+                          }
+                        }}
                       >
                         <div className="aspect-square overflow-hidden bg-gray-100 relative">
                           <img
@@ -231,10 +280,10 @@ export default function DailyColors() {
                           <h5 className="font-medium text-gray-800 truncate text-sm">{item.name}</h5>
                           <p className="text-xs text-gray-500 mt-1">{item.category}</p>
                           <div className="mt-2 flex items-center justify-between">
-                            <span className="text-xs text-indigo-600 font-semibold">查看詳情 →</span>
+                            <span className="text-xs text-indigo-600 font-semibold">購買並加入衣櫥 →</span>
                           </div>
                         </div>
-                      </a>
+                      </div>
                     ))}
                   </div>
                 </div>

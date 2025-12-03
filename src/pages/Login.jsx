@@ -1,8 +1,8 @@
 // src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth } from '../firebase'; 
-import { signInWithEmailAndPassword } from "firebase/auth";
+// import { auth } from '../firebase'; 
+// import { signInWithEmailAndPassword } from "firebase/auth";
 import { useToast } from '../components/ToastProvider';
 
 const FIREBASE_ERROR_MAP = {
@@ -90,116 +90,87 @@ const LoginPage = ({ onLogin }) => {
     }
   }, [username, remember]);
 
-  // 登入流程（Firebase -> backend, fallback backend form）
-  const handleFirebaseLogin = async () => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, username, password);
-      const idToken = await userCredential.user.getIdToken(true);
-
-      const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      let data = null;
-      try { data = await response.json(); } catch (_) { data = null; }
-
-      if (!response.ok) {
-        const serverMsg = data?.detail || data?.message || data?.error || `登入失敗（HTTP ${response.status})`;
-        throw new Error(serverMsg);
-      }
-
-      const userFromBackend = data?.user || {};
-      const role = userFromBackend.role || 'user';
-
-      if (onLogin) onLogin({ token: data?.token || '', user: userFromBackend });
+  // 登入流程（直接後端驗證）
+  const handleBackendLogin = async () => {
+      // 移除 Firebase 相關程式碼和變數，只保留後端驗證邏輯
+      
+      // 執行後端直接驗證 (使用 x-www-form-urlencoded)
       try {
-        if (data?.token) localStorage.setItem('token', data.token);
-        if (userFromBackend) localStorage.setItem('user', JSON.stringify(userFromBackend));
-      } catch (e) { console.warn('LocalStorage 儲存失敗：', e); }
+          const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/login/', {
+              method: 'POST',
+              // 這是您後端 FastAPI 期望的格式
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+              // 傳遞帳號和密碼
+              body: new URLSearchParams({ email: username, password }), 
+          });
+          
+          let data = null;
+          try { data = await response.json(); } catch (_) { data = null; }
 
-      if (remember) {
-        try {
-          localStorage.setItem('rememberCredentials', 'true');
-          localStorage.setItem('savedUsername', username);
-        } catch (e) {}
+          if (!response.ok) {
+              const serverMsg = data?.detail || data?.message || data?.error || `登入失敗（HTTP ${response.status}）`;
+              // 如果後端返回 400/401 錯誤，拋出錯誤到 catch 區塊
+              throw new Error(serverMsg); 
+          }
+
+          // --- 登入成功處理 ---
+          
+          const userFromBackend = data?.user || {};
+          const role = userFromBackend.role || 'user';
+
+          // 儲存 Token 和使用者資料
+          if (onLogin) onLogin({ token: data?.token || '', user: userFromBackend });
+          try {
+              if (data?.token) localStorage.setItem('token', data.token);
+              if (userFromBackend) localStorage.setItem('user', JSON.stringify(userFromBackend));
+          } catch (e) { 
+              console.warn('LocalStorage 儲存失敗：', e); 
+          }
+
+          // 儲存記住我 (Remember Me) 資訊
+          if (remember) {
+              try {
+                  localStorage.setItem('rememberCredentials', 'true');
+                  localStorage.setItem('savedUsername', username);
+              } catch (e) {}
+          }
+
+          // 顯示成功通知
+          addToast({ type: 'success', title: '登入成功', message: `歡迎回來 ${userFromBackend.name || ''}`, autoDismiss: 2500 });
+
+          // 執行導航 (這是您之前失敗的地方)
+          if (role === 'admin') navigate('/admin/Dashboard', { replace: true });
+          else navigate('/home', { replace: true });
+
+          // 成功完成，退出函式
+          return; 
+          
+      } catch (err) {
+          // 如果 API 請求失敗 (例如 401 帳密錯誤)
+          console.error('[Login] 後端直接登入最終失敗：', err);
+          // 將錯誤拋給外層的 handleSubmit 處理 Toast
+          throw new Error(getFriendlyError(err)); 
       }
-
-      addToast({ type: 'success', title: '登入成功', message: `歡迎回來 ${userFromBackend.name || ''}`, autoDismiss: 2500 });
-
-      if (role === 'admin') navigate('/admin/Dashboard', { replace: true });
-      else navigate('/home', { replace: true });
-
-      return;
-    } catch (err) {
-      const code = err?.code;
-      if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') {
-        throw new Error(FIREBASE_ERROR_MAP[code] || getFriendlyError(err));
-      }
-      console.warn('Firebase 登入失敗或非認證錯誤，轉為後端直接登入：', err);
-    }
-
-    // fallback: 後端直接驗證
-    try {
-      const response = await fetch('https://cometical-kyphotic-deborah.ngrok-free.dev/api/v1/auth/login/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ email: username, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || data.message || data.error || `登入失敗（HTTP ${response.status})`);
-      }
-
-      const userFromBackend = data?.user || {};
-      const role = userFromBackend.role || 'user';
-
-      if (onLogin) onLogin({ token: data?.token || '', user: userFromBackend });
-      try {
-        if (data?.token) localStorage.setItem('token', data.token);
-        if (userFromBackend) localStorage.setItem('user', JSON.stringify(userFromBackend));
-      } catch (e) {}
-
-      if (remember) {
-        try {
-          localStorage.setItem('rememberCredentials', 'true');
-          localStorage.setItem('savedUsername', username);
-        } catch (e) {}
-      }
-
-      addToast({ type: 'success', title: '登入成功', message: `歡迎回來 ${userFromBackend.name || ''}`, autoDismiss: 2500 });
-
-      if (role === 'admin') navigate('/admin/Dashboard', { replace: true });
-      else navigate('/home', { replace: true });
-
-      return;
-    } catch (err) {
-      console.error('[Login] 最終錯誤：', err);
-      throw new Error(getFriendlyError(err));
-    }
   };
 
+  // 修正 handleSubmit 函式以呼叫新的函式名稱
   const handleSubmit = async (e) => {
-    e.preventDefault();
+      e.preventDefault();
 
-    if (!username || !password) {
-      addToast({ type: 'error', title: '欄位不足', message: '請填寫帳號與密碼', autoDismiss: 3500 });
-      return;
-    }
+      if (!username || !password) {
+          addToast({ type: 'error', title: '欄位不足', message: '請填寫帳號與密碼', autoDismiss: 3500 });
+          return;
+      }
 
-    setSubmitting(true);
-    try {
-      await handleFirebaseLogin();
-    } catch (err) {
-      console.warn('handleSubmit catch:', err);
-      addToast({ type: 'error', title: '登入失敗', message: getFriendlyError(err), autoDismiss: 5000 });
-    } finally {
-      setSubmitting(false);
-    }
+      setSubmitting(true);
+      try {
+          await handleBackendLogin(); // <--- 修正為呼叫新的函式
+      } catch (err) {
+          console.warn('handleSubmit catch:', err);
+          addToast({ type: 'error', title: '登入失敗', message: getFriendlyError(err), autoDismiss: 5000 });
+      } finally {
+          setSubmitting(false);
+      }
   };
 
   const handleGuestLogin = async () => {
